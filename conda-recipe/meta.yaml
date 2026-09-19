@@ -1,0 +1,55 @@
+{% set name = "conformatlas" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/conformatlas-{{ version }}.tar.gz
+  sha256: 57bb6b6d321400042714c64808dcbb855150c67a9de351537814842fcda156be
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  entry_points:
+    - conformatlas = conformatlas.cli:main
+
+requirements:
+  host:
+    - python >=3.10
+    - pip
+    - setuptools >=61.0
+    - wheel
+  run:
+    - python >=3.10
+    - numpy >=1.22.0
+    - scipy >=1.8.0
+    - pandas >=1.4.0
+    - matplotlib-base >=3.5.0
+    - click >=8.0.0
+    - jinja2 >=3.0.0
+    - pyyaml >=6.0
+    - scikit-image >=0.19.0
+
+test:
+  imports:
+    - conformatlas
+  commands:
+    - conformatlas --version
+    - conformatlas --help
+    - conformatlas doctor
+
+about:
+  home: https://github.com/AtharvaTilewale/ConformAtlas
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: "ConformAtlas: Rigorous PCA and Free Energy Landscape (FEL) analysis of molecular dynamics trajectories"
+  doc_url: https://github.com/AtharvaTilewale/ConformAtlas
+  dev_url: https://github.com/AtharvaTilewale/ConformAtlas
+
+extra:
+  recipe-maintainers:
+    - AtharvaTilewale

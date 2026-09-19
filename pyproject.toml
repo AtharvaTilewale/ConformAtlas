@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "conformatlas"
+version = "0.1.0"
+description = "ConformAtlas: Rigorous PCA and Free Energy Landscape (FEL) analysis of molecular dynamics trajectories"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Atharva Tilewale" },
+    { name = "Antigravity Engineering" }
+]
+keywords = ["molecular-dynamics", "gromacs", "pca", "free-energy-landscape", "biophysics", "structural-biology", "conformatlas"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy>=1.22.0",
+    "scipy>=1.8.0",
+    "pandas>=1.4.0",
+    "matplotlib>=3.5.0",
+    "click>=8.0.0",
+    "jinja2>=3.0.0",
+    "pyyaml>=6.0",
+    "scikit-image>=0.19.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "build>=0.10.0",
+]
+pdf = [
+    "weasyprint>=59.0",
+]
+
+[project.scripts]
+conformatlas = "conformatlas.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/AtharvaTilewale/ConformAtlas"
+Documentation = "https://github.com/AtharvaTilewale/ConformAtlas"
+Repository = "https://github.com/AtharvaTilewale/ConformAtlas"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+conformatlas = ["templates/*.j2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+markers = [
+    "integration: integration tests with real or synthetic MD trajectories",
+    "slow: tests that take longer to run",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501", "W291", "W293"]
+

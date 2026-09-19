@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use ConformAtlas in your research, please cite it as below."
+title: "ConformAtlas: MD Ensemble, PCA, and Free Energy Landscape Analysis"
+version: 0.1.0
+date-released: 2026-09-19
+url: "https://github.com/AtharvaTilewale/ConformAtlas"
+repository-code: "https://github.com/AtharvaTilewale/ConformAtlas"
+authors:
+  - family-names: "Tilewale"
+    given-names: "Atharva"
+keywords:
+  - "molecular dynamics"
+  - "GROMACS"
+  - "principal component analysis"
+  - "free energy landscape"
+  - "conformational states"
+  - "biophysics"
+  - "conformatlas"
+license: "MIT"

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConformAtlas Analysis Report - {{ project_name }}</title>
+    <style>
+        :root {
+            --primary: #1a365d;
+            --secondary: #2b6cb0;
+            --accent: #d69e2e;
+            --danger: #c53030;
+            --bg: #f7fafc;
+            --card-bg: #ffffff;
+            --text: #2d3748;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.2rem;
+        }
+        header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        .meta-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            font-size: 0.95rem;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .card h2 {
+            margin-top: 0;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+            font-size: 1.5rem;
+        }
+        .alert-warning {
+            background-color: #fffaf0;
+            border-left: 5px solid var(--accent);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .alert-warning h4 {
+            margin: 0 0 5px 0;
+            color: #744210;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background-color: #edf2f7;
+            color: var(--primary);
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f8fafc;
+        }
+        .figure-box {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .figure-box img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+        }
+        .figure-caption {
+            font-size: 0.95rem;
+            color: #718096;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .badge-success { background-color: #c6f6d5; color: #22543d; }
+        .badge-warning { background-color: #feebc8; color: #744210; }
+        .badge-danger  { background-color: #fed7d7; color: #742a2a; }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+        code {
+            background-color: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #2d3748;
+            color: #edf2f7;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ConformAtlas Analysis Report</h1>
+            <p>Conformational Ensemble & Free Energy Landscape Characterization</p>
+            <div class="meta-bar">
+                <div><strong>System:</strong> {{ system_name }}</div>
+                <div><strong>Temperature:</strong> {{ temperature }} K</div>
+                <div><strong>Total Frames:</strong> {{ total_frames }}</div>
+                <div><strong>Replicates:</strong> {{ num_replicates }}</div>
+                <div><strong>Date:</strong> {{ timestamp }}</div>
+                <div><strong>Version:</strong> {{ conformatlas_version }}</div>
+            </div>
+        </header>
+
+        <!-- Thermodynamic Limitation Warning -->
+        <div class="alert-warning">
+            <h4>Thermodynamic Sampling Notice</h4>
+            <p>
+                The free energy surfaces presented in this report are computed via Boltzmann inversion of the observed histogram occupancy:
+                <code>ΔG(x,y) = -R · T · ln[P(x,y) / P_max]</code>.
+                This formulation assumes that the trajectory represents an <strong>unbiased equilibrium ensemble</strong>.
+                If enhanced sampling methods (e.g., Metadynamics, Umbrella Sampling, Accelerated MD) were employed,
+                appropriate statistical reweighting must be applied to prevent distorted energy landscapes.
+            </p>
+        </div>
+
+        <!-- 1. Executive Summary -->
+        <div class="card">
+            <h2>1. Executive Summary & Detected Basins</h2>
+            <p>
+                Topological watershed segmentation of the 2D energy landscape (T = {{ temperature }} K)
+                identified <strong>{{ states|length }} major conformational states</strong> accounting for
+                <strong>{{ major_population_percent }}%</strong> of the sampled ensemble
+                (with {{ unassigned_population_percent }}% classified as minor/transitional conformations).
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Population (%)</th>
+                        <th>Min PC1</th>
+                        <th>Min PC2</th>
+                        <th>Min ΔG (kJ/mol)</th>
+                        <th>Representative Frame</th>
+                        <th>Time (ps)</th>
+                        <th>PDB Structure</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for st in states %}
+                    <tr>
+                        <td><strong>{{ st.label }}</strong></td>
+                        <td>{{ "%.1f"|format(st.population * 100) }}%</td>
+                        <td>{{ "%.3f"|format(st.min_pc1) }}</td>
+                        <td>{{ "%.3f"|format(st.min_pc2) }}</td>
+                        <td>{{ "%.2f"|format(st.min_free_energy) }}</td>
+                        <td>{{ st.representative_replicate }} (frame {{ st.representative_frame }})</td>
+                        <td>{{ "%.1f"|format(st.representative_time_ps) }}</td>
+                        <td><code>{{ st.representative_pdb or "representative.pdb" }}</code></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 2. Free Energy Landscapes -->
+        <div class="card">
+            <h2>2. Free Energy Landscape (FEL)</h2>
+            <div class="figure-box">
+                <img src="{{ fig_fel_2d }}" alt="2D Free Energy Landscape">
+                <div class="figure-caption">
+                    Figure 1: 2D Free Energy Surface at T = {{ temperature }} K along principal components PC1 and PC2.
+                    Annotated stars indicate identified conformational basin minima (ΔG in kJ/mol).
+                </div>
+            </div>
+            {% if fig_fel_3d %}
+            <div class="figure-box">
+                <img src="{{ fig_fel_3d }}" alt="3D Free Energy Landscape Perspective">
+                <div class="figure-caption">
+                    Figure 2: 3D Free Energy Landscape perspective view illustrating energy barrier heights and basin topography.
+                </div>
+            </div>
+            {% endif %}
+            <div class="figure-box">
+                <img src="{{ fig_basin_map }}" alt="Watershed Basin Map">
+                <div class="figure-caption">
+                    Figure 3: Topological watershed catchment basin segmentation map separating conformational states.
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. State Populations & Replicate Uncertainty -->
+        <div class="card">
+            <h2>3. State Populations & Uncertainty</h2>
+            <div class="figure-box">
+                <img src="{{ fig_populations }}" alt="State Populations">
+                <div class="figure-caption">
+                    Figure 4: Conformational state population fractions with uncertainty intervals ({{ uncertainty_type }}).
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Mean Population (%)</th>
+                        <th>SD</th>
+                        <th>SEM</th>
+                        <th>95% Confidence Interval</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in population_stats %}
+                    <tr>
+                        <td><strong>{{ row.State }}</strong></td>
+                        <td>{{ "%.1f"|format(row.Mean_Population_Percent) }}%</td>
+                        <td>{{ "%.2f"|format(row.SD if row.SD is defined else row.Block_SD) }}%</td>
+                        <td>{{ "%.2f"|format(row.SEM if row.SEM is defined else row.Block_SEM) }}%</td>
+                        <td>[{{ "%.1f"|format(row.CI_95_Lower) }}%, {{ "%.1f"|format(row.CI_95_Upper) }}%]</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 4. PCA Projections & Variance -->
+        <div class="card">
+            <h2>4. Principal Component Analysis (PCA)</h2>
+            <div class="figure-box">
+                <img src="{{ fig_pca_variance }}" alt="PCA Eigenvalues and Explained Variance">
+                <div class="figure-caption">
+                    Figure 5: Scree plot of eigenvalues and cumulative explained variance.
+                </div>
+            </div>
+            <div class="figure-box">
+                <img src="{{ fig_pca_scatter }}" alt="PCA Projections Scatter">
+                <div class="figure-caption">
+                    Figure 6: Trajectory frame projections onto PC1 and PC2.
+                </div>
+            </div>
+            {% if fig_pca_density %}
+            <div class="figure-box">
+                <img src="{{ fig_pca_density }}" alt="PCA Conformation Density">
+                <div class="figure-caption">
+                    Figure 7: 2D conformational ensemble density distribution across principal components.
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 5. Convergence Diagnostics -->
+        <div class="card">
+            <h2>5. Convergence & Sampling Diagnostics</h2>
+            <p>
+                Sampling Assessment:
+                <span class="badge {% if 'Good' in convergence.sampling_assessment %}badge-success{% elif 'Mixed' in convergence.sampling_assessment %}badge-warning{% else %}badge-danger{% endif %}">
+                    {{ convergence.sampling_assessment }}
+                </span>
+            </p>
+            <ul>
+                <li><strong>First vs Second Half Subspace Overlap (RMSIP):</strong> {{ "%.2f"|format(convergence.rmsip_halves) }}</li>
+                <li><strong>PC1 Cosine Content:</strong> {{ "%.2f"|format(convergence.cosine_content.get(1, 0.0)) }}</li>
+            </ul>
+            {% if fig_convergence_progressive %}
+            <div class="figure-box">
+                <img src="{{ fig_convergence_progressive }}" alt="Progressive Subspace Convergence">
+                <div class="figure-caption">
+                    Figure 8: Progressive subspace overlap (RMSIP) across cumulative trajectory fractions against the 0.70 threshold.
+                </div>
+            </div>
+            {% endif %}
+            {% if fig_convergence_cosine %}
+            <div class="figure-box">
+                <img src="{{ fig_convergence_cosine }}" alt="PC Cosine Content">
+                <div class="figure-caption">
+                    Figure 9: Principal component cosine content (diffusion test; values &lt; 0.50 indicate bounded motion).
+                </div>
+            </div>
+            {% endif %}
+            {% if fig_convergence_stability %}
+            <div class="figure-box">
+                <img src="{{ fig_convergence_stability }}" alt="State Population Stability">
+                <div class="figure-caption">
+                    Figure 10: Conformational state population stability curves over simulation progression.
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 6. Methods & Parameters -->
+        <div class="card">
+            <h2>6. Methods & Mathematical Formulations</h2>
+            <h3>Free Energy Calculation</h3>
+            <p>
+                The Free Energy Landscape (FEL) is evaluated as the potential of mean force:
+            </p>
+            <p style="text-align: center; font-size: 1.1rem;">
+                <code>ΔG(x, y) = -R · T · ln( P(x, y) / P_max )</code>
+            </p>
+            <p>
+                where <code>R = 0.008314462618 kJ/(mol·K)</code> is the molar gas constant, <code>T = {{ temperature }} K</code>,
+                and <code>P(x,y)</code> is the normalized 2D probability distribution evaluated across <code>{{ bins }} × {{ bins }}</code> bins.
+                Unobserved bins are safely masked as NaN.
+            </p>
+
+            <h3>Subspace Overlap (RMSIP)</h3>
+            <p>
+                Subspace overlap between two sets of orthonormal eigenvectors <em>U</em> and <em>V</em> across <em>s</em> modes is computed as:
+            </p>
+            <p style="text-align: center; font-size: 1.1rem;">
+                <code>RMSIP = [ (1 / s) · || U^T · V ||_F^2 ]^(1/2)</code>
+            </p>
+
+            <h3>Cosine Content</h3>
+            <p>
+                The cosine content of principal component projections tests for diffusive drift:
+            </p>
+            <p style="text-align: center; font-size: 1.1rem;">
+                <code>c_k = (2 / N) · [ ∑ p(t) · cos(k · π · t / (N - 1)) ]^2 / [ ∑ p(t)^2 ]</code>
+            </p>
+        </div>
+
+        <!-- 7. Reproducibility & Environment -->
+        <div class="card">
+            <h2>7. Run Metadata & Reproducibility</h2>
+            <table>
+                <tr><th>ConformAtlas Version</th><td>{{ conformatlas_version }}</td></tr>
+                <tr><th>Python Version</th><td>{{ python_version }}</td></tr>
+                <tr><th>GROMACS Version</th><td>{{ gromacs_version }}</td></tr>
+                <tr><th>NumPy / SciPy</th><td>{{ numpy_version }} / {{ scipy_version }}</td></tr>
+                <tr><th>Operating System</th><td>{{ os_info }}</td></tr>
+                <tr><th>Command Invocation</th><td><code>{{ command_line }}</code></td></tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Example Comparison Configuration
+project: WT_vs_MUT_Example
+temperature: 300.0
+output_dir: Outputs/results_comparison
+
+pca:
+  fit_group: Backbone
+  analysis_group: Backbone
+  reference: combined
+  components: 5
+
+bins: 32
+smooth_sigma: 1.0
+min_state_population: 0.05
+max_states: 5
+stride: 1
+
+systems:
+  - name: WT
+    topology: WT/topology.pdb
+    trajectories:
+      - WT/rep1.xtc
+      - WT/rep2.xtc
+
+  - name: MUT
+    topology: MUT/topology.pdb
+    trajectories:
+      - MUT/rep1.xtc
+      - MUT/rep2.xtc
