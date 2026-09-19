@@ -50,7 +50,9 @@ def compute_cartesian_pca(
         if n_dims is None:
             n_dims = flat.shape[1]
         elif flat.shape[1] != n_dims:
-            raise ValueError(f"Coordinate dimension mismatch in replicate {k}: {flat.shape[1]} vs {n_dims}")
+            raise ValueError(
+                f"Coordinate dimension mismatch in replicate {k}: {flat.shape[1]} vs {n_dims}"
+            )
         flattened_reps[k] = flat
 
     total_frames = sum(flat.shape[0] for flat in flattened_reps.values())
@@ -148,11 +150,16 @@ def run_gromacs_pca(
     gmx_runner.run(
         "covar",
         [
-            "-s", str(topology_path.resolve()),
-            "-f", str(primary_traj.resolve()),
-            "-o", str(eigenval_xvg.resolve()),
-            "-v", str(eigenvec_trr.resolve()),
-            "-av", str(average_pdb.resolve()),
+            "-s",
+            str(topology_path.resolve()),
+            "-f",
+            str(primary_traj.resolve()),
+            "-o",
+            str(eigenval_xvg.resolve()),
+            "-v",
+            str(eigenvec_trr.resolve()),
+            "-av",
+            str(average_pdb.resolve()),
         ],
         input_text=input_groups,
         cwd=pca_dir,
@@ -185,12 +192,18 @@ def run_gromacs_pca(
         gmx_runner.run(
             "anaeig",
             [
-                "-s", str(topology_path.resolve()),
-                "-f", str(traj_path.resolve()),
-                "-v", str(eigenvec_trr.resolve()),
-                "-first", "1",
-                "-last", str(min(n_components, len(evals_arr))),
-                "-proj", str(proj_xvg.resolve()),
+                "-s",
+                str(topology_path.resolve()),
+                "-f",
+                str(traj_path.resolve()),
+                "-v",
+                str(eigenvec_trr.resolve()),
+                "-first",
+                "1",
+                "-last",
+                str(min(n_components, len(evals_arr))),
+                "-proj",
+                str(proj_xvg.resolve()),
             ],
             input_text=input_groups,
             cwd=pca_dir,
@@ -209,7 +222,7 @@ def run_gromacs_pca(
                     pc_rows.append([float(p) for p in parts[1:]])
 
         pc_matrix = np.array(pc_rows, dtype=np.float64)
-        rep_df = pd.DataFrame(pc_matrix, columns=[f"PC{i+1}" for i in range(pc_matrix.shape[1])])
+        rep_df = pd.DataFrame(pc_matrix, columns=[f"PC{i + 1}" for i in range(pc_matrix.shape[1])])
         rep_df.insert(0, "system", "System")
         rep_df.insert(1, "replicate", rep_id)
         rep_df.insert(2, "frame", np.arange(len(times)))
@@ -233,12 +246,14 @@ def save_pca_results(pca_res: PCAResults, output_dir: str | Path) -> Path:
     pca_dir.mkdir(parents=True, exist_ok=True)
 
     # Eigenvalues & variance table
-    ev_df = pd.DataFrame({
-        "Mode": np.arange(1, len(pca_res.eigenvalues) + 1),
-        "Eigenvalue": pca_res.eigenvalues,
-        "ExplainedVariance_Percent": pca_res.explained_variance,
-        "CumulativeVariance_Percent": pca_res.cumulative_variance,
-    })
+    ev_df = pd.DataFrame(
+        {
+            "Mode": np.arange(1, len(pca_res.eigenvalues) + 1),
+            "Eigenvalue": pca_res.eigenvalues,
+            "ExplainedVariance_Percent": pca_res.explained_variance,
+            "CumulativeVariance_Percent": pca_res.cumulative_variance,
+        }
+    )
     ev_df.to_csv(pca_dir / "explained_variance.csv", index=False)
     ev_df[["Mode", "Eigenvalue"]].to_csv(pca_dir / "eigenvalues.csv", index=False)
 

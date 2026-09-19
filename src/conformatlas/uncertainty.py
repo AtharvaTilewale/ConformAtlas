@@ -51,23 +51,33 @@ def compute_replicate_statistics(
             sem_val = float(sd_val / np.sqrt(k)) if k > 1 else 0.0
             ci95_margin = float(t_crit * sem_val)
 
-            summary_records.append({
-                "State": st,
-                "Mean_Population_Percent": mean_val,
-                "SD": sd_val,
-                "SEM": sem_val,
-                "CI_95_Lower": max(0.0, mean_val - ci95_margin),
-                "CI_95_Upper": min(100.0, mean_val + ci95_margin),
-                "Num_Replicates": k,
-                "Uncertainty_Type": "between-replicate",
-            })
+            summary_records.append(
+                {
+                    "State": st,
+                    "Mean_Population_Percent": mean_val,
+                    "SD": sd_val,
+                    "SEM": sem_val,
+                    "CI_95_Lower": max(0.0, mean_val - ci95_margin),
+                    "CI_95_Upper": min(100.0, mean_val + ci95_margin),
+                    "Num_Replicates": k,
+                    "Uncertainty_Type": "between-replicate",
+                }
+            )
 
         summary_df = pd.DataFrame(summary_records)
         if summary_df.empty:
-            summary_df = pd.DataFrame(columns=[
-                "State", "Mean_Population_Percent", "SD", "SEM",
-                "CI_95_Lower", "CI_95_Upper", "Num_Replicates", "Uncertainty_Type"
-            ])
+            summary_df = pd.DataFrame(
+                columns=[
+                    "State",
+                    "Mean_Population_Percent",
+                    "SD",
+                    "SEM",
+                    "CI_95_Lower",
+                    "CI_95_Upper",
+                    "Num_Replicates",
+                    "Uncertainty_Type",
+                ]
+            )
         return summary_df, detailed_df, uncertainty_type
 
     else:
@@ -103,23 +113,33 @@ def compute_replicate_statistics(
             sem_val = float(sd_val / np.sqrt(k))
             ci95_margin = float(t_crit * sem_val)
 
-            summary_records.append({
-                "State": st,
-                "Mean_Population_Percent": mean_val,
-                "Block_SD": sd_val,
-                "Block_SEM": sem_val,
-                "CI_95_Lower": max(0.0, mean_val - ci95_margin),
-                "CI_95_Upper": min(100.0, mean_val + ci95_margin),
-                "Num_Blocks": k,
-                "Uncertainty_Type": "intra-trajectory-block",
-            })
+            summary_records.append(
+                {
+                    "State": st,
+                    "Mean_Population_Percent": mean_val,
+                    "Block_SD": sd_val,
+                    "Block_SEM": sem_val,
+                    "CI_95_Lower": max(0.0, mean_val - ci95_margin),
+                    "CI_95_Upper": min(100.0, mean_val + ci95_margin),
+                    "Num_Blocks": k,
+                    "Uncertainty_Type": "intra-trajectory-block",
+                }
+            )
 
         summary_df = pd.DataFrame(summary_records)
         if summary_df.empty:
-            summary_df = pd.DataFrame(columns=[
-                "State", "Mean_Population_Percent", "Block_SD", "Block_SEM",
-                "CI_95_Lower", "CI_95_Upper", "Num_Blocks", "Uncertainty_Type"
-            ])
+            summary_df = pd.DataFrame(
+                columns=[
+                    "State",
+                    "Mean_Population_Percent",
+                    "Block_SD",
+                    "Block_SEM",
+                    "CI_95_Lower",
+                    "CI_95_Upper",
+                    "Num_Blocks",
+                    "Uncertainty_Type",
+                ]
+            )
         return summary_df, detailed_df, uncertainty_type
 
 

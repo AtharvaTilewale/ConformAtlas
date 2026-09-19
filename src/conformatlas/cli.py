@@ -73,6 +73,7 @@ logger = logging.getLogger("conformatlas.cli")
 
 class ConformAtlasCommand(click.Command):
     """Command subclass that prints the ConformAtlas banner before showing help."""
+
     def format_help(self, ctx, formatter):
         print_banner(ctx)
         super().format_help(ctx, formatter)
@@ -80,6 +81,7 @@ class ConformAtlasCommand(click.Command):
 
 class ConformAtlasGroup(click.Group):
     """Group subclass that prints the ConformAtlas banner before showing help and commands."""
+
     command_class = ConformAtlasCommand
 
     def format_help(self, ctx, formatter):
@@ -110,24 +112,28 @@ def print_version(ctx, param, value):
     help="Show the version and exit.",
 )
 @click.option(
-    "-s", "--structure",
+    "-s",
+    "--structure",
     type=click.Path(),
     help="[Legacy] Structure/topology file (.pdb, .gro, .tpr).",
 )
 @click.option(
-    "-f", "--trajectory",
+    "-f",
+    "--trajectory",
     type=click.Path(),
     multiple=True,
     help="[Legacy] Trajectory file (.xtc). Repeatable for multiple replicates.",
 )
 @click.option(
-    "-T", "--temperature",
+    "-T",
+    "--temperature",
     type=float,
     default=300.0,
     help="Temperature in Kelvin (default: 300.0).",
 )
 @click.option(
-    "-o", "--output",
+    "-o",
+    "--output",
     type=click.Path(),
     default="Outputs",
     help="Output directory (default: Outputs).",
@@ -139,7 +145,9 @@ def main(ctx, structure, trajectory, temperature, output):
     if ctx.invoked_subcommand is None:
         if structure and trajectory:
             # Legacy invocation routed to analyze
-            click.echo(f"{YELLOW}Notice: Legacy syntax detected. Routing to 'conformatlas analyze'...{NC}")
+            click.echo(
+                f"{YELLOW}Notice: Legacy syntax detected. Routing to 'conformatlas analyze'...{NC}"
+            )
             ctx.invoke(
                 analyze,
                 structure=structure,
@@ -153,46 +161,57 @@ def main(ctx, structure, trajectory, temperature, output):
 
 @main.command(name="analyze")
 @click.option(
-    "-s", "--structure", "--topology", "structure",
+    "-s",
+    "--structure",
+    "--topology",
+    "structure",
     type=click.Path(exists=True),
     required=True,
     help="Topology/structure file (.tpr, .gro, .pdb).",
 )
 @click.option(
-    "-f", "--trajectory", "trajectory",
+    "-f",
+    "--trajectory",
+    "trajectory",
     type=click.Path(exists=True),
     multiple=True,
     required=True,
     help="Trajectory file (.xtc). Pass multiple times for replicates: -f rep1.xtc -f rep2.xtc.",
 )
 @click.option(
-    "-T", "--temperature",
+    "-T",
+    "--temperature",
     type=float,
     default=300.0,
     show_default=True,
     help="Simulation temperature in Kelvin (must be > 0).",
 )
 @click.option(
-    "-o", "--output",
+    "-o",
+    "--output",
     type=click.Path(),
     default="Outputs",
     show_default=True,
     help="Output directory for results and figures.",
 )
 @click.option(
-    "-l", "--lsq-group",
+    "-l",
+    "--lsq-group",
     default="Backbone",
     show_default=True,
     help="Least squares alignment group (e.g. Backbone, C-alpha, Protein).",
 )
 @click.option(
-    "-c", "--cov-group",
+    "-c",
+    "--cov-group",
     default="Backbone",
     show_default=True,
     help="Covariance / PCA analysis group.",
 )
 @click.option(
-    "-g", "--lig", "lig_group",
+    "-g",
+    "--lig",
+    "lig_group",
     default=None,
     help="Optional ligand group name (e.g. LIG, ATP).",
 )
@@ -289,7 +308,9 @@ def analyze(
     except Exception as e:
         click.echo(f"{YELLOW}Notice: GROMACS not available directly: {e}{NC}")
         if fel_backend == "gromacs":
-            click.echo(f"{RED}Error: GROMACS backend requested but GROMACS executable is unavailable.{NC}")
+            click.echo(
+                f"{RED}Error: GROMACS backend requested but GROMACS executable is unavailable.{NC}"
+            )
             sys.exit(1)
 
     # 1. Inspect trajectories
@@ -301,7 +322,9 @@ def analyze(
         traj_map[rep_id] = t_path
         info = inspect_trajectory(structure, t_path, rep_id, "System", gmx_runner=gmx_runner)
         traj_infos.append(info)
-        click.echo(f"  • {rep_id}: {info.n_frames} frames ({info.start_time_ps:.1f} to {info.end_time_ps:.1f} ps)")
+        click.echo(
+            f"  • {rep_id}: {info.n_frames} frames ({info.start_time_ps:.1f} to {info.end_time_ps:.1f} ps)"
+        )
 
     # 2. PCA calculation
     click.echo(f"\n{CYAN}Step 1: Computing Principal Component Analysis...{NC}")
@@ -325,7 +348,7 @@ def analyze(
         for rep_id, coords in coords_dict.items():
             proj_mat = project_coordinates(coords, mean_struct, evecs)
             t_vals = system_times[rep_id]
-            df = pd.DataFrame(proj_mat, columns=[f"PC{i+1}" for i in range(proj_mat.shape[1])])
+            df = pd.DataFrame(proj_mat, columns=[f"PC{i + 1}" for i in range(proj_mat.shape[1])])
             df.insert(0, "system", "System")
             df.insert(1, "replicate", rep_id)
             df.insert(2, "frame", np.arange(len(t_vals)))
@@ -355,11 +378,19 @@ def analyze(
         )
 
     save_pca_results(pca_results, out_dir)
-    top2_var = pca_results.cumulative_variance[1] if len(pca_results.cumulative_variance) > 1 else (pca_results.cumulative_variance[0] if len(pca_results.cumulative_variance) > 0 else 0.0)
+    top2_var = (
+        pca_results.cumulative_variance[1]
+        if len(pca_results.cumulative_variance) > 1
+        else (
+            pca_results.cumulative_variance[0] if len(pca_results.cumulative_variance) > 0 else 0.0
+        )
+    )
     click.echo(f"{GREEN}✔ PCA completed: Dominant modes explain {top2_var:.1f}% of variance.{NC}")
 
     # 3. FEL calculation
-    click.echo(f"\n{CYAN}Step 2: Calculating Free Energy Landscape (T = {temperature:.1f} K)...{NC}")
+    click.echo(
+        f"\n{CYAN}Step 2: Calculating Free Energy Landscape (T = {temperature:.1f} K)...{NC}"
+    )
     pc1 = pca_results.projections["PC1"].to_numpy()
     pc2 = pca_results.projections["PC2"].to_numpy()
 
@@ -385,12 +416,12 @@ def analyze(
 
     for st in states:
         click.echo(
-            f"  • {BOLD}{st.label}{NC}: {st.population*100:.1f}% pop | "
+            f"  • {BOLD}{st.label}{NC}: {st.population * 100:.1f}% pop | "
             f"Minima at PC1={st.min_pc1:.2f}, PC2={st.min_pc2:.2f} (ΔG = {st.min_free_energy:.2f} kJ/mol) | "
             f"Rep frame {st.representative_frame} ({st.representative_time_ps:.1f} ps)"
         )
     if unassigned_pop > 0:
-        click.echo(f"  • Minor / Transitional Conformations: {unassigned_pop*100:.1f}%")
+        click.echo(f"  • Minor / Transitional Conformations: {unassigned_pop * 100:.1f}%")
 
     # 5. Extract representatives
     click.echo(f"\n{CYAN}Step 4: Extracting Representative PDB Structures...{NC}")
@@ -441,7 +472,9 @@ def analyze(
     fig_fel_2d = plot_fel_2d(fel_grid, states=states, out_path=fig_dir / "fel_2d.png")
     fig_fel_3d = plot_fel_3d(fel_grid, out_path=fig_dir / "fel_3d.png")
     fig_basin = plot_basin_map(fel_grid, basin_map, states, fig_dir / "basin_map.png")
-    fig_pop = plot_state_populations(summary_pop_df, detailed_pop_df, fig_dir / "state_populations.png")
+    fig_pop = plot_state_populations(
+        summary_pop_df, detailed_pop_df, fig_dir / "state_populations.png"
+    )
     fig_conv_prog = plot_convergence_progressive(conv, fig_dir / "convergence_progressive.png")
     fig_conv_cosine = plot_convergence_cosine(conv, fig_dir / "convergence_cosine.png")
     fig_conv_stability = plot_convergence_stability(conv, fig_dir / "convergence_stability.png")
@@ -513,13 +546,17 @@ def analyze(
 
 @main.command(name="compare")
 @click.option(
-    "-c", "--config", "config_file",
+    "-c",
+    "--config",
+    "config_file",
     type=click.Path(exists=True),
     required=True,
     help="YAML configuration file for comparison.",
 )
 @click.option(
-    "-o", "--output", "output_dir",
+    "-o",
+    "--output",
+    "output_dir",
     type=click.Path(),
     default=None,
     help="Override output directory.",
@@ -576,6 +613,7 @@ def doctor():
     ]
 
     import importlib.metadata
+
     click.echo("\nChecking Python libraries:")
     for mod_name, required in deps:
         req_str = "Required" if required else "Optional"
@@ -596,14 +634,18 @@ def doctor():
 
 @main.command(name="init-config")
 @click.option(
-    "-t", "--type", "config_type",
+    "-t",
+    "--type",
+    "config_type",
     type=click.Choice(["compare", "analyze"]),
     default="compare",
     show_default=True,
     help="Configuration template type.",
 )
 @click.option(
-    "-o", "--output", "out_file",
+    "-o",
+    "--output",
+    "out_file",
     type=click.Path(),
     default=None,
     help="File to save template to. If omitted, prints to console.",
@@ -623,7 +665,9 @@ def init_config(config_type, out_file):
 
 @main.command(name="example")
 @click.option(
-    "-o", "--output", "output_dir",
+    "-o",
+    "--output",
+    "output_dir",
     type=click.Path(),
     default="example_project",
     show_default=True,
@@ -632,11 +676,14 @@ def init_config(config_type, out_file):
 def example(output_dir):
     """Generate a lightweight example dataset and comparison YAML configuration."""
     from conformatlas.examples_gen import generate_mini_example_dataset
+
     p = Path(output_dir)
     generate_mini_example_dataset(p)
     click.echo(f"{GREEN}✔ Example dataset created in: {p.resolve()}{NC}")
     click.echo("To test single analysis run:")
-    click.echo(f"  conformatlas analyze -s {p}/WT/topology.pdb -f {p}/WT/rep1.xtc -T 300 -o {p}/results_wt")
+    click.echo(
+        f"  conformatlas analyze -s {p}/WT/topology.pdb -f {p}/WT/rep1.xtc -T 300 -o {p}/results_wt"
+    )
     click.echo("To test comparison run:")
     click.echo(f"  conformatlas compare --config {p}/comparison.yaml -o {p}/results_comparison")
 

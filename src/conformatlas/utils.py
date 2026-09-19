@@ -15,21 +15,21 @@ R_GAS_CONSTANT = 0.008314462618
 
 # ANSI Color codes
 if sys.stdout.isatty():
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    CYAN = '\033[0;36m'
-    BOLD = '\033[1m'
-    NC = '\033[0m'
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[0;34m"
+    CYAN = "\033[0;36m"
+    BOLD = "\033[1m"
+    NC = "\033[0m"
 else:
-    RED = ''
-    GREEN = ''
-    YELLOW = ''
-    BLUE = ''
-    CYAN = ''
-    BOLD = ''
-    NC = ''
+    RED = ""
+    GREEN = ""
+    YELLOW = ""
+    BLUE = ""
+    CYAN = ""
+    BOLD = ""
+    NC = ""
 
 
 BANNER_RAW = """ ▄████▄   ▒█████   ███▄    █   █████▒▒█████   ██▀███   ███▄ ▄███▓ ▄▄▄     ▄▄▄█████▓ ██▓    ▄▄▄        ██████ 
@@ -51,7 +51,7 @@ def get_banner(color: bool = True) -> str:
         return "\n".join(lines)
 
     stops = [
-        (0.0, (0, 245, 235)),   # Electric Cyan
+        (0.0, (0, 245, 235)),  # Electric Cyan
         (0.5, (60, 130, 255)),  # Cobalt / Azure Blue
         (1.0, (185, 75, 250)),  # Neon Violet
     ]
@@ -97,6 +97,7 @@ def print_banner(ctx=None):
     if ctx is None:
         try:
             import click
+
             ctx = click.get_current_context(silent=True)
         except Exception:
             ctx = None
@@ -107,14 +108,16 @@ def print_banner(ctx=None):
             return
         root_ctx._banner_printed = True
 
-    use_color = sys.stdout.isatty() and not os.environ.get("NO_COLOR") and os.environ.get("TERM") != "dumb"
+    use_color = (
+        sys.stdout.isatty() and not os.environ.get("NO_COLOR") and os.environ.get("TERM") != "dumb"
+    )
     print(get_banner(color=use_color))
     print()
 
 
 def setup_logging(log_dir: Path, log_name_prefix: str = "conformatlas") -> Path:
     """Configures logging to file and console without leaking handlers.
-    
+
     Parameters
     ----------
     log_dir : Path
@@ -142,9 +145,7 @@ def setup_logging(log_dir: Path, log_name_prefix: str = "conformatlas") -> Path:
     # File handler
     fh = logging.FileHandler(log_path, encoding="utf-8")
     fh.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
+    file_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     fh.setFormatter(file_formatter)
     logger.addHandler(fh)
 
@@ -161,6 +162,7 @@ def setup_logging(log_dir: Path, log_name_prefix: str = "conformatlas") -> Path:
 
 class NumpyEncoder(json.JSONEncoder):
     """Custom JSON encoder to safely serialize NumPy data types."""
+
     def default(self, obj):
         if isinstance(obj, np.integer):
             return int(obj)

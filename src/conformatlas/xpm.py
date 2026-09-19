@@ -35,7 +35,10 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
         content = f.read()
 
     # 1. Parse header dimensions: "<width> <height> <ncolors> <chars_per_pixel>"
-    header_match = re.search(r'static\s+char\s*\*\s*\w+\[\]\s*=\s*\{\s*["\']\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*["\']', content)
+    header_match = re.search(
+        r'static\s+char\s*\*\s*\w+\[\]\s*=\s*\{\s*["\']\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*["\']',
+        content,
+    )
     if not header_match:
         # Fallback: look for the first quoted string containing 4 integers
         header_match = re.search(r'["\']\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*["\']', content)
@@ -54,7 +57,7 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
     y_floats: list[float] = []
 
     # Find all x-axis comment blocks
-    for match in re.finditer(r'/\*\s*x-axis:\s*(.*?)\*/', content, re.DOTALL):
+    for match in re.finditer(r"/\*\s*x-axis:\s*(.*?)\*/", content, re.DOTALL):
         tokens = match.group(1).split()
         for tok in tokens:
             try:
@@ -63,7 +66,7 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
                 continue
 
     # Find all y-axis comment blocks
-    for match in re.finditer(r'/\*\s*y-axis:\s*(.*?)\*/', content, re.DOTALL):
+    for match in re.finditer(r"/\*\s*y-axis:\s*(.*?)\*/", content, re.DOTALL):
         tokens = match.group(1).split()
         for tok in tokens:
             try:
@@ -76,13 +79,17 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
         if len(x_floats) == 0:
             x_floats = [float(i) for i in range(width)]
         else:
-            raise ValueError(f"Parsed {len(x_floats)} x-axis values but XPM header specifies width {width}.")
+            raise ValueError(
+                f"Parsed {len(x_floats)} x-axis values but XPM header specifies width {width}."
+            )
 
     if len(y_floats) != height:
         if len(y_floats) == 0:
             y_floats = [float(j) for j in range(height)]
         else:
-            raise ValueError(f"Parsed {len(y_floats)} y-axis values but XPM header specifies height {height}.")
+            raise ValueError(
+                f"Parsed {len(y_floats)} y-axis values but XPM header specifies height {height}."
+            )
 
     # 3. Parse color map lines
     # Example formats in GROMACS:
@@ -93,7 +100,9 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
 
     lines = content.splitlines()
     # Find lines that define color mappings
-    color_line_pattern = re.compile(r'^"(.{' + str(cpp) + r'})\s+c\s+([^\s"]+)\s*"\s*(?:/\*\s*["\']?([^"\'\*]+)["\']?\s*\*/)?')
+    color_line_pattern = re.compile(
+        r'^"(.{' + str(cpp) + r'})\s+c\s+([^\s"]+)\s*"\s*(?:/\*\s*["\']?([^"\'\*]+)["\']?\s*\*/)?'
+    )
 
     for line in lines:
         stripped = line.strip()
@@ -124,8 +133,8 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
         # Fallback: find any line of form "symbol c ... "
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith('"') and ' c ' in stripped:
-                sym = stripped[1:1+cpp]
+            if stripped.startswith('"') and " c " in stripped:
+                sym = stripped[1 : 1 + cpp]
                 if sym not in symbol_to_val:
                     # extract any float inside /* "..." */
                     fm = re.search(r'/\*\s*["\']?([0-9\.\-\+eE]+)["\']?\s*\*/', stripped)
@@ -140,7 +149,12 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
     raw_rows: list[str] = []
     for line in lines:
         stripped = line.strip()
-        if stripped.startswith('"') and not stripped.startswith('/*') and ' c ' not in stripped and not stripped.startswith(f'"{width} '):
+        if (
+            stripped.startswith('"')
+            and not stripped.startswith("/*")
+            and " c " not in stripped
+            and not stripped.startswith(f'"{width} ')
+        ):
             # Extract row string inside quotes
             # Handle possible trailing comma
             match_row = re.match(r'^"([^"]*)"', stripped)
@@ -151,7 +165,7 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
 
     if len(raw_rows) != height:
         raise ValueError(
-            f"Expected {height} matrix rows of width {width*cpp}, found {len(raw_rows)} rows in {path}"
+            f"Expected {height} matrix rows of width {width * cpp}, found {len(raw_rows)} rows in {path}"
         )
 
     # GROMACS XPM orders rows top-down (row 0 is maximum y).

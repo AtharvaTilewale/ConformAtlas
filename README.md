@@ -15,7 +15,8 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
+[![CI](https://github.com/AtharvaTilewale/ConformAtlas/actions/workflows/ci.yml/badge.svg)](https://github.com/AtharvaTilewale/ConformAtlas/actions/workflows/ci.yml)
+[![Documentation Status](https://readthedocs.org/projects/conformatlas/badge/?version=latest)](https://conformatlas.readthedocs.io/en/latest/?badge=latest)
 
 **ConformAtlas** is a rigorous Python package and CLI tool for molecular dynamics (MD) ensemble, Principal Component Analysis (PCA), and Free Energy Landscape (FEL) characterization using GROMACS or direct trajectory streaming.
 
@@ -145,7 +146,7 @@ If you use ConformAtlas in your research, please cite:
   author = {Tilewale, Atharva},
   title = {ConformAtlas: MD Ensemble, PCA, and Free Energy Landscape Analysis},
   year = {2026},
-  version = {0.1.0},
+  version = {0.1.1},
   url = {https://github.com/AtharvaTilewale/ConformAtlas}
 }
 ```

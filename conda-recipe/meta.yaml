@@ -1,5 +1,5 @@
 {% set name = "conformatlas" %}
-{% set version = "0.1.0" %}
+{% set version = "0.1.1" %}
 
 package:
   name: {{ name|lower }}
@@ -7,7 +7,7 @@ package:
 
 source:
   url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/conformatlas-{{ version }}.tar.gz
-  sha256: 57bb6b6d321400042714c64808dcbb855150c67a9de351537814842fcda156be
+  sha256: 2675348ee94446d23ac5329538c55746cba5b436cda9b6295bcd63dfa3512096
 
 build:
   noarch: python

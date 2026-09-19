@@ -39,7 +39,7 @@ def calculate_subspace_rmsip(u: np.ndarray, v: np.ndarray) -> float:
     # Inner products matrix M = U^T V
     m = u.T @ v
     # Frobenius norm squared divided by s
-    frobenius_sq = np.sum(m ** 2)
+    frobenius_sq = np.sum(m**2)
     val = np.sqrt(frobenius_sq / s)
     return float(np.clip(val, 0.0, 1.0))
 
@@ -72,7 +72,7 @@ def calculate_cosine_content(projections_1d: np.ndarray, period_k: int = 1) -> f
     t = np.arange(n, dtype=np.float64)
     cos_wave = np.cos(period_k * np.pi * t / (n - 1.0))
 
-    denom = np.sum(p ** 2)
+    denom = np.sum(p**2)
     if denom == 0.0:
         return 0.0
 
@@ -159,14 +159,18 @@ def compute_convergence_diagnostics(
         matrix = np.eye(len(rep_names))
         rep_evecs = {}
         for r_name in rep_names:
-            _, ev, _, _, _ = compute_cartesian_pca({r_name: coords_dict[r_name]}, n_components=n_modes)
+            _, ev, _, _, _ = compute_cartesian_pca(
+                {r_name: coords_dict[r_name]}, n_components=n_modes
+            )
             rep_evecs[r_name] = ev
 
         for i, r1 in enumerate(rep_names):
             for j, r2 in enumerate(rep_names):
                 if i < j:
                     s_ij = min(rep_evecs[r1].shape[1], rep_evecs[r2].shape[1], n_modes)
-                    score = calculate_subspace_rmsip(rep_evecs[r1][:, :s_ij], rep_evecs[r2][:, :s_ij])
+                    score = calculate_subspace_rmsip(
+                        rep_evecs[r1][:, :s_ij], rep_evecs[r2][:, :s_ij]
+                    )
                     matrix[i, j] = score
                     matrix[j, i] = score
 
@@ -178,17 +182,27 @@ def compute_convergence_diagnostics(
 
     if rmsip_halves >= 0.70 and pc1_cosine < 0.50:
         assessment = "Good evidence of stability"
-        notes.append(f"High subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f} >= 0.70).")
-        notes.append(f"Low PC1 cosine content ({pc1_cosine:.2f} < 0.50), indicating motion is not simple diffusive drift.")
+        notes.append(
+            f"High subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f} >= 0.70)."
+        )
+        notes.append(
+            f"Low PC1 cosine content ({pc1_cosine:.2f} < 0.50), indicating motion is not simple diffusive drift."
+        )
     elif rmsip_halves >= 0.50 and pc1_cosine < 0.70:
         assessment = "Mixed evidence"
-        notes.append(f"Moderate subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f}).")
+        notes.append(
+            f"Moderate subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f})."
+        )
         notes.append(f"Moderate PC1 cosine content ({pc1_cosine:.2f}).")
     else:
         assessment = "Insufficient evidence"
-        notes.append(f"Low subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f} < 0.50).")
+        notes.append(
+            f"Low subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f} < 0.50)."
+        )
         if pc1_cosine >= 0.70:
-            notes.append(f"High PC1 cosine content ({pc1_cosine:.2f} >= 0.70) suggests diffusive behavior along PC1.")
+            notes.append(
+                f"High PC1 cosine content ({pc1_cosine:.2f} >= 0.70) suggests diffusive behavior along PC1."
+            )
 
     return ConvergenceResults(
         rmsip_halves=rmsip_halves,
@@ -207,24 +221,29 @@ def save_convergence_results(conv: ConvergenceResults, output_dir: str | Path) -
     conv_dir.mkdir(parents=True, exist_ok=True)
 
     # rmsip.csv
-    pd.DataFrame([{
-        "Metric": "First_vs_Second_Half_RMSIP",
-        "Value": conv.rmsip_halves,
-        "Sampling_Assessment": conv.sampling_assessment,
-    }]).to_csv(conv_dir / "rmsip.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "Metric": "First_vs_Second_Half_RMSIP",
+                "Value": conv.rmsip_halves,
+                "Sampling_Assessment": conv.sampling_assessment,
+            }
+        ]
+    ).to_csv(conv_dir / "rmsip.csv", index=False)
 
     # cosine_content.csv
-    cosine_df = pd.DataFrame([
-        {"PC": f"PC{pc}", "Cosine_Content": val}
-        for pc, val in conv.cosine_content.items()
-    ])
+    cosine_df = pd.DataFrame(
+        [{"PC": f"PC{pc}", "Cosine_Content": val} for pc, val in conv.cosine_content.items()]
+    )
     cosine_df.to_csv(conv_dir / "cosine_content.csv", index=False)
 
     # progressive_overlap.csv
-    prog_df = pd.DataFrame([
-        {"Fraction_Percent": frac, "Subspace_RMSIP": val}
-        for frac, val in conv.progressive_overlap.items()
-    ])
+    prog_df = pd.DataFrame(
+        [
+            {"Fraction_Percent": frac, "Subspace_RMSIP": val}
+            for frac, val in conv.progressive_overlap.items()
+        ]
+    )
     prog_df.to_csv(conv_dir / "progressive_overlap.csv", index=False)
 
     # population_stability.csv

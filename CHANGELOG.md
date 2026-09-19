@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-19
+
+### Added
+- Integrated comprehensive **ReadTheDocs** (`readthedocs.io`) documentation infrastructure:
+  - Added `.readthedocs.yaml` (v2 build configuration).
+  - Configured Sphinx documentation suite in `docs/conf.py` with MyST Markdown parser, MathJax, autodoc, and `sphinx_rtd_theme`.
+  - Created master documentation hub `docs/index.rst` and Python API reference `docs/api.rst`.
+  - Added `docs` optional dependencies (`sphinx`, `sphinx-rtd-theme`, `myst-parser`) in `pyproject.toml` and `docs/requirements.txt`.
+  - Added ReadTheDocs documentation status badge in `README.md`.
+- Hardened GitHub Actions CI/CD workflows:
+  - Structured pipeline into dedicated stages: `lint`, multi-OS matrix `test` (Python 3.10–3.12 on Ubuntu and macOS), and `build`.
+  - Added defensive integration testing safeguards (`@pytest.mark.skipif`) for headless CI environments lacking binary trajectory drivers.
+  - Added `MDAnalysis` and `twine` to developer test dependencies.
+
+### Changed
+- Standardized and formatted entire codebase using Ruff.
+- Incremented package version to `0.1.1`.
+
+---
+
 ## [0.1.0] - 2026-09-19
 
 ### Added

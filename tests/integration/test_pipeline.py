@@ -1,5 +1,6 @@
 """Integration tests running end-to-end analysis and comparison pipelines."""
 
+import importlib.util
 
 import pytest
 from click.testing import CliRunner
@@ -7,8 +8,11 @@ from click.testing import CliRunner
 from conformatlas.cli import main
 from conformatlas.examples_gen import generate_mini_example_dataset
 
+HAS_MDA = importlib.util.find_spec("MDAnalysis") is not None
+
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_MDA, reason="MDAnalysis is required for trajectory integration tests")
 def test_end_to_end_analyze(tmp_path):
     """Run full 'conformatlas analyze' on multi-replicate mini dataset and verify outputs."""
     demo_dir = tmp_path / "mini_demo"
@@ -22,12 +26,18 @@ def test_end_to_end_analyze(tmp_path):
     runner = CliRunner()
     cmd = [
         "analyze",
-        "-s", str(topo),
-        "-f", str(rep1),
-        "-f", str(rep2),
-        "-T", "310",
-        "--bins", "24",
-        "-o", str(out_res),
+        "-s",
+        str(topo),
+        "-f",
+        str(rep1),
+        "-f",
+        str(rep2),
+        "-T",
+        "310",
+        "--bins",
+        "24",
+        "-o",
+        str(out_res),
     ]
 
     res = runner.invoke(main, cmd)
@@ -52,6 +62,7 @@ def test_end_to_end_analyze(tmp_path):
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_MDA, reason="MDAnalysis is required for trajectory integration tests")
 def test_end_to_end_compare(tmp_path):
     """Run full 'conformatlas compare' on mini dataset and verify comparison outputs."""
     demo_dir = tmp_path / "mini_demo"
@@ -63,8 +74,10 @@ def test_end_to_end_compare(tmp_path):
     runner = CliRunner()
     cmd = [
         "compare",
-        "--config", str(config_yaml),
-        "-o", str(out_comp),
+        "--config",
+        str(config_yaml),
+        "-o",
+        str(out_comp),
     ]
 
     res = runner.invoke(main, cmd)

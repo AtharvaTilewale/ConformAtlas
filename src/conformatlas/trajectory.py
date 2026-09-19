@@ -13,6 +13,7 @@ logger = logging.getLogger("conformatlas.trajectory")
 
 try:
     import MDAnalysis as mda
+
     HAS_MDANALYSIS = True
 except ImportError:
     HAS_MDANALYSIS = False
@@ -65,6 +66,7 @@ def inspect_trajectory(
     dt_ps = 0.0
 
     import re
+
     # Match: "Step       0       0" or "Last frame         500      1000"
     m_last = re.search(r"Last frame\s+(\d+)\s+time\s+([0-9\.\-]+)", out, re.IGNORECASE)
     m_step = re.search(r"Step\s+(\d+)\s+time\s+([0-9\.\-]+)", out, re.IGNORECASE)
@@ -105,13 +107,15 @@ def extract_atom_selection_info(
     records = []
     for atom in ag:
         chain = getattr(atom, "chainID", getattr(atom, "segid", "A"))
-        records.append({
-            "atom_index": atom.index,
-            "chain": chain,
-            "residue_number": int(atom.resnum),
-            "residue_name": str(atom.resname),
-            "atom_name": str(atom.name),
-        })
+        records.append(
+            {
+                "atom_index": atom.index,
+                "chain": chain,
+                "residue_number": int(atom.resnum),
+                "residue_name": str(atom.resname),
+                "atom_name": str(atom.name),
+            }
+        )
 
     return pd.DataFrame(records)
 
@@ -139,7 +143,7 @@ def build_common_atom_mapping(
     group: str = "Backbone",
 ) -> tuple[dict[str, list[int]], pd.DataFrame]:
     """Find common intersection of atoms across multiple topologies for shared PCA.
-    
+
     Parameters
     ----------
     topologies : Dict[str, Union[str, Path]]
@@ -191,17 +195,21 @@ def build_common_atom_mapping(
             if isinstance(row, pd.DataFrame):
                 row = row.iloc[0]
             indices.append(int(row["atom_index"]))
-            mapping_records.append({
-                "system": sys_name,
-                "atom_index": int(row["atom_index"]),
-                "residue_number": int(row["residue_number"]),
-                "residue_name": str(row["residue_name"]),
-                "atom_name": str(row["atom_name"]),
-            })
+            mapping_records.append(
+                {
+                    "system": sys_name,
+                    "atom_index": int(row["atom_index"]),
+                    "residue_number": int(row["residue_number"]),
+                    "residue_name": str(row["residue_name"]),
+                    "atom_name": str(row["atom_name"]),
+                }
+            )
         mapping_indices[sys_name] = indices
 
     mapping_df = pd.DataFrame(mapping_records)
-    logger.info(f"Built common atom mapping with {len(ordered_keys)} atoms across {len(topologies)} systems.")
+    logger.info(
+        f"Built common atom mapping with {len(ordered_keys)} atoms across {len(topologies)} systems."
+    )
     return mapping_indices, mapping_df
 
 

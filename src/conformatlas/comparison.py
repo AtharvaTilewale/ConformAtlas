@@ -103,7 +103,7 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
             proj_matrix = project_coordinates(coords, mean_struct, evecs)
             times = system_times[s_name][rep_id]
             rep_df = pd.DataFrame(
-                proj_matrix, columns=[f"PC{i+1}" for i in range(proj_matrix.shape[1])]
+                proj_matrix, columns=[f"PC{i + 1}" for i in range(proj_matrix.shape[1])]
             )
             rep_df.insert(0, "system", s_name)
             rep_df.insert(1, "replicate", rep_id)

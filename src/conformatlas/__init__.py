@@ -1,6 +1,6 @@
 """ConformAtlas: MD ensemble, PCA, and Free Energy Landscape analysis."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Atharva Tilewale"
 
 from conformatlas.models import (

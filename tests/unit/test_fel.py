@@ -31,7 +31,7 @@ def test_unobserved_bins_are_nan():
     fel = calculate_fel(pc1, pc2, temperature=300.0, bins=10, smooth_sigma=0.0)
 
     # Most bins should have zero counts
-    zero_prob_bins = (fel.probability == 0.0)
+    zero_prob_bins = fel.probability == 0.0
     assert np.sum(zero_prob_bins) > 0
 
     # For every bin with zero probability, free energy must be NaN

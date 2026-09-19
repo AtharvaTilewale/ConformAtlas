@@ -64,9 +64,7 @@ def calculate_fel(
         hist_range = [list(x_range), list(y_range)]
 
     # np.histogram2d: row corresponds to x, column to y
-    hist, x_edges, y_edges = np.histogram2d(
-        pc1, pc2, bins=bins, range=hist_range, density=False
-    )
+    hist, x_edges, y_edges = np.histogram2d(pc1, pc2, bins=bins, range=hist_range, density=False)
 
     # Transpose so rows correspond to y (PC2) and cols to x (PC1)
     # matching 2D matrix indexing [y_idx, x_idx]
@@ -96,7 +94,7 @@ def calculate_fel(
     free_energy = np.full_like(prob, np.nan, dtype=np.float64)
 
     # Calculate where prob > 0
-    valid_mask = (prob > 0)
+    valid_mask = prob > 0
     if smooth_sigma > 0.0:
         # Avoid non-zero artifacts infinitely far from observed data
         # Keep valid mask within smoothed density >= 1e-6 * p_max

@@ -11,6 +11,7 @@ logger = logging.getLogger("conformatlas.representatives")
 
 try:
     import MDAnalysis as mda
+
     HAS_MDANALYSIS = True
 except ImportError:
     HAS_MDANALYSIS = False
@@ -84,16 +85,22 @@ def extract_representative_structures(
                 gmx_runner.run(
                     "trjconv",
                     [
-                        "-s", str(topo_path.resolve()),
-                        "-f", str(traj_path.resolve()),
-                        "-dump", str(state.representative_time_ps),
-                        "-o", str(pdb_path.resolve()),
+                        "-s",
+                        str(topo_path.resolve()),
+                        "-f",
+                        str(traj_path.resolve()),
+                        "-dump",
+                        str(state.representative_time_ps),
+                        "-o",
+                        str(pdb_path.resolve()),
                     ],
                     input_text="0\n",  # Select System
                     cwd=state_dir,
                 )
                 extracted = True
-                logger.info(f"Extracted {state.label} representative via GROMACS trjconv to {pdb_path}")
+                logger.info(
+                    f"Extracted {state.label} representative via GROMACS trjconv to {pdb_path}"
+                )
             except Exception as e:
                 logger.warning(f"GROMACS trjconv extraction failed for {state.label}: {e}")
 

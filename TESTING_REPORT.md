@@ -155,6 +155,6 @@ conformatlas analyze \
 ---
 
 ## 6. Package Build Verification
-* Built wheel: `dist/conformatlas-0.1.0-py3-none-any.whl`.
+* Built wheel: `dist/conformatlas-0.1.1-py3-none-any.whl`.
 * Verified console script: `conformatlas`.
 * Status: **All Acceptance Criteria Met.**

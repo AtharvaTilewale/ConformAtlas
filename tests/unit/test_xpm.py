@@ -1,6 +1,5 @@
 """Unit tests for GROMACS XPM parsing and conversion."""
 
-
 import numpy as np
 import pytest
 

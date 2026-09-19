@@ -23,7 +23,9 @@ def test_temperature_scaling_ratio():
     np.testing.assert_allclose(fel1.probability, fel2.probability, atol=1e-10)
 
     # Valid mask where both are non-zero and finite
-    valid = (~np.isnan(fel1.free_energy)) & (~np.isnan(fel2.free_energy)) & (fel1.free_energy > 0.05)
+    valid = (
+        (~np.isnan(fel1.free_energy)) & (~np.isnan(fel2.free_energy)) & (fel1.free_energy > 0.05)
+    )
 
     fe1_vals = fel1.free_energy[valid]
     fe2_vals = fel2.free_energy[valid]

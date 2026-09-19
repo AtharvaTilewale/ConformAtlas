@@ -7,6 +7,7 @@ import numpy as np
 
 try:
     import MDAnalysis as mda
+
     HAS_MDA = True
 except ImportError:
     HAS_MDA = False
@@ -60,7 +61,9 @@ def generate_mini_example_dataset(base_dir: str | Path):
     mut_topo.write_text(pdb_content, encoding="utf-8")
 
     if not HAS_MDA:
-        logger.warning("MDAnalysis not installed; cannot generate synthetic binary XTC trajectories.")
+        logger.warning(
+            "MDAnalysis not installed; cannot generate synthetic binary XTC trajectories."
+        )
         return
 
     # Generate synthetic conformational ensembles with 2 distinct basins for WT and MUT

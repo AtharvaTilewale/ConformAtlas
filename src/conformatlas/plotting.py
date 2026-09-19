@@ -19,27 +19,29 @@ from conformatlas.models import BasinState, ConvergenceResults, FELGrid, PCAResu
 logger = logging.getLogger("conformatlas.plotting")
 
 # Configure publication-grade styling
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.sans-serif": ["DejaVu Sans", "Arial", "Helvetica", "Bitstream Vera Sans"],
-    "font.size": 11,
-    "axes.labelsize": 12,
-    "axes.titlesize": 13,
-    "axes.titleweight": "bold",
-    "axes.labelweight": "bold",
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "legend.fontsize": 10,
-    "figure.titlesize": 14,
-    "figure.titleweight": "bold",
-    "figure.dpi": 300,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "axes.linewidth": 1.2,
-    "xtick.major.width": 1.2,
-    "ytick.major.width": 1.2,
-    "lines.linewidth": 2.0,
-})
+plt.rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.sans-serif": ["DejaVu Sans", "Arial", "Helvetica", "Bitstream Vera Sans"],
+        "font.size": 11,
+        "axes.labelsize": 12,
+        "axes.titlesize": 13,
+        "axes.titleweight": "bold",
+        "axes.labelweight": "bold",
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "legend.fontsize": 10,
+        "figure.titlesize": 14,
+        "figure.titleweight": "bold",
+        "figure.dpi": 300,
+        "savefig.dpi": 300,
+        "savefig.bbox": "tight",
+        "axes.linewidth": 1.2,
+        "xtick.major.width": 1.2,
+        "ytick.major.width": 1.2,
+        "lines.linewidth": 2.0,
+    }
+)
 
 
 def _compute_smart_label_offsets(
@@ -126,6 +128,7 @@ def _save_unannotated_copy(out_path: Path, unann_path: Path) -> None:
 # 1. PCA Projections & Variance (Separate Figures)
 # ==============================================================================
 
+
 def plot_eigenvalues_and_variance(
     pca_res: PCAResults,
     out_path: str | Path,
@@ -143,7 +146,14 @@ def plot_eigenvalues_and_variance(
     color_line = "#d95f02"
 
     # Bar chart for individual explained variance
-    bars = ax1.bar(modes, pca_res.explained_variance, color=color_bar, alpha=0.8, width=0.6, label="Individual %")
+    bars = ax1.bar(
+        modes,
+        pca_res.explained_variance,
+        color=color_bar,
+        alpha=0.8,
+        width=0.6,
+        label="Individual %",
+    )
     ax1.set_xlabel("Principal Component Mode", labelpad=8)
     ax1.set_ylabel("Explained Variance (%)", color=color_bar, labelpad=8)
     ax1.tick_params(axis="y", labelcolor=color_bar)
@@ -158,13 +168,27 @@ def plot_eigenvalues_and_variance(
         for i in range(min(4, len(bars))):
             val = pca_res.explained_variance[i]
             ax1.text(
-                modes[i], val + (max_bar * 0.03), f"{val:.1f}%",
-                ha="center", va="bottom", fontsize=9.5, weight="bold", color=color_bar
+                modes[i],
+                val + (max_bar * 0.03),
+                f"{val:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=9.5,
+                weight="bold",
+                color=color_bar,
             )
 
     # Twin axis for cumulative variance
     ax2 = ax1.twinx()
-    ax2.plot(modes, pca_res.cumulative_variance, color=color_line, marker="o", markersize=6, linewidth=2.2, label="Cumulative %")
+    ax2.plot(
+        modes,
+        pca_res.cumulative_variance,
+        color=color_line,
+        marker="o",
+        markersize=6,
+        linewidth=2.2,
+        label="Cumulative %",
+    )
     ax2.set_ylabel("Cumulative Variance (%)", color=color_line, labelpad=8)
     ax2.tick_params(axis="y", labelcolor=color_line)
     ax2.set_ylim(0, 108)
@@ -173,7 +197,9 @@ def plot_eigenvalues_and_variance(
     # Combined legend positioned cleanly
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc="center right", framealpha=0.9, edgecolor="#cccccc")
+    ax1.legend(
+        lines1 + lines2, labels1 + labels2, loc="center right", framealpha=0.9, edgecolor="#cccccc"
+    )
 
     ax1.set_title("PCA Eigenvalue Spectrum & Cumulative Variance", pad=12)
     fig.tight_layout()
@@ -201,16 +227,29 @@ def plot_pca_scatter(
     color_col = "replicate" if projections_df["replicate"].nunique() > 1 else "system"
     categories = projections_df[color_col].unique()
 
-    palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f"]
+    palette = [
+        "#1f77b4",
+        "#ff7f0e",
+        "#2ca02c",
+        "#d62728",
+        "#9467bd",
+        "#8c564b",
+        "#e377c2",
+        "#7f7f7f",
+    ]
     for idx, cat in enumerate(categories):
         sub = projections_df[projections_df[color_col] == cat]
         c = palette[idx % len(palette)]
-        ax.scatter(sub["PC1"], sub["PC2"], label=str(cat), alpha=0.55, s=16, color=c, edgecolors="none")
+        ax.scatter(
+            sub["PC1"], sub["PC2"], label=str(cat), alpha=0.55, s=16, color=c, edgecolors="none"
+        )
 
     ax.set_xlabel("PC1 Projection", labelpad=8)
     ax.set_ylabel("PC2 Projection", labelpad=8)
     ax.set_title("Principal Component Projections (Scatter)", pad=12)
-    ax.legend(loc="best", frameon=True, framealpha=0.9, edgecolor="#cccccc", title=color_col.capitalize())
+    ax.legend(
+        loc="best", frameon=True, framealpha=0.9, edgecolor="#cccccc", title=color_col.capitalize()
+    )
     ax.grid(True, linestyle="--", alpha=0.35)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -271,7 +310,14 @@ def plot_pca_projections(
     palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
     for idx, cat in enumerate(categories):
         sub = projections_df[projections_df[color_col] == cat]
-        ax1.scatter(sub["PC1"], sub["PC2"], label=str(cat), alpha=0.5, s=12, color=palette[idx % len(palette)])
+        ax1.scatter(
+            sub["PC1"],
+            sub["PC2"],
+            label=str(cat),
+            alpha=0.5,
+            s=12,
+            color=palette[idx % len(palette)],
+        )
 
     ax1.set_xlabel("PC1 Projection")
     ax1.set_ylabel("PC2 Projection")
@@ -300,6 +346,7 @@ def plot_pca_projections(
 # ==============================================================================
 # 2. Free Energy Landscapes (Separate Figures)
 # ==============================================================================
+
 
 def plot_fel_2d(
     fel_grid: FELGrid,
@@ -333,17 +380,28 @@ def plot_fel_2d(
 
         for idx, st in enumerate(states):
             ax.plot(
-                st.min_pc1, st.min_pc2,
-                marker="*", markersize=14, color="#ffffff",
-                markeredgecolor="#000000", markeredgewidth=1.2, zorder=5
+                st.min_pc1,
+                st.min_pc2,
+                marker="*",
+                markersize=14,
+                color="#ffffff",
+                markeredgecolor="#000000",
+                markeredgewidth=1.2,
+                zorder=5,
             )
             dx, dy = offsets[idx]
             ax.annotate(
-                f"{st.label}\n({st.population*100:.1f}%)",
+                f"{st.label}\n({st.population * 100:.1f}%)",
                 xy=(st.min_pc1, st.min_pc2),
                 xytext=(dx, dy),
                 textcoords="offset points",
-                bbox=dict(boxstyle="round,pad=0.35,rounding_size=0.3", fc="#ffffff", ec="#333333", lw=0.9, alpha=0.92),
+                bbox=dict(
+                    boxstyle="round,pad=0.35,rounding_size=0.3",
+                    fc="#ffffff",
+                    ec="#333333",
+                    lw=0.9,
+                    alpha=0.92,
+                ),
                 arrowprops=dict(arrowstyle="->", color="#222222", lw=0.9, shrinkA=2, shrinkB=3),
                 fontsize=9.5,
                 weight="bold",
@@ -365,7 +423,9 @@ def plot_fel_2d(
 
     if states and annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
-        plot_fel_2d(fel_grid, states=states, out_path=unann_path, annotate=False, save_unannotated=False)
+        plot_fel_2d(
+            fel_grid, states=states, out_path=unann_path, annotate=False, save_unannotated=False
+        )
         _save_unannotated_copy(out_path, unann_path)
 
     return out_path
@@ -390,7 +450,9 @@ def plot_fel_3d(
 
     # Replace NaNs for smooth surface edge without tearing
     Z_3d = np.where(np.isnan(Z), vmax * 1.05, Z)
-    surf = ax.plot_surface(X, Y, Z_3d, cmap="turbo", edgecolor="none", alpha=0.92, vmin=0, vmax=vmax)
+    surf = ax.plot_surface(
+        X, Y, Z_3d, cmap="turbo", edgecolor="none", alpha=0.92, vmin=0, vmax=vmax
+    )
 
     ax.set_zlim(0, vmax)
     ax.set_xlabel("PC1 Projection", labelpad=10, weight="bold")
@@ -441,10 +503,17 @@ def plot_fel(
         points = [(st.min_pc1, st.min_pc2) for st in states]
         offsets = _compute_smart_label_offsets(points, xlim=ax1.get_xlim(), ylim=ax1.get_ylim())
         for idx, st in enumerate(states):
-            ax1.plot(st.min_pc1, st.min_pc2, marker="*", markersize=14, color="white", markeredgecolor="black")
+            ax1.plot(
+                st.min_pc1,
+                st.min_pc2,
+                marker="*",
+                markersize=14,
+                color="white",
+                markeredgecolor="black",
+            )
             dx, dy = offsets[idx]
             ax1.annotate(
-                f"{st.label}\n({st.population*100:.1f}%)",
+                f"{st.label}\n({st.population * 100:.1f}%)",
                 xy=(st.min_pc1, st.min_pc2),
                 xytext=(dx, dy),
                 textcoords="offset points",
@@ -463,7 +532,9 @@ def plot_fel(
     # Right: 3D Surface
     ax2 = fig.add_subplot(gs[1], projection="3d")
     Z_3d = np.where(np.isnan(Z), vmax * 1.05, Z)
-    surf = ax2.plot_surface(X, Y, Z_3d, cmap="turbo", edgecolor="none", alpha=0.9, vmin=0, vmax=vmax)
+    surf = ax2.plot_surface(
+        X, Y, Z_3d, cmap="turbo", edgecolor="none", alpha=0.9, vmin=0, vmax=vmax
+    )
     ax2.set_zlim(0, vmax)
     ax2.set_xlabel("PC1", labelpad=8)
     ax2.set_ylabel("PC2", labelpad=8)
@@ -478,7 +549,9 @@ def plot_fel(
 
     if states and annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
-        plot_fel(fel_grid, states=states, out_path=unann_path, annotate=False, save_unannotated=False)
+        plot_fel(
+            fel_grid, states=states, out_path=unann_path, annotate=False, save_unannotated=False
+        )
         _save_unannotated_copy(out_path, unann_path)
 
     return out_path
@@ -487,6 +560,7 @@ def plot_fel(
 # ==============================================================================
 # 3. Basin Segmentation (Separate Figure)
 # ==============================================================================
+
 
 def plot_basin_map(
     fel_grid: FELGrid,
@@ -516,14 +590,29 @@ def plot_basin_map(
         points = [(st.min_pc1, st.min_pc2) for st in states]
         offsets = _compute_smart_label_offsets(points, xlim=ax.get_xlim(), ylim=ax.get_ylim())
         for idx, st in enumerate(states):
-            ax.plot(st.min_pc1, st.min_pc2, marker="P", markersize=11, color="black", markeredgecolor="white", markeredgewidth=1.2, zorder=5)
+            ax.plot(
+                st.min_pc1,
+                st.min_pc2,
+                marker="P",
+                markersize=11,
+                color="black",
+                markeredgecolor="white",
+                markeredgewidth=1.2,
+                zorder=5,
+            )
             dx, dy = offsets[idx]
             ax.annotate(
                 st.label,
                 xy=(st.min_pc1, st.min_pc2),
                 xytext=(dx, dy),
                 textcoords="offset points",
-                bbox=dict(boxstyle="round,pad=0.3,rounding_size=0.3", fc="white", ec="black", lw=0.9, alpha=0.92),
+                bbox=dict(
+                    boxstyle="round,pad=0.3,rounding_size=0.3",
+                    fc="white",
+                    ec="black",
+                    lw=0.9,
+                    alpha=0.92,
+                ),
                 arrowprops=dict(arrowstyle="->", color="black", lw=0.9, shrinkA=2, shrinkB=3),
                 fontsize=9.5,
                 weight="bold",
@@ -545,7 +634,9 @@ def plot_basin_map(
 
     if states and annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
-        plot_basin_map(fel_grid, basin_map, states, out_path=unann_path, annotate=False, save_unannotated=False)
+        plot_basin_map(
+            fel_grid, basin_map, states, out_path=unann_path, annotate=False, save_unannotated=False
+        )
         _save_unannotated_copy(out_path, unann_path)
 
     return out_path
@@ -566,6 +657,7 @@ def plot_basin_segmentation(
 # 4. State Populations & Uncertainty (Separate Figure)
 # ==============================================================================
 
+
 def plot_state_populations(
     summary_df: pd.DataFrame,
     detailed_df: pd.DataFrame | None,
@@ -579,7 +671,14 @@ def plot_state_populations(
 
     fig, ax = plt.subplots(figsize=(7.5, 5.5))
     if summary_df.empty or "State" not in summary_df.columns or len(summary_df) == 0:
-        ax.text(0.5, 0.5, "No major conformational states to display", ha="center", va="center", fontsize=12)
+        ax.text(
+            0.5,
+            0.5,
+            "No major conformational states to display",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
         ax.set_title("Conformational State Populations")
         fig.tight_layout()
         plt.savefig(out_path, bbox_inches="tight")
@@ -604,10 +703,17 @@ def plot_state_populations(
     bar_colors = [color_palette[i % len(color_palette)] for i in range(len(states))]
 
     bars = ax.bar(
-        x_pos, means, yerr=errors, capsize=6,
+        x_pos,
+        means,
+        yerr=errors,
+        capsize=6,
         error_kw={"elinewidth": 1.4, "capthick": 1.4, "ecolor": "#333333"},
-        color=bar_colors, alpha=0.82, width=0.55, edgecolor="#222222", linewidth=1.0,
-        label=f"Mean ± {err_label}" if err_label else "Mean Population"
+        color=bar_colors,
+        alpha=0.82,
+        width=0.55,
+        edgecolor="#222222",
+        linewidth=1.0,
+        label=f"Mean ± {err_label}" if err_label else "Mean Population",
     )
 
     # Overlay replicate dots if available
@@ -615,8 +721,21 @@ def plot_state_populations(
         for st_idx, st in enumerate(states):
             if st in detailed_df.columns:
                 rep_vals = detailed_df[st].to_numpy()
-                jitter = np.linspace(-0.08, 0.08, len(rep_vals)) if len(rep_vals) > 1 else np.array([0.0])
-                ax.scatter(np.full_like(rep_vals, st_idx) + jitter, rep_vals, color="#222222", s=32, zorder=5, edgecolors="white", linewidth=0.8, label="Replicates" if st_idx == 0 else "")
+                jitter = (
+                    np.linspace(-0.08, 0.08, len(rep_vals))
+                    if len(rep_vals) > 1
+                    else np.array([0.0])
+                )
+                ax.scatter(
+                    np.full_like(rep_vals, st_idx) + jitter,
+                    rep_vals,
+                    color="#222222",
+                    s=32,
+                    zorder=5,
+                    edgecolors="white",
+                    linewidth=0.8,
+                    label="Replicates" if st_idx == 0 else "",
+                )
 
     # Dynamic headroom to prevent text clipping and avoid empty space
     y_max = float(np.max(means + errors)) if len(means) > 0 else 50.0
@@ -634,7 +753,11 @@ def plot_state_populations(
             height = bar.get_height()
             err = errors[i] if i < len(errors) else 0.0
             top_feature = height + err
-            if detailed_df is not None and "Replicate" in detailed_df.columns and states[i] in detailed_df.columns:
+            if (
+                detailed_df is not None
+                and "Replicate" in detailed_df.columns
+                and states[i] in detailed_df.columns
+            ):
                 top_feature = max(top_feature, float(detailed_df[states[i]].max()))
             y_text = top_feature + (ylim_top * 0.035)
             ax.text(
@@ -663,7 +786,9 @@ def plot_state_populations(
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
-        plot_state_populations(summary_df, detailed_df, out_path=unann_path, annotate=False, save_unannotated=False)
+        plot_state_populations(
+            summary_df, detailed_df, out_path=unann_path, annotate=False, save_unannotated=False
+        )
         _save_unannotated_copy(out_path, unann_path)
 
     return out_path
@@ -672,6 +797,7 @@ def plot_state_populations(
 # ==============================================================================
 # 5. Convergence Diagnostics (Separate Figures)
 # ==============================================================================
+
 
 def plot_convergence_progressive(
     conv: ConvergenceResults,
@@ -687,12 +813,31 @@ def plot_convergence_progressive(
     fracs = sorted(conv.progressive_overlap.keys())
     scores = [conv.progressive_overlap[f] for f in fracs]
 
-    ax.plot(fracs, scores, marker="s", markersize=7, color="#2ca02c", linewidth=2.4, label="Progressive RMSIP")
-    ax.axhline(0.70, color="#d95f02", linestyle="--", linewidth=1.8, label="Heuristic threshold (0.70)")
+    ax.plot(
+        fracs,
+        scores,
+        marker="s",
+        markersize=7,
+        color="#2ca02c",
+        linewidth=2.4,
+        label="Progressive RMSIP",
+    )
+    ax.axhline(
+        0.70, color="#d95f02", linestyle="--", linewidth=1.8, label="Heuristic threshold (0.70)"
+    )
 
     if annotate:
         for f, s in zip(fracs, scores):
-            ax.text(f, s + 0.03, f"{s:.2f}", ha="center", va="bottom", fontsize=9.5, weight="bold", color="#1b6e1b")
+            ax.text(
+                f,
+                s + 0.03,
+                f"{s:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=9.5,
+                weight="bold",
+                color="#1b6e1b",
+            )
 
     ax.set_xlabel("Cumulative Trajectory Fraction (%)", labelpad=8)
     ax.set_ylabel("Subspace Overlap (RMSIP)", labelpad=8)
@@ -710,7 +855,9 @@ def plot_convergence_progressive(
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
-        plot_convergence_progressive(conv, out_path=unann_path, annotate=False, save_unannotated=False)
+        plot_convergence_progressive(
+            conv, out_path=unann_path, annotate=False, save_unannotated=False
+        )
         _save_unannotated_copy(out_path, unann_path)
 
     return out_path
@@ -731,8 +878,12 @@ def plot_convergence_cosine(
     c_vals = [conv.cosine_content[k] for k in sorted(conv.cosine_content.keys())]
     bar_colors = ["#d62728" if c >= 0.5 else "#2b5c8f" for c in c_vals]
 
-    bars = ax.bar(pcs, c_vals, color=bar_colors, alpha=0.82, width=0.55, edgecolor="#222222", linewidth=1.0)
-    ax.axhline(0.50, color="#d62728", linestyle="--", linewidth=1.8, label="Diffusive threshold (c = 0.50)")
+    bars = ax.bar(
+        pcs, c_vals, color=bar_colors, alpha=0.82, width=0.55, edgecolor="#222222", linewidth=1.0
+    )
+    ax.axhline(
+        0.50, color="#d62728", linestyle="--", linewidth=1.8, label="Diffusive threshold (c = 0.50)"
+    )
 
     if annotate:
         for bar, val in zip(bars, c_vals):
@@ -740,7 +891,11 @@ def plot_convergence_cosine(
                 bar.get_x() + bar.get_width() / 2.0,
                 val + 0.02,
                 f"{val:.2f}",
-                ha="center", va="bottom", fontsize=9.5, weight="bold", color="#222222"
+                ha="center",
+                va="bottom",
+                fontsize=9.5,
+                weight="bold",
+                color="#222222",
             )
 
     ax.set_xlabel("Principal Component", labelpad=8)
@@ -781,7 +936,15 @@ def plot_convergence_stability(
         for col in p_df.columns:
             if col not in ["Fraction_Percent", "Frames"]:
                 c = palette[col_idx % len(palette)]
-                ax.plot(p_df["Fraction_Percent"], p_df[col], marker="o", markersize=6, label=col, linewidth=2.2, color=c)
+                ax.plot(
+                    p_df["Fraction_Percent"],
+                    p_df[col],
+                    marker="o",
+                    markersize=6,
+                    label=col,
+                    linewidth=2.2,
+                    color=c,
+                )
                 col_idx += 1
                 max_pop = max(max_pop, float(p_df[col].max()))
         ax.set_xlabel("Cumulative Trajectory Fraction (%)", labelpad=8)
@@ -791,7 +954,14 @@ def plot_convergence_stability(
         ax.legend(loc="best", framealpha=0.9, edgecolor="#cccccc", title="Basin States")
         ax.grid(True, linestyle="--", alpha=0.35)
     else:
-        ax.text(0.5, 0.5, "Population stability data not available", ha="center", va="center", fontsize=11)
+        ax.text(
+            0.5,
+            0.5,
+            "Population stability data not available",
+            ha="center",
+            va="center",
+            fontsize=11,
+        )
         ax.set_title("State Population Stability Curves")
 
     ax.spines["top"].set_visible(False)
@@ -870,11 +1040,13 @@ def plot_convergence_diagnostics(
     )
 
     ax4.text(
-        0.05, 0.95, eval_text,
+        0.05,
+        0.95,
+        eval_text,
         transform=ax4.transAxes,
         fontsize=10.5,
         va="top",
-        bbox=dict(boxstyle="round,pad=0.8", facecolor="#f8f9fa", edgecolor="#ced4da")
+        bbox=dict(boxstyle="round,pad=0.8", facecolor="#f8f9fa", edgecolor="#ced4da"),
     )
 
     fig.tight_layout()
@@ -886,6 +1058,7 @@ def plot_convergence_diagnostics(
 # ==============================================================================
 # 6. Condition Comparison (Separate Figures)
 # ==============================================================================
+
 
 def plot_comparison_shared_pca(
     comp_dict: dict[str, Any],
@@ -902,7 +1075,14 @@ def plot_comparison_shared_pca(
     palette = ["#1f77b4", "#e41a1c", "#4daf4a", "#984ea3"]
     for idx, s_name in enumerate(systems):
         sub = master_df[master_df["system"] == s_name]
-        ax.scatter(sub["PC1"], sub["PC2"], label=s_name, alpha=0.55, s=16, color=palette[idx % len(palette)])
+        ax.scatter(
+            sub["PC1"],
+            sub["PC2"],
+            label=s_name,
+            alpha=0.55,
+            s=16,
+            color=palette[idx % len(palette)],
+        )
 
     ax.set_xlabel("Shared PC1 Projection", labelpad=8)
     ax.set_ylabel("Shared PC2 Projection", labelpad=8)
@@ -956,9 +1136,14 @@ def plot_comparison_populations(
             vals = pop_df[col].to_numpy()
             offset = (idx - (n_sys - 1) / 2.0) * width
             bars = ax.bar(
-                x_pos + offset, vals, width * 0.92,
-                label=s_name, color=palette[idx % len(palette)], alpha=0.85,
-                edgecolor="#222222", linewidth=0.9
+                x_pos + offset,
+                vals,
+                width * 0.92,
+                label=s_name,
+                color=palette[idx % len(palette)],
+                alpha=0.85,
+                edgecolor="#222222",
+                linewidth=0.9,
             )
             if annotate:
                 for bar, val in zip(bars, vals):
@@ -966,7 +1151,11 @@ def plot_comparison_populations(
                         bar.get_x() + bar.get_width() / 2.0,
                         val + (ylim_top * 0.03),
                         f"{val:.1f}%",
-                        ha="center", va="bottom", fontsize=8.5, weight="bold", color="#111111"
+                        ha="center",
+                        va="bottom",
+                        fontsize=8.5,
+                        weight="bold",
+                        color="#111111",
                     )
 
     ax.set_xticks(x_pos)
@@ -984,7 +1173,9 @@ def plot_comparison_populations(
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
-        plot_comparison_populations(comp_dict, out_path=unann_path, annotate=False, save_unannotated=False)
+        plot_comparison_populations(
+            comp_dict, out_path=unann_path, annotate=False, save_unannotated=False
+        )
         _save_unannotated_copy(out_path, unann_path)
 
     return out_path
@@ -1065,9 +1256,17 @@ def plot_condition_comparison(
     s1_name = systems[0]
     s2_name = systems[1] if len(systems) > 1 else systems[0]
 
-    ax2.bar(x_pos - width / 2, pop_df[f"{s1_name}_Population_Percent"], width, label=s1_name, alpha=0.8)
+    ax2.bar(
+        x_pos - width / 2, pop_df[f"{s1_name}_Population_Percent"], width, label=s1_name, alpha=0.8
+    )
     if len(systems) > 1:
-        ax2.bar(x_pos + width / 2, pop_df[f"{s2_name}_Population_Percent"], width, label=s2_name, alpha=0.8)
+        ax2.bar(
+            x_pos + width / 2,
+            pop_df[f"{s2_name}_Population_Percent"],
+            width,
+            label=s2_name,
+            alpha=0.8,
+        )
 
     ax2.set_xticks(x_pos)
     ax2.set_xticklabels(states, weight="bold")

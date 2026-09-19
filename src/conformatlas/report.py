@@ -86,9 +86,13 @@ def generate_html_report(
         "fig_basin_map": embedded_figs.get("basin_map", ""),
         "fig_populations": embedded_figs.get("populations", ""),
         "fig_pca_variance": embedded_figs.get("pca_variance", ""),
-        "fig_pca_scatter": embedded_figs.get("pca_scatter", embedded_figs.get("pca_projections", "")),
+        "fig_pca_scatter": embedded_figs.get(
+            "pca_scatter", embedded_figs.get("pca_projections", "")
+        ),
         "fig_pca_density": embedded_figs.get("pca_density", ""),
-        "fig_pca_projections": embedded_figs.get("pca_projections", embedded_figs.get("pca_scatter", "")),
+        "fig_pca_projections": embedded_figs.get(
+            "pca_projections", embedded_figs.get("pca_scatter", "")
+        ),
         "fig_convergence_progressive": embedded_figs.get("convergence_progressive", ""),
         "fig_convergence_cosine": embedded_figs.get("convergence_cosine", ""),
         "fig_convergence_stability": embedded_figs.get("convergence_stability", ""),

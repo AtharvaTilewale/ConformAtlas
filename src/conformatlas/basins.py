@@ -9,6 +9,7 @@ import pandas as pd
 try:
     from skimage.feature import peak_local_max
     from skimage.segmentation import watershed
+
     HAS_SKIMAGE = True
 except ImportError:
     HAS_SKIMAGE = False
@@ -53,7 +54,9 @@ def detect_energy_basins(
     occupancy = fel_grid.occupancy_mask if fel_grid.occupancy_mask is not None else ~np.isnan(fe)
 
     # Clean free energy for watershed: replace NaN with high energy barrier
-    fe_clean = np.where(np.isnan(fe), np.nanmax(fe) * 1.5 if not np.all(np.isnan(fe)) else 1000.0, fe)
+    fe_clean = np.where(
+        np.isnan(fe), np.nanmax(fe) * 1.5 if not np.all(np.isnan(fe)) else 1000.0, fe
+    )
 
     # Detect peaks in probability density (corresponds to energy minima)
     # peak_local_max returns (row, col) = (y_idx, x_idx)
@@ -84,8 +87,10 @@ def detect_energy_basins(
 
     # Valid grid boundaries
     valid_bounds = (
-        (x_idx >= 0) & (x_idx < len(fel_grid.x_centers)) &
-        (y_idx >= 0) & (y_idx < len(fel_grid.y_centers))
+        (x_idx >= 0)
+        & (x_idx < len(fel_grid.x_centers))
+        & (y_idx >= 0)
+        & (y_idx < len(fel_grid.y_centers))
     )
 
     frame_basin_ids = np.full(total_frames, -1, dtype=np.int32)
@@ -133,7 +138,7 @@ def detect_energy_basins(
         major_total_pop += pop_fraction
 
         # Locate minimum energy within this basin
-        basin_mask = (basin_labels == b_id)
+        basin_mask = basin_labels == b_id
         sub_fe = np.where(basin_mask, fe, np.nan)
         min_y_idx, min_x_idx = np.unravel_index(np.nanargmin(sub_fe), sub_fe.shape)
 
@@ -150,25 +155,27 @@ def detect_energy_basins(
         best_idx = np.argmin(distances)
         best_row = state_frames.iloc[best_idx]
 
-        states.append(BasinState(
-            state_id=state_idx + 1,
-            label=label,
-            population=pop_fraction,
-            min_pc1=min_pc1,
-            min_pc2=min_pc2,
-            min_free_energy=min_fe_val,
-            representative_replicate=str(best_row["replicate"]),
-            representative_frame=int(best_row["frame"]),
-            representative_time_ps=float(best_row["time_ps"]),
-            representative_distance=float(distances[best_idx]),
-        ))
+        states.append(
+            BasinState(
+                state_id=state_idx + 1,
+                label=label,
+                population=pop_fraction,
+                min_pc1=min_pc1,
+                min_pc2=min_pc2,
+                min_free_energy=min_fe_val,
+                representative_replicate=str(best_row["replicate"]),
+                representative_frame=int(best_row["frame"]),
+                representative_time_ps=float(best_row["time_ps"]),
+                representative_distance=float(distances[best_idx]),
+            )
+        )
 
     unassigned_fraction = max(0.0, 1.0 - major_total_pop)
 
     logger.info(
-        f"Identified {len(states)} major states (pop >= {min_state_population*100:.1f}%): "
-        + ", ".join([f"{s.label}: {s.population*100:.1f}%" for s in states])
-        + f" (Unassigned / Minor: {unassigned_fraction*100:.1f}%)"
+        f"Identified {len(states)} major states (pop >= {min_state_population * 100:.1f}%): "
+        + ", ".join([f"{s.label}: {s.population * 100:.1f}%" for s in states])
+        + f" (Unassigned / Minor: {unassigned_fraction * 100:.1f}%)"
     )
 
     return states, unassigned_fraction, frame_assignments_df, basin_labels
@@ -187,17 +194,19 @@ def save_basin_results(
     # Save basins.csv
     records = []
     for s in states:
-        records.append({
-            "State": s.label,
-            "Population_Percent": s.population * 100.0,
-            "Min_PC1": s.min_pc1,
-            "Min_PC2": s.min_pc2,
-            "Min_FreeEnergy_kJ_mol": s.min_free_energy,
-            "Representative_Replicate": s.representative_replicate,
-            "Representative_Frame": s.representative_frame,
-            "Representative_Time_ps": s.representative_time_ps,
-            "Representative_Distance": s.representative_distance,
-        })
+        records.append(
+            {
+                "State": s.label,
+                "Population_Percent": s.population * 100.0,
+                "Min_PC1": s.min_pc1,
+                "Min_PC2": s.min_pc2,
+                "Min_FreeEnergy_kJ_mol": s.min_free_energy,
+                "Representative_Replicate": s.representative_replicate,
+                "Representative_Frame": s.representative_frame,
+                "Representative_Time_ps": s.representative_time_ps,
+                "Representative_Distance": s.representative_distance,
+            }
+        )
     basins_df = pd.DataFrame(records)
     basins_df.to_csv(states_dir / "basins.csv", index=False)
 

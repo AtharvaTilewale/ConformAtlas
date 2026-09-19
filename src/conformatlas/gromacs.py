@@ -27,7 +27,9 @@ class GromacsRunner:
             which_p = shutil.which(str(custom_path))
             if which_p:
                 return Path(which_p).resolve()
-            raise FileNotFoundError(f"Specified GROMACS executable not found or not executable: {custom_path}")
+            raise FileNotFoundError(
+                f"Specified GROMACS executable not found or not executable: {custom_path}"
+            )
 
         # Check standard names
         for candidate in ["gmx", "gmx_mpi"]:
@@ -71,7 +73,7 @@ class GromacsRunner:
         check: bool = True,
     ) -> subprocess.CompletedProcess:
         """Execute a GROMACS command: [gmx_path, subcommand] + args.
-        
+
         Parameters
         ----------
         subcommand : str

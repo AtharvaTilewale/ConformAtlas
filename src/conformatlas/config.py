@@ -66,7 +66,9 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
         s_topo = _resolve_file(s_raw.get("topology"))
         s_trajs = [_resolve_file(t) for t in s_raw.get("trajectories", [])]
         if not s_trajs:
-            raise ValueError(f"System '{s_name}' must have at least one trajectory in 'trajectories'.")
+            raise ValueError(
+                f"System '{s_name}' must have at least one trajectory in 'trajectories'."
+            )
         systems.append(SystemConfig(name=s_name, topology=s_topo, trajectories=s_trajs))
 
     return ComparisonConfig(

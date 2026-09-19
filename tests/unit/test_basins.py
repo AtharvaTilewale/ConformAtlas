@@ -32,14 +32,16 @@ def test_basin_detection_recovers_known_gaussian_mixture():
     pc1 = np.concatenate([a_x, b_x, c_x])
     pc2 = np.concatenate([a_y, b_y, c_y])
 
-    projections = pd.DataFrame({
-        "system": "TestSystem",
-        "replicate": "Rep1",
-        "frame": np.arange(n_total),
-        "time_ps": np.arange(n_total) * 10.0,
-        "PC1": pc1,
-        "PC2": pc2,
-    })
+    projections = pd.DataFrame(
+        {
+            "system": "TestSystem",
+            "replicate": "Rep1",
+            "frame": np.arange(n_total),
+            "time_ps": np.arange(n_total) * 10.0,
+            "PC1": pc1,
+            "PC2": pc2,
+        }
+    )
 
     fel = calculate_fel(pc1, pc2, temperature=300.0, bins=40, smooth_sigma=1.0)
     states, unassigned_pop, frame_assignments, basin_map = detect_energy_basins(
@@ -71,14 +73,16 @@ def test_state_minimum_coordinates():
     pc1 = np.random.normal(2.5, 0.2, 500)
     pc2 = np.random.normal(-1.5, 0.2, 500)
 
-    projections = pd.DataFrame({
-        "system": "Test",
-        "replicate": "Rep1",
-        "frame": np.arange(500),
-        "time_ps": np.arange(500),
-        "PC1": pc1,
-        "PC2": pc2,
-    })
+    projections = pd.DataFrame(
+        {
+            "system": "Test",
+            "replicate": "Rep1",
+            "frame": np.arange(500),
+            "time_ps": np.arange(500),
+            "PC1": pc1,
+            "PC2": pc2,
+        }
+    )
 
     fel = calculate_fel(pc1, pc2, temperature=300.0, bins=30, smooth_sigma=1.0)
     states, unassigned_pop, _, _ = detect_energy_basins(fel, projections, min_state_population=0.5)
