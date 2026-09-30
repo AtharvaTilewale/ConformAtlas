@@ -45,7 +45,8 @@ master_doc = "index"
 html_theme = "sphinx_rtd_theme"
 html_theme_options = {
     "logo_only": False,
-    "display_version": True,
+    # "display_version" was removed in sphinx-rtd-theme 3.0; the version
+    # selector is now part of the flyout menu and shown by default.
     "prev_next_buttons_location": "bottom",
     "style_external_links": True,
     "collapse_navigation": False,
