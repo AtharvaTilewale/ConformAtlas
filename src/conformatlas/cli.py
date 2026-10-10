@@ -1,69 +1,26 @@
 """Command Line Interface (CLI) for ConformAtlas / ConformAtlas."""
 
-import datetime
 import logging
 import sys
 from pathlib import Path
 
 import click
-import numpy as np
-import pandas as pd
 
 import conformatlas
-from conformatlas.basins import detect_energy_basins, save_basin_results
 from conformatlas.comparison import run_condition_comparison
 from conformatlas.config import generate_example_config, parse_comparison_config
-from conformatlas.convergence import (
-    compute_convergence_diagnostics,
-    save_convergence_results,
-)
-from conformatlas.fel import calculate_fel, save_fel_grid
 from conformatlas.gromacs import GromacsRunner
-from conformatlas.models import AnalysisConfig, AnalysisResults, TrajectoryInfo
-from conformatlas.pca import (
-    PCAResults,
-    compute_cartesian_pca,
-    project_coordinates,
-    run_gromacs_pca,
-    save_pca_results,
-)
 from conformatlas.plotting import (
-    plot_basin_map,
     plot_comparison_populations,
     plot_comparison_shared_pca,
     plot_comparison_system_fel,
     plot_condition_comparison,
-    plot_convergence_cosine,
-    plot_convergence_diagnostics,
-    plot_convergence_progressive,
-    plot_convergence_stability,
-    plot_eigenvalues_and_variance,
-    plot_fel,
-    plot_fel_2d,
-    plot_fel_3d,
-    plot_pca_density,
-    plot_pca_projections,
-    plot_pca_scatter,
-    plot_state_populations,
-)
-from conformatlas.report import generate_html_report
-from conformatlas.representatives import extract_representative_structures
-from conformatlas.trajectory import (
-    HAS_MDANALYSIS,
-    inspect_trajectory,
-    load_reference_coordinates,
-    stream_trajectory_coordinates,
-)
-from conformatlas.uncertainty import (
-    compute_replicate_statistics,
-    save_uncertainty_results,
 )
 from conformatlas.utils import (
     BOLD,
     CYAN,
     GREEN,
     NC,
-    R_GAS_CONSTANT,
     RED,
     YELLOW,
     print_banner,
@@ -161,465 +118,230 @@ def main(ctx, structure, trajectory, temperature, output):
             click.echo(ctx.get_help())
 
 
-@main.command(name="analyze")
+@main.command(name="analyze", cls=ConformAtlasCommand)
+@click.option(
+    "--config",
+    "config_file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="YAML file with any of the options below (command-line flags override it).",
+)
 @click.option(
     "-s",
     "--structure",
     "--topology",
     "structure",
-    type=click.Path(exists=True),
-    required=True,
-    help="Topology/structure file (.tpr, .gro, .pdb).",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Topology/structure file (.tpr, .gro, .pdb). A .gro/.pdb also serves as the superposition reference.",
 )
 @click.option(
     "-f",
     "--trajectory",
     "trajectory",
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, dir_okay=False),
     multiple=True,
-    required=True,
-    help="Trajectory file (.xtc). Pass multiple times for replicates: -f rep1.xtc -f rep2.xtc.",
+    help="Trajectory file (.xtc/.trr/.dcd). Repeat for replicates: -f rep1.xtc -f rep2.xtc.",
 )
 @click.option(
-    "-T",
-    "--temperature",
-    type=float,
-    default=300.0,
-    show_default=True,
-    help="Simulation temperature in Kelvin (must be > 0).",
+    "-T", "--temperature", type=float, default=None, help="Simulation temperature in Kelvin (> 0)."
 )
 @click.option(
-    "-o",
-    "--output",
-    type=click.Path(),
-    default="Outputs",
-    show_default=True,
-    help="Output directory for results and figures.",
+    "-o", "--output", type=click.Path(file_okay=False), default=None, help="Output directory."
 )
 @click.option(
-    "-l",
-    "--lsq-group",
-    default="Backbone",
-    show_default=True,
-    help="Least squares alignment group (e.g. Backbone, C-alpha, Protein).",
+    "-b", "--begin", "begin_ps", type=float, default=None, help="First time to read (ps)."
+)
+@click.option("-e", "--end", "end_ps", type=float, default=None, help="Last time to read (ps).")
+@click.option(
+    "--equilibration",
+    type=click.Choice(["none", "auto"]),
+    default=None,
+    help="auto: discard the initial transient detected per replicate (Chodera max-N_eff criterion). Default none (reported only).",
+)
+@click.option(
+    "-n",
+    "--index",
+    "index_file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="GROMACS index file; group names given to -l/-c/-g are looked up here first.",
+)
+@click.option(
+    "-l", "--lsq-group", type=str, default=None, help="Least-squares fit group (default Backbone)."
 )
 @click.option(
     "-c",
     "--cov-group",
-    default="Backbone",
-    show_default=True,
-    help="Covariance / PCA analysis group.",
+    type=str,
+    default=None,
+    help="Analysis (covariance) group (default Backbone).",
 )
 @click.option(
     "-g",
     "--lig",
     "lig_group",
+    type=str,
     default=None,
-    help="Optional ligand group name (e.g. LIG, ATP).",
+    help="Ligand residue/group name (e.g. ZMR, ATP): added to the analysis group and given its own RMSD.",
+)
+@click.option(
+    "--pca-type",
+    type=click.Choice(["cartesian", "dihedral", "tica"]),
+    default=None,
+    help="Decomposition: Cartesian PCA (default), backbone dihedral PCA, or TICA on fitted coordinates.",
+)
+@click.option("--tica-lag", type=int, default=None, help="TICA lag time in frames (default 10).")
+@click.option("--n-components", type=int, default=None, help="Components to retain (default 10).")
+@click.option(
+    "--pca-backend",
+    type=click.Choice(["auto", "python", "gromacs"]),
+    default=None,
+    help="auto: MDAnalysis when installed, else gmx covar/anaeig.",
+)
+@click.option(
+    "--cv",
+    type=click.Choice(["pc", "rmsd-rg", "file"]),
+    default=None,
+    help="Collective variables of the landscape: two components (default), RMSD x Rg, or columns of --cv-file.",
+)
+@click.option(
+    "--fel-pcs",
+    "fel_pcs",
+    type=str,
+    default=None,
+    help="Components for the landscape, e.g. 1,2 (default) or 1,3.",
+)
+@click.option(
+    "--cv-file",
+    "cv_files",
+    type=click.Path(exists=True, dir_okay=False),
+    multiple=True,
+    help="External CV file per trajectory (.xvg/.dat/.csv; time + columns), same order as -f.",
+)
+@click.option(
+    "--cv-cols",
+    "cv_columns",
+    type=str,
+    default=None,
+    help="0-based columns of --cv-file holding CV1,CV2 (default 1,2).",
+)
+@click.option(
+    "--cv-labels", type=str, default=None, help="Axis names for --cv file, e.g. 'd1 (nm),d2 (nm)'."
+)
+@click.option(
+    "--weights-file",
+    "weights_files",
+    type=click.Path(exists=True, dir_okay=False),
+    multiple=True,
+    help="Per-frame statistical weights per trajectory (biased sampling reweighting), same order as -f.",
 )
 @click.option(
     "--bins",
-    type=int,
-    default=64,
-    show_default=True,
-    help="Number of 2D FEL histogram bins along PC1 and PC2.",
+    type=str,
+    default=None,
+    help="FEL bins per axis, or 'auto' (Freedman-Diaconis; default).",
 )
 @click.option(
-    "--smooth-sigma",
-    type=float,
-    default=0.0,
-    show_default=True,
-    help="Gaussian smoothing standard deviation (0.0 for raw density).",
+    "--smooth-sigma", type=float, default=None, help="Gaussian smoothing SD in bins (0 = raw)."
 )
 @click.option(
     "--pca-weighting",
     type=click.Choice(["equal-replicate", "frames"]),
-    default="equal-replicate",
-    show_default=True,
-    help="PCA weighting strategy for multi-replicate trajectories.",
+    default=None,
+    help="Weighting of replicates in PCA (default equal-replicate).",
 )
-@click.option(
-    "--stride",
-    type=int,
-    default=1,
-    show_default=True,
-    help="Frame stride for streaming trajectory processing.",
-)
+@click.option("--stride", type=int, default=None, help="Frame stride (default 1).")
 @click.option(
     "--min-state-population",
     type=float,
-    default=0.05,
-    show_default=True,
-    help="Minimum fraction threshold for major conformational states (0.05 = 5%).",
-)
-@click.option(
-    "--max-states",
-    type=int,
-    default=10,
-    show_default=True,
-    help="Maximum number of major states to segment.",
-)
-@click.option(
-    "--fel-backend",
-    type=click.Choice(["python", "gromacs"]),
-    default="python",
-    show_default=True,
-    help="Free Energy Landscape calculation backend.",
-)
-@click.option(
-    "--gmx-command",
-    type=str,
     default=None,
-    help="Path to custom GROMACS executable.",
+    help="Minimum fraction for a major state (default 0.05).",
+)
+@click.option(
+    "--max-states", type=int, default=None, help="Maximum number of major states (default 10)."
 )
 @click.option(
     "--min-barrier",
     type=float,
     default=None,
-    help=(
-        "Minimum free-energy barrier (kJ/mol) between two basins; shallower "
-        "watershed basins are merged. Default: 1 kT at the given temperature."
-    ),
+    help="Minimum barrier (kJ/mol) between basins; shallower ones are merged (default 1 kT).",
 )
+@click.option(
+    "--bootstrap",
+    "n_bootstrap",
+    type=int,
+    default=None,
+    help="Block-bootstrap resamples for ΔG, populations and barriers (default 200; 0 disables).",
+)
+@click.option("--seed", type=int, default=None, help="Random seed for the bootstrap (default 0).")
+@click.option(
+    "--n-representatives", type=int, default=None, help="Structures written per state (default 1)."
+)
+@click.option(
+    "--representative",
+    "representative_method",
+    type=click.Choice(["minimum", "medoid"]),
+    default=None,
+    help="Representative choice: closest to basin minimum (default) or medoid in PC space.",
+)
+@click.option(
+    "--fel-backend",
+    type=click.Choice(["python", "gromacs"]),
+    default=None,
+    help="FEL backend (python default).",
+)
+@click.option("--gmx-command", type=str, default=None, help="Path to a GROMACS executable.")
 @click.option(
     "--fit/--no-fit",
-    default=True,
-    show_default=True,
-    help=(
-        "Least-squares superpose every frame onto the structure file using the "
-        "--lsq-group atoms before PCA (removes overall rotation/translation). "
-        "Use --no-fit only for trajectories already fitted with gmx trjconv -fit."
-    ),
+    "fit",
+    default=None,
+    help="Superpose frames on --lsq-group before PCA (default on). --no-fit only for pre-fitted trajectories.",
 )
 @click.option(
-    "--mass-weighted-fit",
-    is_flag=True,
-    default=False,
-    help="Mass-weight the least-squares fit (requires masses in the topology).",
+    "--mass-weighted-fit", is_flag=True, default=None, help="Mass-weight the superposition."
 )
-def analyze(
-    structure,
-    trajectory,
-    temperature,
-    output,
-    lsq_group,
-    cov_group,
-    lig_group,
-    bins,
-    smooth_sigma,
-    pca_weighting,
-    stride,
-    min_state_population,
-    max_states,
-    fel_backend,
-    gmx_command,
-    min_barrier,
-    fit,
-    mass_weighted_fit,
-):
-    """Perform PCA and Free Energy Landscape analysis on single or multi-replicate MD trajectories."""
-    out_dir = Path(output)
+@click.option(
+    "--pdf", is_flag=True, default=None, help="Also export report.pdf (requires weasyprint)."
+)
+@click.pass_context
+def analyze(ctx, config_file, **options):
+    """PCA / free-energy-landscape analysis of one system (single or multi-replicate)."""
+    from conformatlas.config import build_analysis_config
+    from conformatlas.pipeline import run_analysis
+
+    try:
+        cfg = build_analysis_config(options, config_file=config_file)
+    except (ValueError, FileNotFoundError) as e:
+        raise click.UsageError(str(e)) from e
+
+    out_dir = cfg.output_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     setup_logging(out_dir)
+    print_banner(ctx)
+    click.echo(f"{CYAN}ConformAtlas {conformatlas.__version__} — analysis pipeline{NC}")
+    click.echo(f"  • Topology:     {cfg.topology}")
+    click.echo(f"  • Trajectories: {len(cfg.trajectories)} file(s)")
+    click.echo(f"  • Temperature:  {cfg.temperature:.1f} K")
+    click.echo(f"  • Output:       {out_dir.resolve()}")
 
-    click.echo(f"{CYAN}Initializing ConformAtlas Analysis Pipeline{NC}")
-    click.echo(f"  • Topology:    {structure}")
-    click.echo(f"  • Trajectories: {len(trajectory)} file(s)")
-    click.echo(f"  • Temperature: {temperature:.1f} K")
-    click.echo(f"  • Output Dir:  {out_dir.resolve()}")
-
-    # Initialize GROMACS runner if available
-    gmx_runner = None
-    gmx_version = "None"
-    try:
-        gmx_runner = GromacsRunner(gmx_command)
-        gmx_version = gmx_runner.version
-        click.echo(f"{GREEN}✔ GROMACS found: {gmx_runner.gmx_path} ({gmx_version}){NC}")
-    except Exception as e:
-        click.echo(f"{YELLOW}Notice: GROMACS not available directly: {e}{NC}")
-        if fel_backend == "gromacs":
-            click.echo(
-                f"{RED}Error: GROMACS backend requested but GROMACS executable is unavailable.{NC}"
-            )
-            sys.exit(1)
-
-    # 1. Inspect trajectories
-    traj_infos: list[TrajectoryInfo] = []
-    traj_map: dict = {}
-    for idx, t_path in enumerate(trajectory):
-        rep_id = f"Rep_{idx + 1}"
-        t_path = Path(t_path)
-        traj_map[rep_id] = t_path
-        info = inspect_trajectory(structure, t_path, rep_id, "System", gmx_runner=gmx_runner)
-        traj_infos.append(info)
-        click.echo(
-            f"  • {rep_id}: {info.n_frames} frames ({info.start_time_ps:.1f} to {info.end_time_ps:.1f} ps)"
-        )
-
-    # 2. PCA calculation
-    click.echo(f"\n{CYAN}Step 1: Computing Principal Component Analysis...{NC}")
-    coords_dict = {}
-    system_times = {}
-
-    if HAS_MDANALYSIS:
-        reference_fit = None
-        if fit:
-            reference_fit = load_reference_coordinates(
-                structure, group=lsq_group, fallback_trajectory=trajectory[0]
-            )
-            click.echo(
-                f"  • Superposing frames on '{lsq_group}' ({len(reference_fit)} atoms) "
-                f"of {Path(structure).name} before PCA"
-            )
+    def echo(msg: str) -> None:
+        if msg.startswith("Step") or msg.startswith("Report"):
+            click.echo(f"\n{CYAN}{msg}{NC}")
+        elif "WARNING" in msg or "NOTE" in msg:
+            click.echo(f"{YELLOW}{msg}{NC}")
         else:
-            click.echo(
-                f"  {YELLOW}• Superposition disabled (--no-fit): trajectories are assumed "
-                f"to be pre-fitted; otherwise PC1/PC2 will contain rigid-body motion.{NC}"
-            )
-        for idx, t_path in enumerate(trajectory):
-            rep_id = f"Rep_{idx + 1}"
-            coords, times = stream_trajectory_coordinates(
-                structure,
-                t_path,
-                group=cov_group,
-                stride=stride,
-                fit=fit,
-                fit_group=lsq_group,
-                reference_fit_coords=reference_fit,
-                mass_weighted=mass_weighted_fit,
-            )
-            coords_dict[rep_id] = coords
-            system_times[rep_id] = times
+            click.echo(msg)
 
-        evals, evecs, exp_var, cum_var, mean_struct = compute_cartesian_pca(
-            coords_dict, weighting=pca_weighting, n_components=10
-        )
-
-        proj_dfs = []
-        for rep_id, coords in coords_dict.items():
-            proj_mat = project_coordinates(coords, mean_struct, evecs)
-            t_vals = system_times[rep_id]
-            df = pd.DataFrame(proj_mat, columns=[f"PC{i + 1}" for i in range(proj_mat.shape[1])])
-            df.insert(0, "system", "System")
-            df.insert(1, "replicate", rep_id)
-            df.insert(2, "frame", np.arange(len(t_vals)))
-            df.insert(3, "time_ps", t_vals)
-            proj_dfs.append(df)
-        projections = pd.concat(proj_dfs, ignore_index=True)
-
-        pca_results = PCAResults(
-            eigenvalues=evals,
-            eigenvectors=evecs,
-            explained_variance=exp_var,
-            cumulative_variance=cum_var,
-            projections=projections,
-            mean_coords=mean_struct,
-        )
-    else:
-        if gmx_runner is None:
-            raise RuntimeError("Either MDAnalysis or GROMACS must be installed.")
-        pca_results = run_gromacs_pca(
-            gmx_runner,
-            Path(structure),
-            [Path(p) for p in trajectory],
-            lsq_group=lsq_group,
-            cov_group=cov_group,
-            output_dir=out_dir,
-            n_components=10,
-        )
-
-    save_pca_results(pca_results, out_dir)
-    top2_var = (
-        pca_results.cumulative_variance[1]
-        if len(pca_results.cumulative_variance) > 1
-        else (
-            pca_results.cumulative_variance[0] if len(pca_results.cumulative_variance) > 0 else 0.0
-        )
-    )
-    click.echo(f"{GREEN}✔ PCA completed: Dominant modes explain {top2_var:.1f}% of variance.{NC}")
-
-    # 3. FEL calculation
-    click.echo(
-        f"\n{CYAN}Step 2: Calculating Free Energy Landscape (T = {temperature:.1f} K)...{NC}"
-    )
-    pc1 = pca_results.projections["PC1"].to_numpy()
-    pc2 = pca_results.projections["PC2"].to_numpy()
-
-    fel_grid = calculate_fel(
-        pc1,
-        pc2,
-        temperature=temperature,
-        bins=bins,
-        smooth_sigma=smooth_sigma,
-    )
-    save_fel_grid(fel_grid, out_dir)
-    click.echo(f"{GREEN}✔ FEL calculated on {bins}x{bins} grid.{NC}")
-
-    # 4. Basin detection & states
-    click.echo(f"\n{CYAN}Step 3: Detecting Conformational Basins & Energy Minima...{NC}")
-    states, unassigned_pop, frame_assignments, basin_map = detect_energy_basins(
-        fel_grid,
-        pca_results.projections,
-        min_state_population=min_state_population,
-        max_states=max_states,
-        min_barrier=min_barrier,
-    )
-    save_basin_results(states, frame_assignments, basin_map, out_dir)
-
-    for st in states:
-        click.echo(
-            f"  • {BOLD}{st.label}{NC}: {st.population * 100:.1f}% pop | "
-            f"Minima at PC1={st.min_pc1:.2f}, PC2={st.min_pc2:.2f} (ΔG = {st.min_free_energy:.2f} kJ/mol) | "
-            f"Rep frame {st.representative_frame} ({st.representative_time_ps:.1f} ps)"
-        )
-    if unassigned_pop > 0:
-        click.echo(f"  • Minor / Transitional Conformations: {unassigned_pop * 100:.1f}%")
-
-    # 5. Extract representatives
-    click.echo(f"\n{CYAN}Step 4: Extracting Representative PDB Structures...{NC}")
-    extract_representative_structures(
-        states,
-        {"System": Path(structure)},
-        traj_map,
-        output_dir=out_dir,
-        gmx_runner=gmx_runner,
-        system_name="System",
-    )
-    click.echo(f"{GREEN}✔ Representative PDBs saved to states/ directory.{NC}")
-
-    # 6. Convergence diagnostics
-    click.echo(f"\n{CYAN}Step 5: Assessing Trajectory Sampling & Convergence...{NC}")
-    if coords_dict:
-        conv = compute_convergence_diagnostics(
-            coords_dict, pca_results.projections, frame_assignments, n_modes=10
-        )
-    else:
-        # Fallback dummy for non-coords mode
-        conv = compute_convergence_diagnostics(
-            {"Rep_1": np.zeros((len(projections), 1, 3))},
-            pca_results.projections,
-            frame_assignments,
-            n_modes=2,
-        )
-    save_convergence_results(conv, out_dir)
-    click.echo(f"  • Subspace Overlap (RMSIP 1st vs 2nd half): {conv.rmsip_halves:.2f}")
-    click.echo(f"  • PC1 Cosine Content: {conv.cosine_content.get(1, 0.0):.2f}")
-    click.echo(f"  • Sampling Assessment: {BOLD}{conv.sampling_assessment}{NC}")
-
-    # 7. Uncertainty
-    click.echo(f"\n{CYAN}Step 6: Calculating Replicate / Block Uncertainty...{NC}")
-    summary_pop_df, detailed_pop_df, unc_type = compute_replicate_statistics(frame_assignments)
-    save_uncertainty_results(summary_pop_df, detailed_pop_df, out_dir)
-    click.echo(f"{GREEN}✔ Uncertainty estimated ({unc_type}).{NC}")
-
-    # 8. Publication plots
-    click.echo(f"\n{CYAN}Step 7: Generating Publication Figures...{NC}")
-    fig_dir = out_dir / "figures"
-    fig_dir.mkdir(parents=True, exist_ok=True)
-
-    # Standalone separate publication figures
-    fig_pca_var = plot_eigenvalues_and_variance(pca_results, fig_dir / "explained_variance.png")
-    fig_pca_scatter = plot_pca_scatter(pca_results.projections, fig_dir / "pca_scatter.png")
-    fig_pca_density = plot_pca_density(pca_results.projections, fig_dir / "pca_density.png")
-    fig_fel_2d = plot_fel_2d(fel_grid, states=states, out_path=fig_dir / "fel_2d.png")
-    fig_fel_3d = plot_fel_3d(fel_grid, out_path=fig_dir / "fel_3d.png")
-    fig_basin = plot_basin_map(fel_grid, basin_map, states, fig_dir / "basin_map.png")
-    fig_pop = plot_state_populations(
-        summary_pop_df, detailed_pop_df, fig_dir / "state_populations.png"
-    )
-    fig_conv_prog = plot_convergence_progressive(conv, fig_dir / "convergence_progressive.png")
-    fig_conv_cosine = plot_convergence_cosine(conv, fig_dir / "convergence_cosine.png")
-    fig_conv_stability = plot_convergence_stability(conv, fig_dir / "convergence_stability.png")
-
-    # Multi-panel overview figures (legacy compatibility)
-    plot_fel(fel_grid, states=states, out_path=fig_dir / "fel_2d_3d.png")
-    plot_pca_projections(pca_results.projections, fig_dir / "pca.png")
-    fig_conv = plot_convergence_diagnostics(conv, fig_dir / "convergence.png")
-
-    click.echo(f"{GREEN}✔ Figures saved to {fig_dir.resolve()}{NC}")
-
-    # 9. HTML Report & Metadata
-    click.echo(f"\n{CYAN}Step 8: Compiling Comprehensive HTML Report...{NC}")
-    run_meta = {
-        "timestamp": datetime.datetime.now().isoformat(),
-        "command_line": " ".join(sys.argv),
-        "conformatlas_version": conformatlas.__version__,
-        "temperature_K": temperature,
-        "bins": bins,
-        "smooth_sigma": smooth_sigma,
-        "stride": stride,
-        "pca_weighting": pca_weighting,
-        "lsq_group": lsq_group,
-        "cov_group": cov_group,
-        "min_barrier_kJ_mol": (
-            min_barrier if min_barrier is not None else R_GAS_CONSTANT * temperature
-        ),
-        "superposition": (
-            {
-                "enabled": True,
-                "fit_group": lsq_group,
-                "reference": str(Path(structure).resolve()),
-                "mass_weighted": mass_weighted_fit,
-            }
-            if (fit and HAS_MDANALYSIS)
-            else {"enabled": False, "note": "gmx covar -fit" if not HAS_MDANALYSIS else "--no-fit"}
-        ),
-        "topology": str(Path(structure).resolve()),
-        "trajectories": [str(Path(p).resolve()) for p in trajectory],
-        "uncertainty_type": unc_type,
-    }
-
-    results = AnalysisResults(
-        config=AnalysisConfig(
-            topology=Path(structure),
-            trajectories=[Path(p) for p in trajectory],
-            temperature=temperature,
-            lsq_group=lsq_group,
-            cov_group=cov_group,
-            lig_group=lig_group,
-            output_dir=out_dir,
-            bins=bins,
-            smooth_sigma=smooth_sigma,
-            pca_weighting=pca_weighting,
-            stride=stride,
-            min_state_population=min_state_population,
-            max_states=max_states,
-            fel_backend=fel_backend,
-            gmx_command=gmx_command,
-            fit=fit,
-            mass_weighted_fit=mass_weighted_fit,
-            min_barrier=min_barrier,
-        ),
-        trajectories_info=traj_infos,
-        pca=pca_results,
-        fel=fel_grid,
-        states=states,
-        unassigned_population=unassigned_pop,
-        frame_assignments=frame_assignments,
-        convergence=conv,
-        replicate_statistics=summary_pop_df,
-        output_dir=out_dir,
-        run_metadata=run_meta,
-    )
-
-    figures_map = {
-        "fel_2d": fig_fel_2d,
-        "fel_3d": fig_fel_3d,
-        "fel_states": fig_fel_2d,
-        "basin_map": fig_basin,
-        "populations": fig_pop,
-        "pca_variance": fig_pca_var,
-        "pca_scatter": fig_pca_scatter,
-        "pca_density": fig_pca_density,
-        "pca_projections": fig_pca_scatter,
-        "convergence_progressive": fig_conv_prog,
-        "convergence_cosine": fig_conv_cosine,
-        "convergence_stability": fig_conv_stability,
-        "convergence": fig_conv,
-    }
-
-    report_p = generate_html_report(results, figures_map, gromacs_version=gmx_version)
-    click.echo(f"{GREEN}✔ Analysis Complete! Report generated: {report_p.resolve()}{NC}")
+    try:
+        results = run_analysis(cfg, echo=echo)
+    except Exception as e:
+        logging.getLogger("conformatlas").exception("Analysis failed")
+        click.echo(f"{RED}Error: {e}{NC}", err=True)
+        sys.exit(1)
+    click.echo(f"\n{GREEN}✔ Analysis complete: {results.output_dir / 'report.html'}{NC}")
+    if results.warnings:
+        click.echo(f"{YELLOW}{len(results.warnings)} warning(s) recorded in run_metadata.json{NC}")
 
 
 @main.command(name="compare")
@@ -657,7 +379,36 @@ def compare(config_file, output_dir):
     for s_name in res.get("system_fels", {}):
         plot_comparison_system_fel(res, s_name, fig_dir / f"comparison_fel_{s_name}.png")
     plot_condition_comparison(res, fig_dir / "condition_comparison.png")
+    from conformatlas.plotting_extra import plot_ddg_map
 
+    ref_name = res["reference_system"]
+    global_fel = res["global_fel"]
+    for s_name, dd in res.get("ddg_maps", {}).items():
+        plot_ddg_map(
+            global_fel.x_centers,
+            global_fel.y_centers,
+            dd["ddg"],
+            ref_name,
+            s_name,
+            fig_dir / f"ddg_map_{s_name}_vs_{ref_name}.png",
+            sd=dd.get("sd"),
+        )
+    ov = res.get("landscape_overlap")
+    if ov is not None and len(ov):
+        for _, r in ov.iterrows():
+            click.echo(
+                f"  Landscape overlap {r['System_A']} vs {r['System_B']}: "
+                f"Bhattacharyya = {r['Bhattacharyya_Coefficient']:.3f}, "
+                f"JS divergence = {r['JS_Divergence_bits']:.3f} bits"
+            )
+    sub = res.get("subspace_overlap")
+    if sub is not None:
+        names = list(sub.columns)
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                click.echo(
+                    f"  Essential-subspace RMSIP {names[i]} vs {names[j]}: {sub.iloc[i, j]:.3f}"
+                )
     click.echo(f"{GREEN}✔ Comparison complete! Results in: {comp_config.output_dir.resolve()}{NC}")
 
 

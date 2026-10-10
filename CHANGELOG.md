@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-10
+
+### Added
+- **Time window and equilibration.** `-b/--begin` and `-e/--end` (ps) restrict the frames read. The statistical inefficiency g of PC1/PC2 and the effective sample size N_eff are reported per replicate (`convergence/effective_samples.csv`); the equilibration point maximising N_eff (Chodera 2016) is detected on the fit RMSD and reported (`convergence/equilibration.csv`) or applied with `--equilibration auto`. Fewer than 50 effective frames force the sampling verdict to "Insufficient evidence". New module `conformatlas.timeseries`.
+- **Block bootstrap of the landscape** (`--bootstrap N`, default 200; `--seed`). Circular block bootstrap within each replicate (block length 2g) yields the SD and 95 % interval of ΔG per bin (`fel/free_energy_bootstrap_*.npy`, `figures/fel_uncertainty.png`), of state populations (merged into `statistics/state_populations.csv`), of state free energies (`states/state_free_energies.csv`) and of barriers. 1-D projections of the landscape with error bands (`figures/fel_1d.png`). New module `conformatlas.bootstrap`.
+- **Barriers and kinetics.** Saddle-point barriers between adjacent basins (`states/barriers.csv`); lag-1 transition counts and probabilities, dwell times and Markov mean first-passage times computed within replicates (`kinetics/`, `figures/state_timeseries.png`). New module `conformatlas.kinetics`.
+- **Collective-variable choice.** `--pca-type dihedral` (backbone φ/ψ sin/cos PCA) and `--pca-type tica --tica-lag N` (time-lagged independent component analysis with implied timescales, PCA pre-reduction when frames do not greatly outnumber coordinates); `--fel-pcs i,j` to build the landscape on any two components; `--cv rmsd-rg`; `--cv file --cv-file ... --cv-cols ... --cv-labels ...` for external CVs (PLUMED COLVAR, .xvg, CSV). `--n-components`. New module `conformatlas.features`.
+- **Reweighting.** `--weights-file` supplies per-frame statistical weights to the histogram, populations and bootstrap; kinetics are skipped for weighted frames.
+- **Mode interpretation.** Per-atom and per-residue mode contributions (`pca/mode_contributions_*.csv`, `figures/mode_contributions.png`), `pca/modes.nmd` for VMD NMWiz/ProDy, `pca/average.pdb`, `pca/PC*_extremes.pdb`, `pca/eigenvectors.npy`. New module `conformatlas.modes`.
+- **Richer state structures.** `--n-representatives N` and `--representative minimum|medoid`; per-state `average.pdb`, `rmsf_atoms.csv`, `rmsf_residues.csv`, and `states/state_ensemble_summary.csv`.
+- **Descriptors.** Backbone RMSD, radius of gyration, RMSF per atom/residue and, with `--lig`, ligand RMSD after protein fit (`descriptors/`, `figures/descriptors.png`). New module `conformatlas.descriptors`.
+- **Automatic grid** (`--bins auto`, now the default) from the Freedman–Diaconis rule, clipped to 16–128 bins.
+- **Input validation**: atom-count mismatch between structure and trajectory, broken Cα chains (PBC artefacts), memory estimate with a warning above 8 GB.
+- **GROMACS index files** (`-n/--index`) for `--lsq-group`, `--cov-group`, `--lig` and the comparison groups (same numbering required across systems). New module `conformatlas.ndx`.
+- **Ligand option** `--lig` is now functional: the ligand's atoms join the analysis group and its RMSD is reported.
+- **Scalability**: when 3N exceeds the number of frames the covariance eigenproblem is solved in the frame space (SVD dual route); trajectories are streamed with the time window applied.
+- **Comparison statistics** (`conformatlas compare`, any number of systems): ΔΔG maps with bootstrap SD versus the reference system (`comparison/fel_diff_<SYS>_vs_<REF>.csv/.npy`, `figures/ddg_map_*.png`, hatched where |ΔΔG| < 2 SD); population differences with block-bootstrap CI and p-value and Welch's t-test across replicates (when ≥ 2 per system); state ΔΔG with CI; landscape overlap (Bhattacharyya, Hellinger, Jensen–Shannon, sampled-bin Jaccard; `fel_overlap.csv`); RMSIP between each system's own essential subspace (`subspace_overlap.csv`); `comparison_summary.json`; bootstrap CI error bars on the population figures. Comparison YAML accepts `begin_ps`, `end_ps`, `index_file`, `bins: auto`, `n_bootstrap`, `seed`. New module `conformatlas.comparison_stats`.
+- **YAML configuration for `analyze`** (`conformatlas init-config --type analyze`, `conformatlas analyze --config run.yaml`; flags override the file) and **PDF export** (`--pdf`, optional dependency `conformatlas[pdf]` / WeasyPrint).
+- `conformatlas.pipeline.run_analysis` — the full single-system workflow as a library function; `cli.analyze` is a thin wrapper.
+- `run_metadata.json` now records time window, equilibration, decomposition type, CVs, weights, index file, bootstrap settings, representative settings and all warnings emitted during the run; `summary.json` carries uncertainty and N_eff.
+- Tests: 39 new tests (timeseries, kinetics, ndx, CV/weights readers, auto bins and weighted FEL, bootstrap coverage, TICA slow-mode recovery, comparison statistics, anaeig parser, medoid selection, YAML merging) and a real-protein integration suite on influenza neuraminidase–zanamivir (Cα + ligand heavy atoms, 81 frames, `tests/data/h1n1_ca/`, 190 kB) covering the index file, ligand, time window, bootstrap, equilibration, RMSD/Rg CVs, TICA, external CV files with weights, and the GROMACS PCA backend (skipped when `gmx` is absent). 78 tests in total.
+
+### Fixed
+- **GROMACS PCA backend**: `gmx anaeig -proj` writes one `&`-separated data set per eigenvector; the parser read them as a single column, so every component after the first was lost and the landscape was built on a mis-shaped projection. Projections are now parsed per set and the figure axes are labelled in nm for this backend.
+- Representative-structure extraction indexed the raw trajectory with the streamed frame index, which is wrong under `--stride` or a time window; frames are now located by time.
+- Population error bars are clipped to [0, 100] %.
+
+### Changed
+- `--bins` accepts `auto` (default) or an integer.
+- Figure axis labels follow the collective variables in use (PC, dPC, IC, RMSD/Rg, user names); CSV columns keep `PC1..PCn` for all decompositions.
+- Added dependency: none required (SciPy already used); `weasyprint` optional for PDF.
+
+---
+
 ## [0.2.0] - 2026-10-10
 
 ### Changed

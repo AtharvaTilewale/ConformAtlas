@@ -21,6 +21,7 @@ def calculate_fel(
     smooth_sigma: float = 0.0,
     x_range: tuple[float, float] | None = None,
     y_range: tuple[float, float] | None = None,
+    weights: np.ndarray | None = None,
 ) -> FELGrid:
     """Calculate 2D Free Energy Landscape from PC1 and PC2 coordinates.
 
@@ -67,7 +68,13 @@ def calculate_fel(
         hist_range = [list(x_range), list(y_range)]
 
     # np.histogram2d: row corresponds to x, column to y
-    hist, x_edges, y_edges = np.histogram2d(pc1, pc2, bins=bins, range=hist_range, density=False)
+    if weights is not None:
+        weights = np.asarray(weights, dtype=np.float64)
+        if len(weights) != len(pc1):
+            raise ValueError(f"weights has {len(weights)} entries for {len(pc1)} frames.")
+    hist, x_edges, y_edges = np.histogram2d(
+        pc1, pc2, bins=bins, range=hist_range, density=False, weights=weights
+    )
 
     # Transpose so rows correspond to y (PC2) and cols to x (PC1)
     # matching 2D matrix indexing [y_idx, x_idx]
@@ -81,7 +88,7 @@ def calculate_fel(
     occupancy_mask = hist_2d > 0
 
     n_occupied = int(np.sum(occupancy_mask))
-    counts_per_occupied_bin = total_counts / max(n_occupied, 1)
+    counts_per_occupied_bin = len(pc1) / max(n_occupied, 1)
     if counts_per_occupied_bin < 2.0:
         advice = (
             "reduce --bins or set --smooth-sigma (e.g. 1.0)"
@@ -89,7 +96,7 @@ def calculate_fel(
             else "reduce --bins or increase sampling"
         )
         logger.warning(
-            f"Sparse FEL grid: {int(total_counts)} frames spread over {n_occupied} occupied "
+            f"Sparse FEL grid: {len(pc1)} frames spread over {n_occupied} occupied "
             f"bins ({counts_per_occupied_bin:.1f} frames/bin). Basin populations on such a "
             f"grid carry large counting noise; {advice}."
         )
@@ -134,6 +141,26 @@ def calculate_fel(
         smooth_sigma=smooth_sigma,
         occupancy_mask=occupancy_mask,
     )
+
+
+def choose_bins(cv1: np.ndarray, cv2: np.ndarray, min_bins: int = 16, max_bins: int = 128) -> int:
+    """Square-grid bin count from the Freedman-Diaconis rule applied to both CVs.
+
+    width = 2 IQR N^(-1/3); the finer of the two axes decides, clipped to
+    [min_bins, max_bins]. Yields ~16 bins for a few hundred frames and ~100 for
+    10^5 frames.
+    """
+    n = len(cv1)
+    best = min_bins
+    for cv in (np.asarray(cv1, dtype=np.float64), np.asarray(cv2, dtype=np.float64)):
+        q75, q25 = np.percentile(cv, [75, 25])
+        iqr = q75 - q25
+        rng = float(cv.max() - cv.min())
+        if iqr <= 0 or rng <= 0 or n < 2:
+            continue
+        width = 2.0 * iqr * n ** (-1.0 / 3.0)
+        best = max(best, int(np.ceil(rng / width)))
+    return int(min(max(best, min_bins), max_bins))
 
 
 def save_fel_grid(fel_grid: FELGrid, output_dir: str | Path) -> Path:

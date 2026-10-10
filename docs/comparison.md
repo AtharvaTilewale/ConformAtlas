@@ -30,3 +30,16 @@ When running `conformatlas compare --config compare.yaml`, the following outputs
 * `comparison/state_population_comparison.csv`: Direct shifts in major state occupancies.
 * `comparison/fel_diff.npy`: $\Delta\Delta G = \Delta G_{\text{mutant}} - \Delta G_{\text{WT}}$ free energy difference map.
 * `figures/condition_comparison.png`: 4-panel comparison figure.
+
+
+---
+
+## 4. Statistics Reported for Every System vs the Reference
+
+* **Population differences** (`state_population_comparison.csv`): block-bootstrap 95 % interval and two-sided p-value for the difference, and Welch's t-test across per-replicate populations when every system has at least two replicates. With two or three replicates per system the t-test has very little power; the bootstrap, which resamples correlated blocks of frames, is the primary estimate and the t-test a complement.
+* **ΔΔG maps** (`fel_diff_<SYS>_vs_<REF>.csv/.npy`, `figures/ddg_map_*.png`): $\Delta G_S - \Delta G_R$ on the shared grid, each landscape referenced to its own minimum, with a bootstrap standard deviation per bin. Bins where $|\Delta\Delta G| < 2\,\text{SD}$ are hatched in the figure; regions sampled by one system only are blank.
+* **State ΔΔG** (`state_free_energy_comparison.csv`): difference of the state minima with bootstrap interval.
+* **Landscape overlap** (`fel_overlap.csv`): Bhattacharyya coefficient (1 = identical densities), Hellinger distance, Jensen–Shannon divergence in bits and the Jaccard index of sampled bins.
+* **Essential-subspace similarity** (`subspace_overlap.csv`): RMSIP between the leading eigenvectors of each system's own PCA. Values ≳ 0.7 indicate that the systems move along similar collective directions even where their populations differ.
+
+Comparison configurations accept `begin_ps`, `end_ps`, `index_file`, `bins: auto`, `n_bootstrap` and `seed`; any number of systems may be listed and `reference_system` chooses the baseline for all differences.

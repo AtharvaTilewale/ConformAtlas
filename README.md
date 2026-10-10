@@ -24,25 +24,35 @@
 
 ## Key Features
 
-* **Superposition Before PCA**:
+* **Superposition before PCA**:
   Every frame is least-squares fitted (Kabsch) on the `--lsq-group` atoms to the structure file before the covariance matrix is built, so the principal components describe internal motion rather than tumbling and drift in the box. Equivalent to `gmx covar -fit`; disable with `--no-fit` only for pre-fitted trajectories.
-* **Temperature-Aware Free Energy Surfaces**:
+* **Choice of collective variables**:
+  Cartesian PCA (default), backbone dihedral PCA (`--pca-type dihedral`, sin/cos of φ/ψ), or time-lagged independent component analysis (`--pca-type tica --tica-lag N`, with implied timescales). The landscape can be built on any pair of components (`--fel-pcs 1,3`), on backbone RMSD vs radius of gyration (`--cv rmsd-rg`), or on two columns of an external file such as a PLUMED `COLVAR` or `gmx` `.xvg` (`--cv file --cv-file ... --cv-cols 1,2`). Per-frame statistical weights (`--weights-file`) reweight biased simulations.
+* **Temperature-aware free energy surfaces**:
   $$\Delta G(x, y) = -R \cdot T \cdot \ln\left[ \frac{P(x, y)}{P_{\max}} \right]$$
-  Evaluated in $\text{kJ/mol}$ with explicit temperature validation ($T > 0$ K). Zero-occupancy bins are safely masked as $\text{NaN}$ rather than erroneously assigned zero free energy.
-* **Topological Watershed Basin Segmentation**:
-  Automatically identifies discrete conformational energy basins and assigns every trajectory frame to its underlying basin. Sub-basins separated by less than `--min-barrier` (default 1 kT) are merged, so counting noise inside one broad well does not masquerade as several states.
-* **Verified Representative Structure Extraction**:
-  Extracts the real trajectory frame closest in PC space to each basin minimum as a full-atom PDB structure with complete provenance metadata.
-* **Multi-Replicate Analysis**:
-  Maintains replicate identity throughout, avoids continuous-trajectory statistical inflation, and supports balanced replicate weighting (`equal-replicate`).
-* **Condition & Mutant Comparisons in Shared PCA Space**:
-  Compares Wild-Type and mutants within an identical PCA coordinate system with invariant atom selection validation.
-* **Rigorous Convergence & Sampling Diagnostics**:
-  Evaluates first-half vs second-half subspace overlap (RMSIP) pooled over all replicates and per replicate, progressive overlap across sampling fractions, cosine content (diffusion test), and state population stability on cumulative time per replicate.
-* **Replicate Uncertainty Estimation**:
-  Reports Mean, SD, SEM, and 95% Confidence Intervals for state populations.
-* **Automated Publication Figures & HTML Reports**:
-  Generates publication-quality 2D/3D figures without artificial interpolation distortion and compiles a self-contained HTML analysis report.
+  Evaluated in $\text{kJ/mol}$ with explicit temperature validation ($T > 0$ K). Zero-occupancy bins are masked as $\text{NaN}$ rather than assigned zero free energy. The grid resolution is chosen automatically from the Freedman–Diaconis rule (`--bins auto`, default) or set explicitly.
+* **Statistical uncertainty of the landscape**:
+  A circular block bootstrap (block length from the statistical inefficiency of the CVs, blocks drawn within each replicate) gives the standard deviation and 95 % confidence interval of ΔG in every bin, of every state population and state free energy, and of every barrier (`--bootstrap N`, default 200).
+* **Topological watershed basin segmentation, barriers and kinetics**:
+  Discrete conformational basins are identified on the landscape and every frame is assigned. Sub-basins separated by less than `--min-barrier` (default 1 kT) are merged. Saddle-point barriers between adjacent states, transition counts, transition-probability matrix, dwell times and Markov mean first-passage times are reported.
+* **Equilibration detection and effective sample size**:
+  The statistical inefficiency g of PC1/PC2 and the effective number of independent frames N_eff are reported per replicate; the equilibration point that maximises N_eff (Chodera 2016) is detected on the fit RMSD and either reported or applied (`--equilibration auto`). Time windows are set with `-b/-e` (ps). Fewer than 50 effective samples force the sampling verdict to "Insufficient evidence".
+* **Representative structures and state ensembles**:
+  One or several structures per state (`--n-representatives`, `--representative minimum|medoid`) as full-atom PDBs with provenance, plus per-state average structures and RMSF profiles.
+* **Mode interpretation**:
+  Per-atom and per-residue contributions to the leading modes, a VMD/NMWiz `modes.nmd` file, an average structure and extreme-projection structures for each component.
+* **Standard descriptors**:
+  Backbone RMSD, radius of gyration, per-atom/per-residue RMSF and, with `--lig`, ligand RMSD after protein superposition.
+* **Multi-replicate analysis**:
+  Replicate identity is maintained throughout; balanced replicate weighting (`equal-replicate`) avoids one long trajectory dominating the covariance.
+* **Condition and mutant comparisons in a shared PCA space, with statistics**:
+  Any number of systems are projected onto a common basis. For every system versus the reference: a ΔΔG map with bootstrap uncertainty, population differences with block-bootstrap confidence intervals and p-values (plus Welch's t-test across replicates when each system has at least two), state ΔΔG with confidence intervals, landscape overlap metrics (Bhattacharyya coefficient, Jensen–Shannon divergence) and the RMSIP between each system's own essential subspace.
+* **Convergence and sampling diagnostics**:
+  First-half vs second-half subspace overlap (RMSIP) pooled over all replicates and per replicate, progressive overlap, cosine content, population stability on cumulative time per replicate, N_eff and equilibration tables.
+* **Input validation**:
+  Atom-count consistency between structure and trajectory, broken Cα chains (periodic-boundary artefacts) and memory requirements are checked before the run; GROMACS `.ndx` groups are accepted everywhere a group name is (`-n index.ndx`).
+* **Figures and reports**:
+  Publication-quality 2D/3D figures, 1-D projections with error bands, uncertainty maps, descriptor and kinetics panels, a self-contained HTML report, optional PDF (`--pdf`), and a YAML configuration file for the full `analyze` run (`conformatlas init-config --type analyze`, `conformatlas analyze --config run.yaml`).
 
 ---
 
@@ -85,6 +95,25 @@ conformatlas analyze \
     --output results/WT
 ```
 
+All options can be stored in a YAML file (`conformatlas init-config --type analyze -o run.yaml`, then `conformatlas analyze --config run.yaml`); command-line flags override the file. A fuller protein–ligand run:
+
+```bash
+conformatlas analyze -s md.gro -f md_noPBC.xtc -n index.ndx \
+    --cov-group C-alpha --lsq-group C-alpha --lig ZMR \
+    -T 300 -b 5000 --equilibration auto \
+    --bootstrap 200 --n-representatives 3 --representative medoid \
+    --pdf -o results/complex
+```
+
+Alternative landscapes on the same trajectory:
+
+```bash
+conformatlas analyze ... --pca-type dihedral                 # backbone φ/ψ PCA
+conformatlas analyze ... --pca-type tica --tica-lag 50       # slow modes (lag in frames)
+conformatlas analyze ... --cv rmsd-rg                        # RMSD vs Rg
+conformatlas analyze ... --cv file --cv-file COLVAR --cv-cols 1,2 --cv-labels "d1 (nm),d2 (nm)"
+```
+
 ### 2. WT vs Mutant Comparison
 ```bash
 conformatlas compare --config comparison.yaml -o results/comparison
@@ -99,7 +128,8 @@ The demonstration peptide switches between a bent and a twisted conformation and
 ### Input requirements
 * Trajectories must be whole across periodic boundaries (`gmx trjconv -pbc mol`); fitting a broken molecule is meaningless.
 * `-s` should carry coordinates (`.gro`, `.pdb`) to serve as the superposition reference. With a `.tpr` the first trajectory frame is used instead.
-* For enhanced-sampling or biased trajectories see the thermodynamic limitations below.
+* For enhanced-sampling or biased trajectories supply per-frame weights (`--weights-file`, e.g. exp(βV) from a reweighting scheme); without weights see the thermodynamic limitations below.
+* `--lig RES` adds the ligand's atoms to the analysis group (the landscape then describes the complex) and reports its RMSD after protein superposition.
 
 ---
 
@@ -109,15 +139,19 @@ Every analysis run produces a structured, reproducible results directory:
 
 ```text
 results/
-├── report.html                  # Standalone interactive HTML report
-├── run_metadata.json            # Machine-readable execution provenance
-├── summary.json                 # State occupancies and convergence summary
-├── pca/                         # Eigenvalues, explained variance, projections
-├── fel/                         # 2D free energy grid, probability density (.npy, .csv)
-├── states/                      # Watershed basin map, frame assignments, representative PDBs
-├── convergence/                 # RMSIP, cosine content, progressive overlap tables
-├── statistics/                  # State populations with replicate SD, SEM, and 95% CI
-└── figures/                     # Publication-ready 2D/3D FEL and PCA figures
+├── report.html                  # Standalone HTML report (report.pdf with --pdf)
+├── run_metadata.json            # Machine-readable execution provenance and warnings
+├── summary.json                 # State occupancies, convergence and uncertainty summary
+├── pca/                         # Eigenvalues, variance, projections, eigenvectors.npy,
+│                                # modes.nmd, average.pdb, PC*_extremes.pdb, mode_contributions_*.csv
+├── fel/                         # Free energy grid, probability, bootstrap SD and CI grids
+├── states/                      # Basins, frame assignments, barriers, state free energies,
+│                                # State_X/ (representatives, average.pdb, RMSF), ensemble summary
+├── kinetics/                    # Transition counts/matrix, dwell times, Markov MFPT
+├── descriptors/                 # RMSD, Rg, ligand RMSD time series; RMSF per atom and residue
+├── convergence/                 # RMSIP, cosine content, progressive overlap, N_eff, equilibration
+├── statistics/                  # State populations with block SD/SEM, 95% CI and bootstrap CI
+└── figures/                     # 2D/3D FEL, 1-D projections, uncertainty, basins, kinetics, …
 ```
 
 ---
@@ -154,7 +188,7 @@ If you use ConformAtlas in your research, please cite:
   author = {Tilewale, Atharva},
   title = {ConformAtlas: MD Ensemble, PCA, and Free Energy Landscape Analysis},
   year = {2026},
-  version = {0.2.0},
+  version = {0.3.0},
   url = {https://github.com/AtharvaTilewale/ConformAtlas}
 }
 ```

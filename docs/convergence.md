@@ -32,3 +32,14 @@ ConformAtlas rejects simplistic single-metric convergence thresholds. Instead, i
 
 ## 3. Heuristic Disclaimer
 All convergence diagnostics are empirical heuristics. High subspace overlap demonstrates that the simulation is not undergoing rapid drift along its observed modes, but **does not guarantee** that all biologically relevant conformational states were visited.
+
+
+---
+
+## 4. Effective Sample Size and Equilibration
+
+Autocorrelation makes consecutive frames far from independent. `convergence/effective_samples.csv` lists the statistical inefficiency $g$ of PC1 and PC2 and $N_\text{eff} = N/g$ for every replicate; the pooled $N_\text{eff}$ appears in the interpretative notes. Fewer than 50 effective frames override every other diagnostic: the verdict becomes *Insufficient evidence*, because population and free-energy estimates from so few independent samples are not statistically reliable whatever the RMSIP or cosine content say.
+
+`convergence/equilibration.csv` records the production start $t_0$ that maximises $N_\text{eff}$ of the fit RMSD (Chodera 2016) for each replicate. By default it is a recommendation; `--equilibration auto` applies it. Together with `-b/-e` this replaces manual truncation of trajectories before analysis.
+
+Bootstrap confidence intervals (`--bootstrap`) are the companion of these diagnostics: wide intervals on populations or ΔG are the direct consequence of a small $N_\text{eff}$.

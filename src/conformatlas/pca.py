@@ -43,9 +43,13 @@ def compute_cartesian_pca(
     flattened_reps: dict[str, np.ndarray] = {}
     n_dims = None
     for k in replicate_keys:
-        arr = coords_dict[k]
-        if arr.ndim != 3 or arr.shape[2] != 3:
+        arr = np.asarray(coords_dict[k])
+        if arr.ndim == 3 and arr.shape[2] != 3:
             raise ValueError(f"Replicate {k} coordinates must have shape (n_frames, n_atoms, 3).")
+        if arr.ndim not in (2, 3):
+            raise ValueError(
+                f"Replicate {k} must be (n_frames, n_atoms, 3) coordinates or (n_frames, n_features)."
+            )
         flat = arr.reshape(arr.shape[0], -1).astype(np.float64)
         if n_dims is None:
             n_dims = flat.shape[1]
@@ -67,32 +71,36 @@ def compute_cartesian_pca(
         all_frames = np.vstack(list(flattened_reps.values()))
         mean_struct = np.mean(all_frames, axis=0)
 
-    # Compute covariance matrix C = sum_k w_k * (Y_k^T Y_k)
-    cov_matrix = np.zeros((n_dims, n_dims), dtype=np.float64)
+    def _weight(n_k: int) -> float:
+        return 1.0 / (n_reps * n_k) if weighting == "equal-replicate" else 1.0 / total_frames
 
-    for k in replicate_keys:
-        centered = flattened_reps[k] - mean_struct
-        n_k = centered.shape[0]
-        if n_k == 0:
-            continue
-        if weighting == "equal-replicate":
-            w = 1.0 / (n_reps * n_k)
-        else:
-            w = 1.0 / total_frames
-        cov_matrix += w * (centered.T @ centered)
-
-    # Symmetrize to prevent numerical asymmetry
-    cov_matrix = 0.5 * (cov_matrix + cov_matrix.T)
-
-    # Eigen-decomposition: eigh returns ascending order
-    evals, evecs = np.linalg.eigh(cov_matrix)
-
-    # Reverse to descending order
-    evals = evals[::-1]
-    evecs = evecs[:, ::-1]
-
-    # Handle negative numerical eigenvalues near zero
-    evals = np.maximum(evals, 0.0)
+    if n_dims > total_frames:
+        # Dual (SVD) route: with fewer frames than coordinates the covariance has
+        # rank <= total_frames, and the SVD of the sqrt(w)-scaled centred data
+        # matrix gives the same eigenpairs at O(N^2 D) instead of O(D^3) cost.
+        blocks = []
+        for k in replicate_keys:
+            centered = flattened_reps[k] - mean_struct
+            if centered.shape[0] == 0:
+                continue
+            blocks.append(np.sqrt(_weight(centered.shape[0])) * centered)
+        data = np.vstack(blocks)
+        _, sing, vt = np.linalg.svd(data, full_matrices=False)
+        evals = np.maximum(sing**2, 0.0)
+        evecs = vt.T
+    else:
+        cov_matrix = np.zeros((n_dims, n_dims), dtype=np.float64)
+        for k in replicate_keys:
+            centered = flattened_reps[k] - mean_struct
+            n_k = centered.shape[0]
+            if n_k == 0:
+                continue
+            cov_matrix += _weight(n_k) * (centered.T @ centered)
+        cov_matrix = 0.5 * (cov_matrix + cov_matrix.T)
+        evals, evecs = np.linalg.eigh(cov_matrix)
+        evals = evals[::-1]
+        evecs = evecs[:, ::-1]
+        evals = np.maximum(evals, 0.0)
 
     total_variance = np.sum(evals)
     if total_variance > 0:
@@ -111,6 +119,104 @@ def compute_cartesian_pca(
         cum_var[:k_comp],
         mean_struct,
     )
+
+
+def compute_tica(
+    coords_dict: dict[str, np.ndarray],
+    lag: int = 10,
+    n_components: int = 10,
+    weighting: str = "equal-replicate",
+    epsilon: float = 1e-6,
+    max_reduced_dims: int = 100,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Time-lagged independent component analysis (Molgedey & Schuster 1994;
+    Perez-Hernandez et al. 2013) on per-replicate coordinate or feature arrays.
+
+    Solves the generalised eigenproblem C(tau) v = lambda C(0) v with the
+    symmetrised time-lagged covariance, after whitening C(0) and discarding
+    directions with variance below ``epsilon`` x the largest. Eigenvalues are the
+    autocorrelations at lag ``lag`` (frames); implied timescales are
+    -lag / ln(lambda).
+
+    Returns (eigenvalues, eigenvectors (n_dims, k), kinetic_variance_percent,
+    cumulative_kinetic_variance_percent, mean) so the output is interchangeable
+    with ``compute_cartesian_pca``.
+    """
+    keys = list(coords_dict.keys())
+    if not keys:
+        raise ValueError("Cannot compute TICA with empty coordinates dictionary.")
+    flat = {
+        k: np.asarray(v).reshape(np.asarray(v).shape[0], -1).astype(np.float64)
+        for k, v in coords_dict.items()
+    }
+    n_dims = next(iter(flat.values())).shape[1]
+    n_reps = len(keys)
+    total_pairs = sum(max(0, f.shape[0] - lag) for f in flat.values())
+    if total_pairs <= 0:
+        raise ValueError(f"Lag {lag} frames is too long for the trajectories supplied.")
+
+    # TICA over-fits when the number of lagged pairs is not much larger than the
+    # dimension (eigenvalues saturate at 1). Reduce to the leading principal
+    # components first in that regime and map the result back afterwards.
+    reduce_to = min(n_dims, max(2, total_pairs // 10), max_reduced_dims)
+    basis = None
+    if n_dims > reduce_to:
+        _, basis, _, _, pca_mean = compute_cartesian_pca(
+            flat, weighting=weighting, n_components=reduce_to
+        )
+        flat = {k: (f - pca_mean) @ basis for k, f in flat.items()}
+        n_dims = reduce_to
+
+    mean = np.zeros(n_dims)
+    for k in keys:
+        f = flat[k]
+        m = f.shape[0] - lag
+        if m <= 0:
+            continue
+        w = 1.0 / n_reps if weighting == "equal-replicate" else m / total_pairs
+        mean += w * 0.5 * (f[:m].mean(axis=0) + f[lag:].mean(axis=0))
+
+    c0 = np.zeros((n_dims, n_dims))
+    ct = np.zeros((n_dims, n_dims))
+    for k in keys:
+        f = flat[k] - mean
+        m = f.shape[0] - lag
+        if m <= 0:
+            continue
+        w = (1.0 / (n_reps * m)) if weighting == "equal-replicate" else 1.0 / total_pairs
+        a, b = f[:m], f[lag:]
+        c0 += w * 0.5 * (a.T @ a + b.T @ b)
+        ct += w * 0.5 * (a.T @ b + b.T @ a)
+
+    s0, u0 = np.linalg.eigh(c0)
+    keep = s0 > epsilon * s0.max()
+    whiten = u0[:, keep] / np.sqrt(s0[keep])
+    ct_w = whiten.T @ ct @ whiten
+    ct_w = 0.5 * (ct_w + ct_w.T)
+    lam, v = np.linalg.eigh(ct_w)
+    order = np.argsort(lam)[::-1]
+    lam = lam[order]
+    v = v[:, order]
+    evecs = whiten @ v
+    if basis is not None:
+        evecs = basis @ evecs
+        mean = pca_mean + basis @ mean
+    evecs = evecs / np.linalg.norm(evecs, axis=0, keepdims=True)
+
+    k = min(n_components, len(lam))
+    kin = lam**2
+    kin_pct = 100.0 * kin / kin.sum() if kin.sum() > 0 else np.zeros_like(kin)
+    return lam[:k], evecs[:, :k], kin_pct[:k], np.cumsum(kin_pct)[:k], mean
+
+
+def implied_timescales(eigenvalues: np.ndarray, lag_frames: int, dt_ps: float) -> np.ndarray:
+    """-tau / ln(lambda) in ps; infinite for lambda >= 1, NaN for lambda <= 0."""
+    lam = np.asarray(eigenvalues, dtype=np.float64)
+    out = np.full_like(lam, np.nan)
+    ok = (lam > 0) & (lam < 1)
+    out[ok] = -lag_frames * dt_ps / np.log(lam[ok])
+    out[lam >= 1] = np.inf
+    return out
 
 
 def project_coordinates(
@@ -209,19 +315,7 @@ def run_gromacs_pca(
             cwd=pca_dir,
         )
 
-        times = []
-        pc_rows = []
-        with proj_xvg.open("r") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("#") or line.startswith("@") or not line:
-                    continue
-                parts = line.split()
-                if len(parts) >= 2:
-                    times.append(float(parts[0]))
-                    pc_rows.append([float(p) for p in parts[1:]])
-
-        pc_matrix = np.array(pc_rows, dtype=np.float64)
+        times, pc_matrix = _read_anaeig_projection(proj_xvg)
         rep_df = pd.DataFrame(pc_matrix, columns=[f"PC{i + 1}" for i in range(pc_matrix.shape[1])])
         rep_df.insert(0, "system", "System")
         rep_df.insert(1, "replicate", rep_id)
@@ -238,6 +332,36 @@ def run_gromacs_pca(
         cumulative_variance=cum_var[:n_components],
         projections=projections_df,
     )
+
+
+def _read_anaeig_projection(proj_xvg: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Parse ``gmx anaeig -proj`` output.
+
+    anaeig writes one data set per eigenvector, separated by ``&`` lines, each
+    set being (time, projection) rows. Older single-set files with several
+    columns per row are accepted too.
+    """
+    sets: list[list[list[float]]] = [[]]
+    with proj_xvg.open("r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line[0] in "#@":
+                continue
+            if line.startswith("&"):
+                sets.append([])
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                sets[-1].append([float(p) for p in parts])
+    sets = [np.array(s_, dtype=np.float64) for s_ in sets if s_]
+    if not sets:
+        raise ValueError(f"No projection data in {proj_xvg}")
+    if len(sets) == 1 and sets[0].shape[1] > 2:
+        return sets[0][:, 0], sets[0][:, 1:]
+    n = min(len(s_) for s_ in sets)
+    times = sets[0][:n, 0]
+    pc_matrix = np.column_stack([s_[:n, 1] for s_ in sets])
+    return times, pc_matrix
 
 
 def save_pca_results(pca_res: PCAResults, output_dir: str | Path) -> Path:

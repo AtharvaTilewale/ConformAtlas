@@ -22,6 +22,29 @@ from conformatlas.utils import R_GAS_CONSTANT
 logger = logging.getLogger("conformatlas.basins")
 
 
+def pairwise_saddles(labels: np.ndarray, free_energy: np.ndarray) -> dict[tuple[int, int], float]:
+    """Lowest crossing height between every pair of 4-connected neighbouring basins.
+
+    The crossing height of a boundary edge is the higher of its two bins; the saddle
+    of a pair is the minimum over all its boundary edges. Keys are (low_id, high_id).
+    """
+    fe = np.where(np.isfinite(free_energy), free_energy, np.inf)
+    saddles: dict[tuple[int, int], float] = {}
+    for a, b, fa, fb in (
+        (labels[:, :-1], labels[:, 1:], fe[:, :-1], fe[:, 1:]),
+        (labels[:-1, :], labels[1:, :], fe[:-1, :], fe[1:, :]),
+    ):
+        diff = (a != b) & (a > 0) & (b > 0)
+        if not np.any(diff):
+            continue
+        crossing = np.maximum(fa[diff], fb[diff])
+        for la, lb, h in zip(a[diff], b[diff], crossing):
+            key = (int(min(la, lb)), int(max(la, lb)))
+            if np.isfinite(h) and h < saddles.get(key, np.inf):
+                saddles[key] = float(h)
+    return saddles
+
+
 def merge_shallow_basins(
     basin_labels: np.ndarray,
     free_energy: np.ndarray,
@@ -43,27 +66,7 @@ def merge_shallow_basins(
         if len(ids) < 2:
             return labels
         minima = {i: float(np.min(fe[labels == i])) for i in ids}
-
-        # Lowest crossing height between every pair of 4-connected neighbours.
-        saddles: dict[tuple[int, int], float] = {}
-        for a, b in (
-            (labels[:, :-1], labels[:, 1:]),
-            (labels[:-1, :], labels[1:, :]),
-        ):
-            fa, fb = (
-                (fe[:, :-1], fe[:, 1:])
-                if a.shape == labels[:, :-1].shape
-                else (fe[:-1, :], fe[1:, :])
-            )
-            diff = (a != b) & (a > 0) & (b > 0)
-            if not np.any(diff):
-                continue
-            crossing = np.maximum(fa[diff], fb[diff])
-            for la, lb, h in zip(a[diff], b[diff], crossing):
-                key = (int(min(la, lb)), int(max(la, lb)))
-                if np.isfinite(h) and h < saddles.get(key, np.inf):
-                    saddles[key] = float(h)
-
+        saddles = pairwise_saddles(labels, fe)
         if not saddles:
             return labels
 
@@ -84,6 +87,63 @@ def merge_shallow_basins(
         )
 
 
+def frame_bin_indices(
+    fel_grid: FELGrid, cv1: np.ndarray, cv2: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Grid bin (x_idx, y_idx) of every frame plus a validity mask.
+
+    ``np.histogram2d`` treats the right-most edge as inclusive, so a value exactly
+    on it belongs to the last bin.
+    """
+    cv1 = np.asarray(cv1, dtype=np.float64)
+    cv2 = np.asarray(cv2, dtype=np.float64)
+    x_idx = np.digitize(cv1, fel_grid.x_edges) - 1
+    y_idx = np.digitize(cv2, fel_grid.y_edges) - 1
+    nx, ny = len(fel_grid.x_centers), len(fel_grid.y_centers)
+    x_idx[(x_idx == nx) & (cv1 == fel_grid.x_edges[-1])] = nx - 1
+    y_idx[(y_idx == ny) & (cv2 == fel_grid.y_edges[-1])] = ny - 1
+    valid = (x_idx >= 0) & (x_idx < nx) & (y_idx >= 0) & (y_idx < ny)
+    return x_idx, y_idx, valid
+
+
+def compute_state_barriers(
+    basin_labels: np.ndarray,
+    free_energy: np.ndarray,
+    states: list[BasinState],
+) -> pd.DataFrame:
+    """Saddle heights and barriers between every pair of ADJACENT major states.
+
+    Columns: state_i, state_j, saddle_kJ_mol, barrier_from_i (saddle - min_i),
+    barrier_from_j. Pairs without a shared boundary are absent (separated by
+    unsampled space, so no barrier estimate is possible).
+    """
+    saddles = pairwise_saddles(basin_labels, free_energy)
+    by_id = {s.basin_id: s for s in states if s.basin_id > 0}
+    rows = []
+    for (a, b), h in sorted(saddles.items()):
+        if a in by_id and b in by_id:
+            si, sj = by_id[a], by_id[b]
+            rows.append(
+                {
+                    "state_i": si.label,
+                    "state_j": sj.label,
+                    "saddle_kJ_mol": h,
+                    "barrier_from_i_kJ_mol": h - si.min_free_energy,
+                    "barrier_from_j_kJ_mol": h - sj.min_free_energy,
+                }
+            )
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "state_i",
+            "state_j",
+            "saddle_kJ_mol",
+            "barrier_from_i_kJ_mol",
+            "barrier_from_j_kJ_mol",
+        ],
+    )
+
+
 def detect_energy_basins(
     fel_grid: FELGrid,
     projections: pd.DataFrame,
@@ -91,6 +151,8 @@ def detect_energy_basins(
     max_states: int = 10,
     min_peak_distance: int = 3,
     min_barrier: float | None = None,
+    weights: np.ndarray | None = None,
+    cv_columns: tuple[str, str] = ("PC1", "PC2"),
 ) -> tuple[list[BasinState], float, pd.DataFrame, np.ndarray]:
     """Detect local free energy minima and segment conformational basins using watershed.
 
@@ -109,6 +171,9 @@ def detect_energy_basins(
     min_barrier : float, optional
         Minimum free-energy barrier (kJ/mol) separating two basins; shallower
         neighbours are merged. Defaults to 1 kT at the grid temperature.
+    weights : array, optional
+        Per-frame statistical weights (reweighted ensembles); populations become
+        weighted fractions.
 
     Returns
     -------
@@ -188,34 +253,29 @@ def detect_energy_basins(
     basin_labels = np.where(occupancy, basin_labels, 0)
 
     # Assign each frame in projections to its basin
-    pc1_vals = projections["PC1"].to_numpy()
-    pc2_vals = projections["PC2"].to_numpy()
+    pc1_vals = projections[cv_columns[0]].to_numpy()
+    pc2_vals = projections[cv_columns[1]].to_numpy()
     total_frames = len(projections)
 
     # Bin indices
-    # Bin indices; np.histogram2d treats the right-most edge as inclusive, so a
-    # value exactly on it belongs to the last bin.
-    x_idx = np.digitize(pc1_vals, fel_grid.x_edges) - 1
-    y_idx = np.digitize(pc2_vals, fel_grid.y_edges) - 1
-    nx, ny = len(fel_grid.x_centers), len(fel_grid.y_centers)
-    x_idx[(x_idx == nx) & (pc1_vals == fel_grid.x_edges[-1])] = nx - 1
-    y_idx[(y_idx == ny) & (pc2_vals == fel_grid.y_edges[-1])] = ny - 1
-
-    # Valid grid boundaries
-    valid_bounds = (
-        (x_idx >= 0)
-        & (x_idx < len(fel_grid.x_centers))
-        & (y_idx >= 0)
-        & (y_idx < len(fel_grid.y_centers))
-    )
-
+    x_idx, y_idx, valid_bounds = frame_bin_indices(fel_grid, pc1_vals, pc2_vals)
     frame_basin_ids = np.full(total_frames, -1, dtype=np.int32)
     valid_indices = np.where(valid_bounds)[0]
     frame_basin_ids[valid_indices] = basin_labels[y_idx[valid_indices], x_idx[valid_indices]]
 
     # Count population per basin
-    unique_ids, counts = np.unique(frame_basin_ids, return_counts=True)
-    basin_pop_dict = {uid: cnt / total_frames for uid, cnt in zip(unique_ids, counts) if uid > 0}
+    if weights is not None:
+        w = np.asarray(weights, dtype=np.float64)
+        if len(w) != total_frames:
+            raise ValueError(f"weights has {len(w)} entries for {total_frames} frames.")
+        w_total = w.sum()
+    else:
+        w = np.ones(total_frames, dtype=np.float64)
+        w_total = float(total_frames)
+    unique_ids = np.unique(frame_basin_ids)
+    basin_pop_dict = {
+        int(uid): float(w[frame_basin_ids == uid].sum() / w_total) for uid in unique_ids if uid > 0
+    }
 
     # Sort basins by population descending
     sorted_basins = sorted(basin_pop_dict.items(), key=lambda item: item[1], reverse=True)
@@ -264,8 +324,8 @@ def detect_energy_basins(
 
         # Find closest real trajectory frame
         state_frames = frame_assignments_df[frame_assignments_df["state"] == label]
-        st_pc1 = state_frames["PC1"].to_numpy()
-        st_pc2 = state_frames["PC2"].to_numpy()
+        st_pc1 = state_frames[cv_columns[0]].to_numpy()
+        st_pc2 = state_frames[cv_columns[1]].to_numpy()
         distances = np.sqrt((st_pc1 - min_pc1) ** 2 + (st_pc2 - min_pc2) ** 2)
 
         best_idx = np.argmin(distances)
@@ -274,6 +334,7 @@ def detect_energy_basins(
         states.append(
             BasinState(
                 state_id=state_idx + 1,
+                basin_id=int(b_id),
                 label=label,
                 population=pop_fraction,
                 min_pc1=min_pc1,

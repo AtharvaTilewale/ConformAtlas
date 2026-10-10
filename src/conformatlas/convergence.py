@@ -8,6 +8,7 @@ import pandas as pd
 
 from conformatlas.models import ConvergenceResults
 from conformatlas.pca import compute_cartesian_pca
+from conformatlas.timeseries import statistical_inefficiency
 
 logger = logging.getLogger("conformatlas.convergence")
 
@@ -183,6 +184,20 @@ def compute_convergence_diagnostics(
             logger.warning(f"Progressive overlap at {frac}% could not be computed: {e}")
             progressive_overlap[int(frac)] = float("nan")
 
+    # ---- Statistical inefficiency / effective sample size -------------------
+    ineff: dict[str, dict[str, float]] = {}
+    n_eff: dict[str, float] = {}
+    if "replicate" in projections_df.columns:
+        for rep, rep_df in projections_df.groupby("replicate", sort=False):
+            entry = {}
+            for col in ("PC1", "PC2"):
+                if col in rep_df.columns:
+                    entry[col] = statistical_inefficiency(rep_df[col].to_numpy())
+            ineff[str(rep)] = entry
+            g_max = max(entry.values()) if entry else 1.0
+            n_eff[str(rep)] = len(rep_df) / g_max
+    total_n_eff = float(sum(n_eff.values())) if n_eff else float(len(projections_df))
+
     # ---- Cosine content of the leading projections --------------------------
     cosine_dict: dict[int, float] = {}
     for i in range(1, 6):
@@ -238,6 +253,19 @@ def compute_convergence_diagnostics(
     else:
         assessment = "Insufficient evidence"
 
+    if n_eff:
+        notes.append(
+            f"Effective number of independent samples along PC1/PC2: {total_n_eff:.0f} of "
+            f"{len(projections_df)} frames (statistical inefficiency "
+            + ", ".join(f"{r}: g={max(v.values()):.1f}" for r, v in ineff.items())
+            + " frames)."
+        )
+        if total_n_eff < 50:
+            assessment = "Insufficient evidence"
+            notes.append(
+                "Fewer than 50 effective samples: populations and free energies are not "
+                "statistically reliable regardless of the other diagnostics."
+            )
     if np.isfinite(rmsip_halves):
         notes.append(
             f"{rmsip_word.capitalize()} subspace overlap between the first and second "
@@ -277,6 +305,8 @@ def compute_convergence_diagnostics(
         sampling_assessment=assessment,
         assessment_notes=notes,
         rmsip_halves_per_replicate=per_rep_halves,
+        statistical_inefficiency=ineff,
+        n_eff=n_eff,
     )
 
 
@@ -327,5 +357,18 @@ def save_convergence_results(conv: ConvergenceResults, output_dir: str | Path) -
     # pairwise_rmsip.csv
     if conv.pairwise_rmsip is not None:
         conv.pairwise_rmsip.to_csv(conv_dir / "pairwise_rmsip.csv")
+
+    # effective_samples.csv
+    if conv.statistical_inefficiency:
+        rows = []
+        for rep, entry in conv.statistical_inefficiency.items():
+            row = {"Replicate": rep}
+            for col, g in entry.items():
+                row[f"g_{col}"] = g
+            row["N_eff"] = conv.n_eff.get(rep, np.nan)
+            rows.append(row)
+        pd.DataFrame(rows).to_csv(conv_dir / "effective_samples.csv", index=False)
+    if conv.equilibration is not None:
+        conv.equilibration.to_csv(conv_dir / "equilibration.csv", index=False)
 
     return conv_dir

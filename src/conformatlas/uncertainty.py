@@ -12,6 +12,8 @@ logger = logging.getLogger("conformatlas.uncertainty")
 
 def compute_replicate_statistics(
     frame_assignments_df: pd.DataFrame,
+    statistical_inefficiency: float | None = None,
+    weights: np.ndarray | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     """Compute state population statistics and uncertainty across replicates.
 
@@ -20,6 +22,14 @@ def compute_replicate_statistics(
     Tuple[pd.DataFrame, pd.DataFrame, str]
         (state_summary_df, detailed_replicates_df, uncertainty_type)
         where uncertainty_type is either 'between-replicate' or 'intra-trajectory-block'.
+
+    Notes
+    -----
+    With a single replicate the trajectory is cut into blocks whose length is at
+    least ten statistical inefficiencies (``statistical_inefficiency`` of the
+    leading projection, in frames) so that blocks are approximately independent;
+    the number of blocks is clipped to [3, 10]. ``weights`` (per frame) turn
+    populations into weighted fractions for reweighted ensembles.
     """
     reps = frame_assignments_df["replicate"].unique().tolist()
     states = [s for s in frame_assignments_df["state"].unique() if s != "Unassigned"]
@@ -83,8 +93,12 @@ def compute_replicate_statistics(
     else:
         # Single replicate: perform intra-trajectory block analysis (e.g. 5 blocks)
         uncertainty_type = "intra-trajectory-block"
-        n_blocks = 5
         total_frames = len(frame_assignments_df)
+        if statistical_inefficiency is not None and statistical_inefficiency > 0:
+            min_block = int(np.ceil(10.0 * statistical_inefficiency))
+            n_blocks = int(np.clip(total_frames // max(min_block, 1), 3, 10))
+        else:
+            n_blocks = 5
         block_size = max(1, total_frames // n_blocks)
 
         block_pop_records = []
@@ -96,8 +110,16 @@ def compute_replicate_statistics(
 
             row = {"Block": f"Block_{b_idx + 1}", "Total_Frames": n_b_frames}
             for st in states:
-                st_count = np.sum(block_df["state"] == st)
-                row[st] = (st_count / n_b_frames) * 100.0 if n_b_frames > 0 else 0.0
+                if weights is not None:
+                    w_b = np.asarray(weights)[start:end]
+                    row[st] = (
+                        100.0 * w_b[(block_df["state"] == st).to_numpy()].sum() / w_b.sum()
+                        if w_b.sum() > 0
+                        else 0.0
+                    )
+                else:
+                    st_count = np.sum(block_df["state"] == st)
+                    row[st] = (st_count / n_b_frames) * 100.0 if n_b_frames > 0 else 0.0
             block_pop_records.append(row)
 
         detailed_df = pd.DataFrame(block_pop_records)
@@ -122,6 +144,7 @@ def compute_replicate_statistics(
                     "CI_95_Lower": max(0.0, mean_val - ci95_margin),
                     "CI_95_Upper": min(100.0, mean_val + ci95_margin),
                     "Num_Blocks": k,
+                    "Block_Frames": block_size,
                     "Uncertainty_Type": "intra-trajectory-block",
                 }
             )

@@ -33,3 +33,14 @@ For each state, ConformAtlas extracts a verified real frame from the original fu
 3. Computes the Euclidean distance $d = \sqrt{(PC_1 - PC_{1, \min})^2 + (PC_2 - PC_{2, \min})^2}$.
 4. Selects the frame with minimal distance and writes `states/State_X/representative.pdb`.
 5. Writes `states/State_X/metadata.json` recording the exact replicate, frame index, time (ps/ns), and coordinates.
+
+
+---
+
+## 4. Barriers, State Free Energies and Kinetics
+
+`states/barriers.csv` lists, for every pair of adjacent basins, the saddle free energy and the barrier seen from each state (with bootstrap intervals). `states/state_free_energies.csv` gives $\Delta G_i = -RT \ln(p_i/p_\text{ref})$ relative to the most populated state together with the minimum free energy of each basin. The `kinetics/` directory contains lag-1 transition counts and probabilities, dwell times per visit and the Markov mean first-passage times; all are computed within replicates, skipping unassigned frames, and are omitted when per-frame weights are supplied.
+
+## 5. Several Representatives, Medoids and State Ensembles
+
+`--n-representatives N` writes `representative.pdb`, `representative_2.pdb`, … for every state. With `--representative minimum` (default) frames closest to the basin minimum in CV space are chosen; with `--representative medoid` the frames with the smallest mean distance to all other frames of the state in the retained-component space are chosen, which is more robust for broad or irregular basins. Each `State_X/` directory also contains the state's average structure and RMSF per atom and residue, and `states/state_ensemble_summary.csv` summarises the structural spread of every state.

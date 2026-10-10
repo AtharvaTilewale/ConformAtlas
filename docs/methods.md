@@ -134,3 +134,44 @@ The 95% Confidence Interval is constructed using the Student's $t$-distribution 
 $$\text{CI}_{95\%} = \left[ \bar{x} - t_{0.025, K-1} \cdot \text{SEM},\quad \bar{x} + t_{0.025, K-1} \cdot \text{SEM} \right]$$
 
 If only a single replicate is supplied, the trajectory is partitioned into 5 sequential blocks to assess intra-trajectory block variability.
+
+
+---
+
+## 7. Time Window, Equilibration and Effective Sample Size
+
+Frames are restricted to `-b ≤ t ≤ -e` (ps) before any analysis. The **statistical inefficiency** of a series $x_t$ is
+
+$$g = 1 + 2\sum_{t=1}^{T} \left(1 - \frac{t}{N}\right) C(t), \qquad N_\text{eff} = N/g,$$
+
+where $C(t)$ is the normalised autocorrelation function, summed until it first becomes non-positive (Chodera et al. 2007). ConformAtlas reports $g$ of PC1 and PC2 for every replicate and uses the larger value; $N_\text{eff}$ over all replicates is printed in the convergence notes. Fewer than 50 effective frames force the sampling verdict to *Insufficient evidence*.
+
+The **equilibration point** $t_0$ is chosen as the start that maximises $N_\text{eff}$ of the remaining production segment (Chodera 2016), evaluated on the fit RMSD to the reference. With `--equilibration auto` the frames before $t_0$ are discarded per replicate; by default the detected $t_0$ is only reported (`convergence/equilibration.csv`). On a monotonically drifting RMSD the criterion discards aggressively; inspect the descriptor figure before accepting it.
+
+## 8. Alternative Collective Variables
+
+* **Dihedral PCA** (`--pca-type dihedral`): backbone φ/ψ angles are mapped to $(\cos\theta, \sin\theta)$ so that periodicity is respected (Mu, Nguyen & Stock 2005); PCA is run on this feature matrix. No superposition is needed.
+* **TICA** (`--pca-type tica`): the generalised eigenproblem $C(\tau)\,v = \lambda\,C(0)\,v$ is solved with the symmetrised time-lagged covariance $C(\tau)$ at lag $\tau$ frames (Molgedey & Schuster 1994; Pérez-Hernández et al. 2013). Features are first whitened in the PCA basis; directions with variance below $10^{-6}$ of the largest are discarded, and when the number of frames is not much larger than the number of coordinates the problem is pre-reduced to the leading principal components. Eigenvalues are autocorrelations at lag τ and the implied timescale is $t_i = -\tau\,\Delta t/\ln\lambda_i$. Lag times are computed within each replicate, never across the junction between replicates.
+* **RMSD / Rg** (`--cv rmsd-rg`): backbone RMSD to the reference after superposition and the radius of gyration of the analysis group.
+* **External CVs** (`--cv file`): two columns of a text file (PLUMED `COLVAR`, `gmx` `.xvg`, CSV); one file per trajectory, rows matched to frames after striding and windowing.
+* **Component choice** (`--fel-pcs i,j`): any two retained components may span the landscape.
+
+## 9. Reweighting
+
+With `--weights-file`, per-frame weights $w_t$ (for example $\exp(\beta V_\text{bias})$ from metadynamics, or Boltzmann factors from replica exchange) enter the histogram, state populations and bootstrap: $P(x,y) \propto \sum_t w_t\, \mathbb{1}[(x_t,y_t)\in\text{bin}]$. Kinetic quantities (transition counts, dwell times, MFPT) are not computed for weighted frames because the time ordering of a biased trajectory is not physical.
+
+## 10. Grid Resolution
+
+Without `--bins`, the bin width follows the Freedman–Diaconis rule $h = 2\,\text{IQR}\,N^{-1/3}$ on each CV; the finer of the two axes sets a square grid, clipped to 16–128 bins. The result is recorded in `run_metadata.json` (`bins`, `bins_mode`). A warning is issued when the occupied bins hold fewer than two frames on average.
+
+## 11. Barriers and Kinetics
+
+Two basins are *adjacent* when their label regions share a grid edge. The **saddle** between them is the minimum, over the shared boundary, of the larger of the two neighbouring free energies, and the barrier from state $i$ is saddle $-\,\Delta G_{\min,i}$ (`states/barriers.csv`). Barriers are not reported for non-adjacent basins. Transition counts are taken between consecutive assigned frames within each replicate (unassigned frames are skipped, replicate junctions are never counted), the transition-probability matrix is the row-normalised count matrix at a lag of one frame, dwell times are lengths of uninterrupted visits (visits touching the start or end of a replicate are flagged as censored), and mean first-passage times are the Markov estimate from the one-frame transition matrix — a lower bound that assumes memoryless hopping between the detected states.
+
+## 12. Block Bootstrap of the Landscape
+
+For each of `--bootstrap` resamples, frames are drawn per replicate as circular blocks of length $L = 2g$ (at least five blocks per replicate), the histogram, free energy, basin populations (basin labels are held fixed), state minima and saddles are recomputed, and the per-bin standard deviation, 2.5 % and 97.5 % quantiles are stored (`fel/free_energy_bootstrap_*.npy`, `statistics/state_populations.csv`, `states/state_free_energies.csv`, `states/barriers.csv`). Bins sampled in fewer than half the resamples are left undefined.
+
+## 13. Comparison Statistics
+
+All systems share one grid. For every system $S$ and the reference $R$: the **ΔΔG map** $\Delta G_S(x,y) - \Delta G_R(x,y)$ (each landscape to its own minimum; NaN where either is unsampled) with the bootstrap standard deviation of the difference obtained from independent per-system block bootstraps; **population differences** with the bootstrap 95 % interval and a two-sided bootstrap p-value (twice the smaller tail fraction of the difference distribution, floored at $1/B$); **Welch's t-test** on per-replicate populations, reported only when every system has at least two replicates, with the replicate counts stated because two or three replicates give very low power; **state ΔΔG** from the state minima; the **Bhattacharyya coefficient** $\sum\sqrt{p_S\,q_R}$, Hellinger distance and **Jensen–Shannon divergence** (bits) between the normalised sampled densities; and the **RMSIP** between the leading eigenvectors of each system's own PCA (`comparison/subspace_overlap.csv`).

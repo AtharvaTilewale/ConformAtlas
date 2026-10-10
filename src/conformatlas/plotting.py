@@ -18,6 +18,22 @@ from conformatlas.models import BasinState, ConvergenceResults, FELGrid, PCAResu
 
 logger = logging.getLogger("conformatlas.plotting")
 
+#: Axis labels for the two collective variables of the landscape. The pipeline
+#: sets these through :func:`set_cv_labels` (PC1/PC2 by default; RMSD/Rg, IC1/IC2
+#: or file-defined names otherwise) so every landscape figure is labelled correctly.
+CV_LABELS: list[str] = ["PC1 Projection", "PC2 Projection"]
+CV_SHORT: list[str] = ["PC1", "PC2"]
+
+
+def set_cv_labels(cv1: str, cv2: str, unit: str = "") -> None:
+    """Set the collective-variable names used on landscape axes."""
+    suffix = f" ({unit})" if unit else ""
+    CV_LABELS[0] = f"{cv1}{suffix}"
+    CV_LABELS[1] = f"{cv2}{suffix}"
+    CV_SHORT[0] = cv1
+    CV_SHORT[1] = cv2
+
+
 # Configure publication-grade styling
 plt.rcParams.update(
     {
@@ -233,8 +249,8 @@ def plot_pca_scatter(
             sub["PC1"], sub["PC2"], label=str(cat), alpha=0.55, s=16, color=c, edgecolors="none"
         )
 
-    ax.set_xlabel("PC1 Projection", labelpad=8)
-    ax.set_ylabel("PC2 Projection", labelpad=8)
+    ax.set_xlabel(CV_LABELS[0], labelpad=8)
+    ax.set_ylabel(CV_LABELS[1], labelpad=8)
     ax.set_title("Principal Component Projections (Scatter)", pad=12)
     ax.legend(
         loc="best", frameon=True, framealpha=0.9, edgecolor="#cccccc", title=color_col.capitalize()
@@ -267,8 +283,8 @@ def plot_pca_density(
         mincnt=1,
         edgecolors="none",
     )
-    ax.set_xlabel("PC1 Projection", labelpad=8)
-    ax.set_ylabel("PC2 Projection", labelpad=8)
+    ax.set_xlabel(CV_LABELS[0], labelpad=8)
+    ax.set_ylabel(CV_LABELS[1], labelpad=8)
     ax.set_title("Conformational Ensemble Density", pad=12)
     ax.grid(True, linestyle="--", alpha=0.25)
     ax.spines["top"].set_visible(False)
@@ -308,8 +324,8 @@ def plot_pca_projections(
             color=palette[idx % len(palette)],
         )
 
-    ax1.set_xlabel("PC1 Projection")
-    ax1.set_ylabel("PC2 Projection")
+    ax1.set_xlabel(CV_LABELS[0])
+    ax1.set_ylabel(CV_LABELS[1])
     ax1.set_title("PCA Projections (Scatter)")
     ax1.legend(loc="best", frameon=True, framealpha=0.9)
     ax1.grid(True, linestyle="--", alpha=0.35)
@@ -321,8 +337,8 @@ def plot_pca_projections(
         cmap="viridis",
         mincnt=1,
     )
-    ax2.set_xlabel("PC1 Projection")
-    ax2.set_ylabel("PC2 Projection")
+    ax2.set_xlabel(CV_LABELS[0])
+    ax2.set_ylabel(CV_LABELS[1])
     ax2.set_title("Conformational Density")
     fig.colorbar(hb, ax=ax2, label="Frame Count", pad=0.03)
 
@@ -399,8 +415,8 @@ def plot_fel_2d(
                 zorder=6,
             )
 
-    ax.set_xlabel("PC1 Projection", labelpad=8)
-    ax.set_ylabel("PC2 Projection", labelpad=8)
+    ax.set_xlabel(CV_LABELS[0], labelpad=8)
+    ax.set_ylabel(CV_LABELS[1], labelpad=8)
     ax.set_title(f"2D Free Energy Landscape (T = {fel_grid.temperature:.1f} K)", pad=12)
 
     cb = fig.colorbar(cf, ax=ax, label="Free Energy ΔG (kJ/mol)", pad=0.03, aspect=22)
@@ -443,8 +459,8 @@ def plot_fel_3d(
     )
 
     ax.set_zlim(0, vmax)
-    ax.set_xlabel("PC1 Projection", labelpad=10, weight="bold")
-    ax.set_ylabel("PC2 Projection", labelpad=10, weight="bold")
+    ax.set_xlabel(CV_LABELS[0], labelpad=10, weight="bold")
+    ax.set_ylabel(CV_LABELS[1], labelpad=10, weight="bold")
     ax.set_zlabel("ΔG (kJ/mol)", labelpad=10, weight="bold")
     ax.set_title(f"3D Free Energy Landscape (T = {fel_grid.temperature:.1f} K)", pad=16)
     ax.view_init(elev=32, azim=-60)
@@ -512,8 +528,8 @@ def plot_fel(
                 ha="center" if abs(dx) < 6 else ("left" if dx > 0 else "right"),
             )
 
-    ax1.set_xlabel("PC1 Projection")
-    ax1.set_ylabel("PC2 Projection")
+    ax1.set_xlabel(CV_LABELS[0])
+    ax1.set_ylabel(CV_LABELS[1])
     ax1.set_title(f"2D Free Energy Landscape (T = {fel_grid.temperature:.1f} K)")
     fig.colorbar(cf, ax=ax1, label="Free Energy ΔG (kJ/mol)", pad=0.03)
 
@@ -524,8 +540,8 @@ def plot_fel(
         X, Y, Z_3d, cmap="turbo", edgecolor="none", alpha=0.9, vmin=0, vmax=vmax
     )
     ax2.set_zlim(0, vmax)
-    ax2.set_xlabel("PC1", labelpad=8)
-    ax2.set_ylabel("PC2", labelpad=8)
+    ax2.set_xlabel(CV_SHORT[0], labelpad=8)
+    ax2.set_ylabel(CV_SHORT[1], labelpad=8)
     ax2.set_zlabel("ΔG (kJ/mol)", labelpad=8)
     ax2.set_title(f"3D Free Energy Landscape (T = {fel_grid.temperature:.1f} K)")
     ax2.view_init(elev=35, azim=-60)
@@ -608,8 +624,8 @@ def plot_basin_map(
                 zorder=6,
             )
 
-    ax.set_xlabel("PC1 Projection", labelpad=8)
-    ax.set_ylabel("PC2 Projection", labelpad=8)
+    ax.set_xlabel(CV_LABELS[0], labelpad=8)
+    ax.set_ylabel(CV_LABELS[1], labelpad=8)
     ax.set_title("Topological Watershed Basin Map", pad=12)
 
     cb = fig.colorbar(im, ax=ax, label="Basin Identifier", pad=0.03, aspect=22)
@@ -683,6 +699,10 @@ def plot_state_populations(
     else:
         errors = np.zeros_like(means)
         err_label = ""
+    # Error bars cannot exceed the physical range [0, 100]; clip for display.
+    errors = np.asarray(errors, dtype=float)
+    err_low = np.minimum(errors, means)
+    err_high = np.minimum(errors, 100.0 - means)
 
     x_pos = np.arange(len(states))
     color_palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
@@ -691,7 +711,7 @@ def plot_state_populations(
     bars = ax.bar(
         x_pos,
         means,
-        yerr=errors,
+        yerr=np.vstack([err_low, err_high]),
         capsize=6,
         error_kw={"elinewidth": 1.4, "capthick": 1.4, "ecolor": "#333333"},
         color=bar_colors,
@@ -724,7 +744,7 @@ def plot_state_populations(
                 )
 
     # Dynamic headroom to prevent text clipping and avoid empty space
-    y_max = float(np.max(means + errors)) if len(means) > 0 else 50.0
+    y_max = float(np.max(means + err_high)) if len(means) > 0 else 50.0
     if detailed_df is not None and "Replicate" in detailed_df.columns and len(detailed_df) > 1:
         for st in states:
             if st in detailed_df.columns:
@@ -737,15 +757,15 @@ def plot_state_populations(
     if annotate:
         for i, bar in enumerate(bars):
             height = bar.get_height()
-            err = errors[i] if i < len(errors) else 0.0
-            top_feature = height + err
+            err = err_high[i] if i < len(err_high) else 0.0
+            top_feature = min(height + err, 100.0)
             if (
                 detailed_df is not None
                 and "Replicate" in detailed_df.columns
                 and states[i] in detailed_df.columns
             ):
                 top_feature = max(top_feature, float(detailed_df[states[i]].max()))
-            y_text = top_feature + (ylim_top * 0.035)
+            y_text = min(top_feature + (ylim_top * 0.035), ylim_top * 0.97)
             ax.text(
                 bar.get_x() + bar.get_width() / 2.0,
                 y_text,
@@ -1084,6 +1104,23 @@ def plot_comparison_shared_pca(
     return out_path
 
 
+def _ci_yerr(pop_df: pd.DataFrame, s_name: str) -> np.ndarray | None:
+    """Asymmetric error bars from bootstrap CI columns, if present."""
+    lo_c, hi_c, v_c = (
+        f"{s_name}_CI95_Low_Percent",
+        f"{s_name}_CI95_High_Percent",
+        f"{s_name}_Population_Percent",
+    )
+    if lo_c not in pop_df.columns or hi_c not in pop_df.columns:
+        return None
+    vals = pop_df[v_c].to_numpy(dtype=float)
+    lo = np.clip(vals - pop_df[lo_c].to_numpy(dtype=float), 0, None)
+    hi = np.clip(pop_df[hi_c].to_numpy(dtype=float) - vals, 0, None)
+    if not np.all(np.isfinite(np.concatenate([lo, hi]))):
+        return None
+    return np.vstack([lo, hi])
+
+
 def plot_comparison_populations(
     comp_dict: dict[str, Any],
     out_path: str | Path,
@@ -1113,7 +1150,10 @@ def plot_comparison_populations(
             vals = pop_df[col].to_numpy()
             if len(vals) > 0:
                 y_max = max(y_max, float(np.max(vals)))
-    ylim_top = min(105.0, max(y_max * 1.35, 12.0))
+            hi_c = f"{s_name}_CI95_High_Percent"
+            if hi_c in pop_df.columns and np.isfinite(pop_df[hi_c]).any():
+                y_max = max(y_max, float(np.nanmax(pop_df[hi_c])))
+    ylim_top = min(110.0, max(y_max * 1.3, 12.0))
     ax.set_ylim(0, ylim_top)
 
     for idx, s_name in enumerate(systems):
@@ -1131,11 +1171,23 @@ def plot_comparison_populations(
                 edgecolor="#222222",
                 linewidth=0.9,
             )
+            yerr = _ci_yerr(pop_df, s_name)
+            if yerr is not None:
+                ax.errorbar(
+                    x_pos + offset,
+                    vals,
+                    yerr=yerr,
+                    fmt="none",
+                    ecolor="#222222",
+                    elinewidth=1.1,
+                    capsize=3,
+                )
             if annotate:
                 for bar, val in zip(bars, vals):
+                    top = val + (yerr[1][list(bars).index(bar)] if yerr is not None else 0.0)
                     ax.text(
                         bar.get_x() + bar.get_width() / 2.0,
-                        val + (ylim_top * 0.03),
+                        top + (ylim_top * 0.03),
                         f"{val:.1f}%",
                         ha="center",
                         va="bottom",
@@ -1242,7 +1294,13 @@ def plot_condition_comparison(
     s2_name = systems[1] if len(systems) > 1 else systems[0]
 
     ax2.bar(
-        x_pos - width / 2, pop_df[f"{s1_name}_Population_Percent"], width, label=s1_name, alpha=0.8
+        x_pos - width / 2,
+        pop_df[f"{s1_name}_Population_Percent"],
+        width,
+        label=s1_name,
+        alpha=0.8,
+        yerr=_ci_yerr(pop_df, s1_name),
+        capsize=3,
     )
     if len(systems) > 1:
         ax2.bar(
@@ -1251,6 +1309,8 @@ def plot_condition_comparison(
             width,
             label=s2_name,
             alpha=0.8,
+            yerr=_ci_yerr(pop_df, s2_name),
+            capsize=3,
         )
 
     ax2.set_xticks(x_pos)

@@ -1,5 +1,6 @@
 """Multi-condition / WT vs Mutant comparison in a shared PCA space."""
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -8,13 +9,25 @@ import numpy as np
 import pandas as pd
 
 from conformatlas.basins import detect_energy_basins, save_basin_results
-from conformatlas.fel import calculate_fel, save_fel_grid
+from conformatlas.comparison_stats import (
+    SystemBootstrap,
+    bootstrap_system,
+    ddg_map,
+    ddg_map_table,
+    landscape_overlap_table,
+    population_difference_table,
+    state_free_energy_table,
+    subspace_overlap_matrix,
+)
+from conformatlas.fel import calculate_fel, choose_bins, save_fel_grid
 from conformatlas.models import ComparisonConfig, FELGrid, PCAResults
+from conformatlas.ndx import parse_ndx
 from conformatlas.pca import (
     compute_cartesian_pca,
     project_coordinates,
     save_pca_results,
 )
+from conformatlas.plotting import set_cv_labels
 from conformatlas.representatives import extract_representative_structures
 from conformatlas.trajectory import (
     build_common_atom_mapping,
@@ -23,6 +36,18 @@ from conformatlas.trajectory import (
 )
 
 logger = logging.getLogger("conformatlas.comparison")
+
+
+def _json_default(obj: Any) -> Any:
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return None if np.isnan(obj) else float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, Path):
+        return str(obj)
+    return str(obj)
 
 
 def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
@@ -45,9 +70,14 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
 
     # 1. Inspect topologies and build common atom mapping
     topologies: dict[str, Path] = {s.name: s.topology for s in config.systems}
+    ndx_groups = parse_ndx(config.index_file) if config.index_file else None
     atom_indices_dict, mapping_df = build_common_atom_mapping(
-        topologies, group=config.analysis_group
+        topologies, group=config.analysis_group, ndx_groups=ndx_groups
     )
+    reference_name = config.reference_system or config.systems[0].name
+    if reference_name not in topologies:
+        raise ValueError(f"Reference system '{reference_name}' not found in systems.")
+    set_cv_labels("Shared PC1", "Shared PC2", "Å")
 
     pca_dir = out_dir / "pca"
     pca_dir.mkdir(parents=True, exist_ok=True)
@@ -64,12 +94,10 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
             fit_indices_dict = atom_indices_dict
         else:
             fit_indices_dict, fit_mapping_df = build_common_atom_mapping(
-                topologies, group=config.fit_group
+                topologies, group=config.fit_group, ndx_groups=ndx_groups
             )
             fit_mapping_df.to_csv(pca_dir / "common_fit_atom_mapping.csv", index=False)
-        ref_sys = config.reference_system or config.systems[0].name
-        if ref_sys not in topologies:
-            raise ValueError(f"Reference system '{ref_sys}' not found in systems.")
+        ref_sys = reference_name
         ref_cfg = next(sc for sc in config.systems if sc.name == ref_sys)
         reference_fit = load_reference_coordinates(
             ref_cfg.topology,
@@ -108,7 +136,14 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
                 fit_atom_indices=fit_indices_dict[s.name] if fit_indices_dict else None,
                 reference_fit_coords=reference_fit,
                 mass_weighted=config.mass_weighted_fit,
+                begin_ps=config.begin_ps,
+                end_ps=config.end_ps,
             )
+            if coords.shape[0] == 0:
+                raise ValueError(
+                    f"No frames of {traj_path} fall in the requested time window "
+                    f"({config.begin_ps}-{config.end_ps} ps)."
+                )
             system_coords[s.name][rep_id] = coords
             system_times[s.name][rep_id] = times
             logger.info(f"Loaded {s.name} replicate {rep_id}: {coords.shape[0]} frames.")
@@ -171,12 +206,17 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
     x_range = (float(np.min(pc1_all) - pad_x), float(np.max(pc1_all) + pad_x))
     y_range = (float(np.min(pc2_all) - pad_y), float(np.max(pc2_all) + pad_y))
 
+    bins = config.bins if config.bins is not None else choose_bins(pc1_all, pc2_all)
+    logger.info(
+        f"Shared FEL grid: {bins} x {bins} bins" + (" (auto)" if config.bins is None else "")
+    )
+
     # Global pooled FEL
     global_fel = calculate_fel(
         pc1_all,
         pc2_all,
         temperature=config.temperature,
-        bins=config.bins,
+        bins=bins,
         smooth_sigma=config.smooth_sigma,
         x_range=x_range,
         y_range=y_range,
@@ -213,7 +253,7 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
             s_df["PC1"].to_numpy(),
             s_df["PC2"].to_numpy(),
             temperature=config.temperature,
-            bins=config.bins,
+            bins=bins,
             smooth_sigma=config.smooth_sigma,
             x_range=x_range,
             y_range=y_range,
@@ -223,40 +263,93 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         s_out.mkdir(parents=True, exist_ok=True)
         save_fel_grid(s_fel, s_out)
 
-    # 7. Compare State Populations between systems
-    comp_records = []
-    major_state_labels = [st.label for st in states]
+    system_names = [s.name for s in config.systems]
 
-    for label in major_state_labels:
-        row = {"State": label}
-        for s in config.systems:
-            s_frames = frame_assignments[frame_assignments["system"] == s.name]
-            st_count = np.sum(s_frames["state"] == label)
-            tot_s = len(s_frames)
-            pop = (st_count / tot_s) * 100.0 if tot_s > 0 else 0.0
-            row[f"{s.name}_Population_Percent"] = pop
+    # 7. Per-system block bootstrap on the shared grid (populations, state minima, ΔG grids)
+    boots: dict[str, SystemBootstrap] = {}
+    if config.n_bootstrap and config.n_bootstrap > 0:
+        rng = np.random.default_rng(config.seed)
+        for name in system_names:
+            s_df = master_projections[master_projections["system"] == name]
+            boots[name] = bootstrap_system(
+                name, s_df, global_fel, basin_map, states, config.n_bootstrap, rng
+            )
+            logger.info(
+                f"Block bootstrap for {name}: {config.n_bootstrap} resamples, "
+                f"block lengths {boots[name].block_lengths}"
+            )
 
-        if len(config.systems) == 2:
-            s1_name = config.systems[0].name
-            s2_name = config.systems[1].name
-            diff = row[f"{s2_name}_Population_Percent"] - row[f"{s1_name}_Population_Percent"]
-            row["Difference_Percent"] = diff
-
-        comp_records.append(row)
-
-    pop_comp_df = pd.DataFrame(comp_records)
+    # 8. State populations per system with uncertainty and tests against the reference
+    pop_comp_df = population_difference_table(
+        states, frame_assignments, system_names, reference_name, boots
+    )
     pop_comp_df.to_csv(comp_dir / "state_population_comparison.csv", index=False)
 
-    # 8. If exactly 2 systems, compute FEL difference map: ΔΔG = G2 - G1
+    state_fe_df = state_free_energy_table(states, basin_map, system_fels, reference_name, boots)
+    state_fe_df.to_csv(comp_dir / "state_free_energy_comparison.csv", index=False)
+
+    # 9. ΔΔG maps of every system against the reference on the shared grid
+    ddg_maps: dict[str, dict[str, Any]] = {}
     diff_grid = None
-    if len(config.systems) == 2:
-        s1 = config.systems[0].name
-        s2 = config.systems[1].name
-        fe1 = system_fels[s1].free_energy
-        fe2 = system_fels[s2].free_energy
-        # Mask where either is NaN / unobserved
-        diff_grid = np.where(np.isnan(fe1) | np.isnan(fe2), np.nan, fe2 - fe1)
-        np.save(comp_dir / "fel_diff.npy", diff_grid)
+    for name in system_names:
+        if name == reference_name:
+            continue
+        ddg, sd = ddg_map(
+            system_fels[reference_name],
+            system_fels[name],
+            boots.get(reference_name),
+            boots.get(name),
+        )
+        ddg_maps[name] = {"ddg": ddg, "sd": sd, "reference": reference_name}
+        np.save(comp_dir / f"fel_diff_{name}_vs_{reference_name}.npy", ddg)
+        ddg_map_table(
+            system_fels[reference_name], system_fels[name], ddg, sd, reference_name, name
+        ).to_csv(comp_dir / f"fel_diff_{name}_vs_{reference_name}.csv", index=False)
+        if diff_grid is None:
+            diff_grid = ddg
+    if len(system_names) == 2 and diff_grid is not None:
+        np.save(comp_dir / "fel_diff.npy", diff_grid)  # backwards-compatible name
+
+    # 10. Landscape overlap between all pairs of systems
+    overlap_df = landscape_overlap_table(system_fels)
+    overlap_df.to_csv(comp_dir / "fel_overlap.csv", index=False)
+
+    # 11. Essential-subspace similarity: PCA of each system on its own, RMSIP between them
+    own_eigvecs: dict[str, np.ndarray] = {}
+    for name in system_names:
+        try:
+            _, ev, _, _, _ = compute_cartesian_pca(
+                system_coords[name], weighting=config.pca_weighting, n_components=config.components
+            )
+            own_eigvecs[name] = ev
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(f"Per-system PCA failed for {name}: {exc}")
+    subspace_df = None
+    if len(own_eigvecs) >= 2:
+        subspace_df = subspace_overlap_matrix(own_eigvecs, n_modes=min(10, config.components))
+        subspace_df.to_csv(comp_dir / "subspace_overlap.csv")
+
+    summary = {
+        "project": config.project,
+        "reference_system": reference_name,
+        "systems": system_names,
+        "n_frames_per_system": {
+            n: int((master_projections["system"] == n).sum()) for n in system_names
+        },
+        "bins": int(bins),
+        "bins_auto": config.bins is None,
+        "begin_ps": config.begin_ps,
+        "end_ps": config.end_ps,
+        "n_bootstrap": int(config.n_bootstrap),
+        "seed": int(config.seed),
+        "states": [
+            {"label": st.label, "population_percent": float(st.population * 100.0)} for st in states
+        ],
+        "landscape_overlap": overlap_df.to_dict(orient="records"),
+        "subspace_rmsip": subspace_df.round(4).to_dict() if subspace_df is not None else None,
+    }
+    with (comp_dir / "comparison_summary.json").open("w") as fh:
+        json.dump(summary, fh, indent=2, default=_json_default)
 
     logger.info("Shared-PCA condition comparison completed successfully.")
 
@@ -268,6 +361,13 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         "states": states,
         "frame_assignments": frame_assignments,
         "population_comparison": pop_comp_df,
+        "state_free_energy_comparison": state_fe_df,
         "diff_grid": diff_grid,
+        "ddg_maps": ddg_maps,
+        "landscape_overlap": overlap_df,
+        "subspace_overlap": subspace_df,
+        "bootstraps": boots,
+        "reference_system": reference_name,
+        "bins": bins,
         "output_dir": out_dir,
     }

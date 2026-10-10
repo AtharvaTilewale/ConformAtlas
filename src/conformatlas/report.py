@@ -31,7 +31,9 @@ def image_to_base64(image_path: str | Path) -> str:
 def generate_html_report(
     results: AnalysisResults,
     figures_dict: dict[str, Path],
-    gromacs_version: str = "GROMACS 2024.4",
+    gromacs_version: str = "not used",
+    extra_sections: list[dict] | None = None,
+    pdf: bool = False,
 ) -> Path:
     """Compile and render the standalone HTML analysis report."""
     out_dir = results.output_dir
@@ -97,11 +99,15 @@ def generate_html_report(
         "fig_convergence_cosine": embedded_figs.get("convergence_cosine", ""),
         "fig_convergence_stability": embedded_figs.get("convergence_stability", ""),
         "fig_convergence": embedded_figs.get("convergence", ""),
+        "extra_sections": _embed_sections(extra_sections or []),
     }
 
     html_content = template.render(**context)
     with report_path.open("w", encoding="utf-8") as f:
         f.write(html_content)
+
+    if pdf:
+        export_pdf(report_path, report_path.with_suffix(".pdf"))
 
     logger.info(f"HTML report generated at {report_path.resolve()}")
 
@@ -135,3 +141,50 @@ def generate_html_report(
     save_json(summary_data, out_dir / "summary.json")
 
     return report_path
+
+
+def _embed_sections(sections: list[dict]) -> list[dict]:
+    """Base64-embed figure paths and stringify table cells of extra report sections."""
+    out = []
+    for sec in sections:
+        item = {
+            "title": sec.get("title", ""),
+            "paragraphs": list(sec.get("paragraphs", [])),
+            "caption": sec.get("caption"),
+            "figure": "",
+            "table": None,
+        }
+        fig = sec.get("figure")
+        if fig and Path(fig).exists():
+            item["figure"] = image_to_base64(fig)
+        table = sec.get("table")
+        if table is not None:
+            if hasattr(table, "to_dict"):
+                df = table.copy()
+                for c in df.columns:
+                    if df[c].dtype.kind == "f":
+                        df[c] = df[c].map(lambda v: "" if v != v else f"{v:.3g}")
+                item["table"] = {
+                    "columns": list(map(str, df.columns)),
+                    "rows": df.astype(str).to_dict("records"),
+                }
+            else:
+                item["table"] = table
+        out.append(item)
+    return out
+
+
+def export_pdf(html_path: Path, pdf_path: Path) -> Path | None:
+    """Render the HTML report to PDF with WeasyPrint when it is installed."""
+    try:
+        from weasyprint import HTML  # type: ignore
+    except Exception as e:  # pragma: no cover - optional dependency
+        logger.warning(f"PDF export requested but WeasyPrint is unavailable ({e}); skipping.")
+        return None
+    try:
+        HTML(filename=str(html_path)).write_pdf(str(pdf_path))
+        logger.info(f"PDF report written to {pdf_path}")
+        return pdf_path
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"PDF export failed: {e}")
+        return None

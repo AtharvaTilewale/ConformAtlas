@@ -90,3 +90,31 @@ Open the comprehensive interactive HTML report:
 # In your web browser
 xdg-open results_wt/report.html
 ```
+
+
+---
+
+## 5. Full-Featured Single-System Run
+
+```bash
+conformatlas init-config --type analyze -o run.yaml   # edit paths and options
+conformatlas analyze --config run.yaml --pdf
+```
+
+or on the command line:
+
+```bash
+conformatlas analyze -s md.gro -f md_noPBC.xtc -n index.ndx \
+    --cov-group C-alpha --lsq-group C-alpha --lig ZMR \
+    -T 300 -b 5000 --equilibration auto --bootstrap 200 \
+    --n-representatives 3 --representative medoid -o results/complex
+```
+
+Alternative landscapes: `--pca-type dihedral`, `--pca-type tica --tica-lag 50`, `--fel-pcs 1,3`, `--cv rmsd-rg`, or `--cv file --cv-file COLVAR --cv-cols 1,2` (one file per trajectory). Biased simulations: `--weights-file` with one weight per frame.
+
+A real-protein regression dataset (influenza neuraminidase Cα + zanamivir, 81 frames) ships in `tests/data/h1n1_ca/` and runs in a few seconds:
+
+```bash
+conformatlas analyze -s tests/data/h1n1_ca/neuraminidase_ca.pdb -f tests/data/h1n1_ca/neuraminidase_ca.xtc \
+    -n tests/data/h1n1_ca/index.ndx --cov-group C-alpha --lsq-group C-alpha --lig ZMR -T 300 -o na_test
+```

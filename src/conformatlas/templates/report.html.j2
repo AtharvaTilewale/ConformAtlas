@@ -338,6 +338,31 @@
         </div>
 
         <!-- 6. Methods & Parameters -->
+        {% for sec in extra_sections %}
+        <div class="card">
+            <h2>{{ sec.title }}</h2>
+            {% for para in sec.paragraphs %}
+            <p>{{ para }}</p>
+            {% endfor %}
+            {% if sec.figure %}
+            <div class="figure-box">
+                <img src="{{ sec.figure }}" alt="{{ sec.title }}">
+                {% if sec.caption %}<div class="figure-caption">{{ sec.caption }}</div>{% endif %}
+            </div>
+            {% endif %}
+            {% if sec.table %}
+            <table>
+                <thead><tr>{% for c in sec.table.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                {% for row in sec.table.rows %}
+                <tr>{% for c in sec.table.columns %}<td>{{ row[c] }}</td>{% endfor %}</tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+        {% endfor %}
+
         <div class="card">
             <h2>6. Methods & Mathematical Formulations</h2>
             <h3>Free Energy Calculation</h3>

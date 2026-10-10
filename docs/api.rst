@@ -64,6 +64,59 @@ Condition Comparison
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: conformatlas.comparison_stats
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Analysis Pipeline
+-----------------
+.. automodule:: conformatlas.pipeline
+   :members:
+   :undoc-members:
+
+Time-Series Statistics (g, N_eff, Equilibration)
+------------------------------------------------
+.. automodule:: conformatlas.timeseries
+   :members:
+   :undoc-members:
+
+Block Bootstrap
+---------------
+.. automodule:: conformatlas.bootstrap
+   :members:
+   :undoc-members:
+
+State Kinetics
+--------------
+.. automodule:: conformatlas.kinetics
+   :members:
+   :undoc-members:
+
+Structural Descriptors
+----------------------
+.. automodule:: conformatlas.descriptors
+   :members:
+   :undoc-members:
+
+Mode Interpretation
+-------------------
+.. automodule:: conformatlas.modes
+   :members:
+   :undoc-members:
+
+Features and Collective-Variable Files
+--------------------------------------
+.. automodule:: conformatlas.features
+   :members:
+   :undoc-members:
+
+GROMACS Index Files
+-------------------
+.. automodule:: conformatlas.ndx
+   :members:
+   :undoc-members:
+
 Trajectory Processing
 ---------------------
 .. automodule:: conformatlas.trajectory

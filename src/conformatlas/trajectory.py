@@ -8,9 +8,12 @@ import pandas as pd
 
 from conformatlas.gromacs import GromacsRunner
 from conformatlas.models import TrajectoryInfo
-from conformatlas.superpose import superpose_frame
+from conformatlas.superpose import rmsd, superpose_frame
 
 logger = logging.getLogger("conformatlas.trajectory")
+
+#: Structure formats whose coordinates may serve as the superposition reference.
+COORDINATE_SUFFIXES = {".pdb", ".gro", ".pdbqt", ".mol2", ".xyz", ".crd", ".ent", ".cif", ".mmcif"}
 
 try:
     import MDAnalysis as mda
@@ -142,8 +145,13 @@ def map_group_to_mda_selection(group: str) -> str:
 def build_common_atom_mapping(
     topologies: dict[str, str | Path],
     group: str = "Backbone",
+    ndx_groups: dict[str, np.ndarray] | None = None,
 ) -> tuple[dict[str, list[int]], pd.DataFrame]:
     """Find common intersection of atoms across multiple topologies for shared PCA.
+
+    If ``ndx_groups`` contains ``group``, those (0-based) atom indices are used
+    for every system; a GROMACS index file therefore only makes sense in a
+    comparison when all systems share the same atom numbering.
 
     Parameters
     ----------
@@ -160,7 +168,10 @@ def build_common_atom_mapping(
     """
     system_dfs: dict[str, pd.DataFrame] = {}
     for sys_name, topo_path in topologies.items():
-        df = extract_atom_selection_info(topo_path, group=group)
+        if ndx_groups is not None and group in ndx_groups:
+            df = atom_info_for_indices(topo_path, ndx_groups[group])
+        else:
+            df = extract_atom_selection_info(topo_path, group=group)
         # Create unique key per atom: (residue_number, atom_name)
         df["key"] = df["residue_number"].astype(str) + "_" + df["atom_name"].str.strip()
         system_dfs[sys_name] = df
@@ -233,18 +244,22 @@ def load_reference_coordinates(
             return universe.atoms[atom_indices]
         return universe.select_atoms(map_group_to_mda_selection(group))
 
-    try:
-        u = mda.Universe(str(topology_path))
-        ag = _select(u)
-        if len(ag) == 0:
-            raise ValueError(f"Fit selection '{group}' matched 0 atoms in {topology_path}.")
-        positions = ag.positions
-        if positions is not None and np.all(np.isfinite(positions)):
-            return np.array(positions, dtype=np.float64)
-    except ValueError:
-        raise
-    except Exception as e:  # topology without coordinates, e.g. .tpr
-        logger.debug(f"Structure file carries no usable coordinates ({e}); using trajectory.")
+    # Only genuine coordinate files serve as the reference. Run-input files (.tpr)
+    # expose the pre-processing input structure, which is not on the same frame
+    # of reference as a PBC-treated trajectory, so they fall through to frame 0.
+    if Path(topology_path).suffix.lower() in COORDINATE_SUFFIXES:
+        try:
+            u = mda.Universe(str(topology_path))
+            ag = _select(u)
+            if len(ag) == 0:
+                raise ValueError(f"Fit selection '{group}' matched 0 atoms in {topology_path}.")
+            positions = ag.positions
+            if positions is not None and np.all(np.isfinite(positions)):
+                return np.array(positions, dtype=np.float64)
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.debug(f"Structure file carries no usable coordinates ({e}); using trajectory.")
 
     if fallback_trajectory is None:
         raise ValueError(
@@ -269,7 +284,10 @@ def stream_trajectory_coordinates(
     fit_group: str | None = None,
     reference_fit_coords: np.ndarray | None = None,
     mass_weighted: bool = False,
-) -> tuple[np.ndarray, np.ndarray]:
+    begin_ps: float | None = None,
+    end_ps: float | None = None,
+    return_fit_rmsd: bool = False,
+) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Stream trajectory frames and return (optionally superposed) coordinates.
 
     Every frame is least-squares fitted onto a reference using the fit group, and the
@@ -299,10 +317,15 @@ def stream_trajectory_coordinates(
         (or the first frame when the structure carries no coordinates).
     mass_weighted : bool
         Mass-weight the fit (requires masses in the topology).
+    begin_ps, end_ps : float, optional
+        Keep only frames with begin_ps <= time <= end_ps (after stride).
+    return_fit_rmsd : bool
+        Also return the per-frame RMSD of the fit group to the reference after
+        superposition (the classical RMSD(t) diagnostic; zeros when fit=False).
 
     Returns
     -------
-    (coords, times)
+    (coords, times) or (coords, times, fit_rmsd)
         coords has shape (n_frames, n_atoms, 3) in the trajectory's length unit
         (Angstrom for MDAnalysis), times is in ps.
     """
@@ -364,17 +387,181 @@ def stream_trajectory_coordinates(
 
     coords_list = []
     times_list = []
+    rmsd_list = []
 
     for ts in u.trajectory[::stride]:
+        t = float(ts.time)
+        if begin_ps is not None and t < begin_ps:
+            continue
+        if end_ps is not None and t > end_ps:
+            break
         if fit:
-            frame_coords = superpose_frame(
-                fit_ag.positions, ag.positions, reference_fit_coords, weights
-            )
+            fit_pos = fit_ag.positions
+            frame_coords = superpose_frame(fit_pos, ag.positions, reference_fit_coords, weights)
+            if return_fit_rmsd:
+                fitted_fit = superpose_frame(fit_pos, fit_pos, reference_fit_coords, weights)
+                rmsd_list.append(rmsd(fitted_fit, reference_fit_coords))
         else:
             frame_coords = ag.positions
+            if return_fit_rmsd:
+                rmsd_list.append(0.0)
         coords_list.append(np.array(frame_coords, dtype=np.float32))
-        times_list.append(float(ts.time))
+        times_list.append(t)
 
+    if not coords_list:
+        raise ValueError(
+            f"No frames of {trajectory_path} fall in the window "
+            f"[{begin_ps}, {end_ps}] ps with stride {stride}."
+        )
     coords = np.array(coords_list, dtype=np.float32)
     times = np.array(times_list, dtype=np.float64)
+    if return_fit_rmsd:
+        return coords, times, np.array(rmsd_list, dtype=np.float64)
     return coords, times
+
+
+# ----------------------------------------------------------------------------
+# Selection resolution (GROMACS group names, MDAnalysis strings, .ndx groups)
+# ----------------------------------------------------------------------------
+
+
+def resolve_selection_indices(
+    topology_path: str | Path,
+    group: str,
+    ndx_groups: dict[str, np.ndarray] | None = None,
+    extra_group: str | None = None,
+    trajectory_path: str | Path | None = None,
+) -> np.ndarray:
+    """Atom indices (0-based) for ``group``, optionally united with ``extra_group``.
+
+    Resolution order: a group of that name in the index file (if given), then the
+    GROMACS group-name mapping / MDAnalysis selection string. ``extra_group`` is
+    resolved the same way (an index group, or a residue name such as a ligand) and
+    appended, preserving topology order.
+    """
+    if not HAS_MDANALYSIS:
+        raise RuntimeError("MDAnalysis is required to resolve atom selections.")
+    from conformatlas.ndx import lookup_group
+
+    u = (
+        mda.Universe(str(topology_path))
+        if trajectory_path is None
+        else mda.Universe(str(topology_path), str(trajectory_path))
+    )
+
+    def _one(name: str) -> np.ndarray:
+        if ndx_groups:
+            idx = lookup_group(ndx_groups, name)
+            if idx is not None:
+                if idx.max() >= u.atoms.n_atoms:
+                    raise ValueError(
+                        f"Index group '{name}' refers to atom {idx.max() + 1} but the topology "
+                        f"has {u.atoms.n_atoms} atoms."
+                    )
+                return np.asarray(idx, dtype=np.int64)
+        try:
+            sel = u.select_atoms(map_group_to_mda_selection(name))
+        except Exception:
+            sel = u.atoms[:0]
+        if len(sel) == 0 and " " not in name.strip():
+            # A bare token that is not a selection keyword: treat as residue name
+            # (ligands such as LIG, ATP, ZMR) or segment / molecule name.
+            sel = u.select_atoms(f"resname {name}")
+            if len(sel) == 0:
+                sel = u.select_atoms(f"segid {name}")
+        if len(sel) == 0:
+            raise ValueError(f"Selection '{name}' matched 0 atoms in {topology_path}.")
+        return sel.indices.astype(np.int64)
+
+    idx = _one(group)
+    if extra_group:
+        idx = np.union1d(idx, _one(extra_group))
+    return np.sort(idx)
+
+
+def atom_info_for_indices(topology_path: str | Path, atom_indices: np.ndarray) -> pd.DataFrame:
+    """Atom table (index, chain, residue number/name, atom name, mass) for given indices."""
+    if not HAS_MDANALYSIS:
+        raise RuntimeError("MDAnalysis is required.")
+    u = mda.Universe(str(topology_path))
+    ag = u.atoms[np.asarray(atom_indices, dtype=int)]
+    try:
+        masses = ag.masses.astype(float)
+    except Exception:
+        masses = np.full(len(ag), np.nan)
+    records = []
+    for atom, m in zip(ag, masses):
+        chain = getattr(atom, "chainID", None) or getattr(atom, "segid", "A")
+        records.append(
+            {
+                "atom_index": int(atom.index),
+                "chain": str(chain),
+                "residue_number": int(atom.resnum),
+                "residue_name": str(atom.resname),
+                "atom_name": str(atom.name),
+                "mass": float(m),
+            }
+        )
+    return pd.DataFrame(records)
+
+
+def check_inputs(
+    topology_path: str | Path,
+    trajectory_paths: list[str | Path],
+    protein_selection: str = "protein",
+    frames_to_check: int = 3,
+) -> list[str]:
+    """Cheap sanity checks; returns a list of human-readable warnings.
+
+    * atom count of every trajectory matches the topology
+    * protein chains are whole across periodic boundaries (consecutive C-alpha
+      atoms of the same segment closer than 4.5 A) in a few sampled frames
+    """
+    warnings: list[str] = []
+    if not HAS_MDANALYSIS:
+        return warnings
+    try:
+        u_top = mda.Universe(str(topology_path))
+        n_top = u_top.atoms.n_atoms
+    except Exception as e:
+        return [f"Could not read topology {topology_path}: {e}"]
+
+    for traj in trajectory_paths:
+        try:
+            u = mda.Universe(str(topology_path), str(traj))
+        except Exception as e:
+            warnings.append(f"{Path(traj).name}: cannot be opened with the topology ({e}).")
+            continue
+        if u.trajectory.n_atoms != n_top:
+            warnings.append(
+                f"{Path(traj).name}: {u.trajectory.n_atoms} atoms per frame but the topology has "
+                f"{n_top}. Use a matching structure/.tpr or a trajectory written for this selection."
+            )
+            continue
+        ca = u.select_atoms(f"({protein_selection}) and name CA")
+        if len(ca) < 3:
+            continue
+        n = len(u.trajectory)
+        idxs = sorted(set(int(i) for i in np.linspace(0, n - 1, min(frames_to_check, n))))
+        broken = False
+        for fi in idxs:
+            u.trajectory[fi]
+            pos = ca.positions
+            same_seg = ca.segids[:-1] == ca.segids[1:]
+            consecutive = (ca.resids[1:] - ca.resids[:-1]) == 1
+            d = np.linalg.norm(pos[1:] - pos[:-1], axis=1)
+            if np.any(d[same_seg & consecutive] > 4.5):
+                broken = True
+                break
+        if broken:
+            warnings.append(
+                f"{Path(traj).name}: consecutive C-alpha atoms more than 4.5 A apart - the molecule "
+                "appears broken across the periodic boundary. Make it whole first "
+                "(gmx trjconv -pbc mol -center) or the superposition is meaningless."
+            )
+    return warnings
+
+
+def estimate_memory_gb(n_frames_total: int, n_atoms: int) -> float:
+    """RAM for holding float32 coordinates of all frames (GB)."""
+    return n_frames_total * n_atoms * 3 * 4 / 1e9
