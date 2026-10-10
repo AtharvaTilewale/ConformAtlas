@@ -43,6 +43,8 @@ master_doc = "index"
 
 # HTML output styling
 html_theme = "sphinx_rtd_theme"
+html_logo = "assets/conformatlas-logo-white.png"
+html_favicon = "assets/conformatlas-icon.png"
 html_theme_options = {
     "logo_only": False,
     # "display_version" was removed in sphinx-rtd-theme 3.0; the version
