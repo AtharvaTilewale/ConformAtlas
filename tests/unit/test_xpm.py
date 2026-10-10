@@ -107,3 +107,22 @@ def test_xpm_to_dataframe_and_dat(tmp_path):
     assert dat_file.exists()
     loaded = np.loadtxt(str(dat_file))
     assert loaded.shape == (6, 3)
+
+
+def test_parse_xpm_accepts_bin_edges_from_gmx_sham(tmp_path):
+    """gmx sham writes width+1 x-axis values (bin edges); they must become centres."""
+    xpm = tmp_path / "g.xpm"
+    xpm.write_text(
+        '/* XPM */\n/* title: "Gibbs" */\n/* legend: "G (kJ/mol)" */\n/* x-label: "x" */\n/* y-label: "y" */\n'
+        '/* type: "Continuous" */\nstatic char *gradient[] = {\n"2 2   2 1",\n'
+        '"A  c #000000 " /* "0" */,\n"B  c #FFFFFF " /* "1" */,\n'
+        '/* x-axis:  0 1 2 */\n/* y-axis:  0 1 2 */\n"AB",\n"BA"\n};\n'
+    )
+    import numpy as np
+
+    from conformatlas.xpm import parse_xpm
+
+    x, y, g = parse_xpm(xpm)
+    np.testing.assert_allclose(x, [0.5, 1.5])
+    np.testing.assert_allclose(y, [0.5, 1.5])
+    assert np.asarray(g).shape == (2, 2)

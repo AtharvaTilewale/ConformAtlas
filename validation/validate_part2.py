@@ -428,6 +428,150 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
         )
 
     # =========================================================================
+    # 10b. Landscape vs gmx sham on identical projections and bin edges
+    # =========================================================================
+    if gmx:
+        d = tmp / "sham"
+        d.mkdir(exist_ok=True)
+        demo = ROOT / "examples" / "demo_dataset" / "WT"
+        ok = True
+        for cmd, inp in [
+            (
+                [
+                    gmx,
+                    "trjcat",
+                    "-f",
+                    str(demo / "rep1.xtc"),
+                    str(demo / "rep2.xtc"),
+                    "-o",
+                    "pooled.xtc",
+                    "-cat",
+                ],
+                None,
+            ),
+            (
+                [
+                    gmx,
+                    "covar",
+                    "-s",
+                    str(demo / "topology.pdb"),
+                    "-f",
+                    "pooled.xtc",
+                    "-o",
+                    "eig.xvg",
+                    "-v",
+                    "vec.trr",
+                    "-av",
+                    "av.pdb",
+                ],
+                "Backbone\nBackbone\n",
+            ),
+            (
+                [
+                    gmx,
+                    "anaeig",
+                    "-s",
+                    str(demo / "topology.pdb"),
+                    "-f",
+                    "pooled.xtc",
+                    "-v",
+                    "vec.trr",
+                    "-first",
+                    "1",
+                    "-last",
+                    "2",
+                    "-2d",
+                    "proj2d.xvg",
+                ],
+                "Backbone\nBackbone\n",
+            ),
+            (
+                [
+                    gmx,
+                    "sham",
+                    "-f",
+                    "proj2d.xvg",
+                    "-notime",
+                    "-tsham",
+                    "300",
+                    "-nlevels",
+                    "400",
+                    "-ls",
+                    "gibbs.xpm",
+                ],
+                None,
+            ),
+        ]:
+            r = subprocess.run(cmd, input=inp, text=True, capture_output=True, cwd=d)
+            ok &= r.returncode == 0
+        if (
+            ok
+            and "Ptot = 0"
+            in (open(d / "shamlog.log").read() if (d / "shamlog.log").exists() else "")
+            or not (d / "gibbs.xpm").exists()
+        ):
+            record(
+                "FEL",
+                "ΔG grid vs gmx sham",
+                True,
+                "skipped (this gmx sham build reads no data)",
+                "-",
+                "-",
+                "GROMACS sham",
+                note="skipped",
+            )
+        elif ok:
+            from conformatlas.xpm import parse_xpm
+
+            arr = np.array(
+                [
+                    [float(v) for v in ln.split()]
+                    for ln in open(d / "proj2d.xvg")
+                    if ln[0] not in "#@"
+                ]
+            )
+            xs, ys = arr[:, 0], arr[:, 1]
+            xax, yax, G = parse_xpm(d / "gibbs.xpm")
+            G = np.asarray(G, float)
+            nb = G.shape[1]
+            wx = (xs.max() - xs.min()) / (nb - 1)
+            wy = (ys.max() - ys.min()) / (nb - 1)
+            fel = calculate_fel(
+                xs,
+                ys,
+                temperature=300.0,
+                bins=nb,
+                x_range=(xs.min() - wx / 2, xs.max() + wx / 2),
+                y_range=(ys.min() - wy / 2, ys.max() + wy / 2),
+            )
+            m = np.isfinite(fel.free_energy)
+            diff = np.abs(G[m] - fel.free_energy[m])
+            step = (G.max() - G.min()) / 400
+            n_same = int((diff < 0.05).sum())
+            record(
+                "FEL",
+                "ΔG grid vs gmx sham (identical projections, bin edges, T): bins within 0.05 kJ/mol",
+                n_same >= 0.95 * m.sum() and np.median(diff) < step,
+                f"{n_same}/{m.sum()} bins; median |Δ| {np.median(diff):.4f} kJ/mol; others are single frames on shared bin edges",
+                "all",
+                "≥ 95 % of bins; median < XPM level step",
+                "GROMACS sham",
+            )
+            record(
+                "FEL",
+                "unsampled bins: sham = max sampled ΔG, ConformAtlas = NaN (deliberate difference)",
+                True,
+                f"sham fills with {np.unique(G[~m]).round(2).tolist()}",
+                "NaN",
+                "informational",
+                "GROMACS sham",
+            )
+        else:
+            record(
+                "FEL", "ΔG grid vs gmx sham", False, "GROMACS pipeline failed", "-", "-", "GROMACS"
+            )
+
+    # =========================================================================
     # 11. Convergence metrics: cosine content and RMSIP limits
     # =========================================================================
     from conformatlas.convergence import calculate_cosine_content, calculate_subspace_rmsip

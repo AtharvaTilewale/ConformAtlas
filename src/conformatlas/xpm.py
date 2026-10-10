@@ -74,6 +74,12 @@ def parse_xpm(xpm_path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]
             except ValueError:
                 continue
 
+    # gmx sham writes bin EDGES (width + 1 values); other tools write centres.
+    if len(x_floats) == width + 1:
+        x_floats = [0.5 * (a + b) for a, b in zip(x_floats[:-1], x_floats[1:])]
+    if len(y_floats) == height + 1:
+        y_floats = [0.5 * (a + b) for a, b in zip(y_floats[:-1], y_floats[1:])]
+
     # If axes were not found in comments, generate 0..width-1 and 0..height-1
     if len(x_floats) != width:
         if len(x_floats) == 0:

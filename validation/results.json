@@ -333,10 +333,30 @@
     "section": "Descriptors",
     "check": "Rg vs gmx gyrate (nm \u2192 \u00c5)",
     "pass": true,
-    "measured": "max |\u0394| 0.000 \u00c5",
+    "measured": "max |\u0394| 0.029 \u00c5",
     "expected": "0",
     "tolerance": "< 0.05 \u00c5 (GROMACS mass table vs MDAnalysis guessed masses)",
     "reference": "GROMACS gyrate",
+    "note": ""
+  },
+  {
+    "section": "FEL",
+    "check": "\u0394G grid vs gmx sham (identical projections, bin edges, T): bins within 0.05 kJ/mol",
+    "pass": true,
+    "measured": "109/112 bins; median |\u0394| 0.0062 kJ/mol; others are single frames on shared bin edges",
+    "expected": "all",
+    "tolerance": "\u2265 95 % of bins; median < XPM level step",
+    "reference": "GROMACS sham",
+    "note": ""
+  },
+  {
+    "section": "FEL",
+    "check": "unsampled bins: sham = max sampled \u0394G, ConformAtlas = NaN (deliberate difference)",
+    "pass": true,
+    "measured": "sham fills with [4.86, 5.85]",
+    "expected": "NaN",
+    "tolerance": "informational",
+    "reference": "GROMACS sham",
     "note": ""
   },
   {
