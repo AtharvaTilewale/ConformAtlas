@@ -127,7 +127,11 @@ def extract_atom_selection_info(
 def map_group_to_mda_selection(group: str) -> str:
     """Translate common GROMACS group names to MDAnalysis selection strings."""
     g_lower = group.lower().strip()
-    if g_lower in ["backbone", "mainchain"]:
+    if g_lower == "backbone":
+        # GROMACS 'Backbone' = N, CA, C (no carbonyl O); 'BB' covers MARTINI beads
+        return "(protein and name N CA C) or name BB"
+    elif g_lower in ["mainchain", "main-chain"]:
+        # GROMACS 'MainChain' = N, CA, C, O
         return "backbone or name BB"
     elif g_lower in ["c-alpha", "calpha", "ca"]:
         return "name CA or name BB"

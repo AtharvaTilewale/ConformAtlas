@@ -124,6 +124,7 @@ The demonstration peptide switches between a bent and a twisted conformation and
 * Trajectories must be whole across periodic boundaries (`gmx trjconv -pbc mol`); fitting a broken molecule is meaningless.
 * `-s` should carry coordinates (`.gro`, `.pdb`) to serve as the superposition reference. With a `.tpr` the first trajectory frame is used instead.
 * For enhanced-sampling or biased trajectories supply per-frame weights (`--weights-file`, e.g. exp(βV) from a reweighting scheme); without weights see the thermodynamic limitations below.
+* Group names follow GROMACS conventions: `Backbone` = N, CA, C; `MainChain` = N, CA, C, O; `C-alpha`; `Protein`; or any GROMACS index group (`-n`) / MDAnalysis selection string.
 * `--lig RES` adds the ligand's atoms to the analysis group (the landscape then describes the complex) and reports its RMSD after protein superposition.
 
 ---
@@ -150,6 +151,10 @@ results/
 ```
 
 ---
+
+## Validation
+
+`validation/validate.py` checks the numerical core against analytical results and independent implementations (MDAnalysis, GROMACS, pymbar, deeptime, SciPy, ProDy): landscape inversion, PCA/TICA, superposition, statistical inefficiency and equilibration, basin populations and barriers on an analytic double well, bootstrap confidence-interval coverage, kinetics on a known Markov chain, descriptors, overlap metrics and the calibration of the comparison test. The current report is in [`validation/VALIDATION.md`](validation/VALIDATION.md) (51/51 checks). Convergence verdicts, the Freedman–Diaconis grid and the minor-basin threshold are heuristics by construction and are documented as such in `docs/methods.md`.
 
 ## Important Thermodynamic Limitations
 

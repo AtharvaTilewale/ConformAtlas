@@ -144,7 +144,7 @@ Frames are restricted to `-b ≤ t ≤ -e` (ps) before any analysis. The **stati
 
 $$g = 1 + 2\sum_{t=1}^{T} \left(1 - \frac{t}{N}\right) C(t), \qquad N_\text{eff} = N/g,$$
 
-where $C(t)$ is the normalised autocorrelation function, summed until it first becomes non-positive (Chodera et al. 2007). ConformAtlas reports $g$ of PC1 and PC2 for every replicate and uses the larger value; $N_\text{eff}$ over all replicates is printed in the convergence notes. Fewer than 50 effective frames force the sampling verdict to *Insufficient evidence*.
+where $C(t)$ is the normalised autocorrelation function, summed until it first becomes non-positive (Chodera et al. 2007). $C(t)$ is evaluated from the full FFT autocorrelation (exact; identical to pymbar's non-fast estimator). ConformAtlas reports $g$ of PC1 and PC2 for every replicate and uses the larger value; $N_\text{eff}$ over all replicates is printed in the convergence notes. Fewer than 50 effective frames force the sampling verdict to *Insufficient evidence*.
 
 The **equilibration point** $t_0$ is chosen as the start that maximises $N_\text{eff}$ of the remaining production segment (Chodera 2016), evaluated on the fit RMSD to the reference. With `--equilibration auto` the frames before $t_0$ are discarded per replicate; by default the detected $t_0$ is only reported (`convergence/equilibration.csv`). On a monotonically drifting RMSD the criterion discards aggressively; inspect the descriptor figure before accepting it.
 
@@ -175,3 +175,12 @@ For each of `--bootstrap` resamples, frames are drawn per replicate as circular 
 ## 13. Comparison Statistics
 
 All systems share one grid. For every system $S$ and the reference $R$: the **ΔΔG map** $\Delta G_S(x,y) - \Delta G_R(x,y)$ (each landscape to its own minimum; NaN where either is unsampled) with the bootstrap standard deviation of the difference obtained from independent per-system block bootstraps; **population differences** with the bootstrap 95 % interval and a two-sided bootstrap p-value (twice the smaller tail fraction of the difference distribution, floored at $1/B$); **Welch's t-test** on per-replicate populations, reported only when every system has at least two replicates, with the replicate counts stated because two or three replicates give very low power; **state ΔΔG** from the state minima; the **Bhattacharyya coefficient** $\sum\sqrt{p_S\,q_R}$, Hellinger distance and **Jensen–Shannon divergence** (bits) between the normalised sampled densities; and the **RMSIP** between the leading eigenvectors of each system's own PCA (`comparison/subspace_overlap.csv`).
+
+
+---
+
+## 14. What is validated, what is heuristic
+
+`validation/validate.py` reproduces the checks listed in `validation/VALIDATION.md`. The following are **validated** against analytical results or independent codes: Boltzmann inversion (exact bin-integrated Gaussian, counting-noise level), reweighting (importance-sampling identity), Cartesian PCA (MDAnalysis to 10⁻³ after the N−1 → N rescaling; `gmx covar` to 10⁻⁴), the SVD route, Kabsch superposition (MDAnalysis QCP, 10⁻⁵ Å), statistical inefficiency and equilibration (pymbar, machine precision / identical t₀), basin populations (Boltzmann integral, 0.001), saddle barriers (analytic potential, ≤ 0.5 kJ/mol at 60 bins), block-bootstrap coverage (0.92 for a nominal 0.95 on strongly correlated data), transition matrix / dwell times / MFPT (known Markov chain, ≤ 2 %), TICA (AR(1) theory, deeptime), dihedral features (MDAnalysis), RMSD/Rg/RMSF (MDAnalysis, `gmx gyrate`), JS/Bhattacharyya (SciPy), and the type-I error of the population-difference test (0.09 at α = 0.05 with 2 + 2 correlated replicates — mildly anti-conservative, as block bootstraps are).
+
+The following are **heuristics** and should be read as such: the sampling verdict (threshold values for RMSIP, cosine content and N_eff), the Freedman–Diaconis grid size, the `--min-state-population` and `--min-barrier` thresholds, the choice of fit RMSD as the observable for equilibration detection, the lag-1 Markov assumption behind MFPT (a lower bound), and the fixed-basin assumption in the bootstrap (uncertainty from re-segmenting the landscape is not included). Covariance normalisation uses N (GROMACS convention), not N−1.

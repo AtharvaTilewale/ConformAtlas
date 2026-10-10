@@ -23,3 +23,11 @@ def test_single_set_multicolumn(tmp_path):
     t, m = _read_anaeig_projection(p)
     assert m.shape == (2, 3)
     np.testing.assert_allclose(m[1], [0.2, 1.2, 2.2])
+
+
+def test_backbone_group_follows_gromacs_definition():
+    """GROMACS 'Backbone' is N, CA, C; 'MainChain' adds O."""
+    from conformatlas.trajectory import map_group_to_mda_selection
+
+    assert "name N CA C" in map_group_to_mda_selection("Backbone")
+    assert map_group_to_mda_selection("MainChain").startswith("backbone")

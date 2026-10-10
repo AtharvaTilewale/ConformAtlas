@@ -1,0 +1,512 @@
+[
+  {
+    "section": "FEL",
+    "check": "harmonic well \u0394G(x,y) vs exact bin-integrated Gaussian",
+    "pass": true,
+    "measured": "RMSE 0.1663 kJ/mol",
+    "expected": "counting noise \u2248 0.1413 kJ/mol",
+    "tolerance": "< 2 \u00d7 expected counting noise",
+    "reference": "Boltzmann inversion of a 2-D Gaussian (erf-integrated bins)",
+    "note": ""
+  },
+  {
+    "section": "FEL",
+    "check": "same vs bin-centre analytical value (shows discretisation bias only)",
+    "pass": true,
+    "measured": "RMSE 0.150 kJ/mol",
+    "expected": "~bin-width\u00b2 effect",
+    "tolerance": "informational",
+    "reference": "\u00bd kT r\u00b2/\u03c3\u00b2 at bin centres",
+    "note": ""
+  },
+  {
+    "section": "FEL",
+    "check": "unsampled bins are NaN (not 0 kJ/mol)",
+    "pass": true,
+    "measured": "nan",
+    "expected": "nan",
+    "tolerance": "exact",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "FEL",
+    "check": "reweighted landscape (weights p/q) recovers the target distribution p",
+    "pass": true,
+    "measured": "RMSE 0.088 kJ/mol",
+    "expected": "0",
+    "tolerance": "< 0.15 kJ/mol",
+    "reference": "importance-sampling identity",
+    "note": ""
+  },
+  {
+    "section": "FEL",
+    "check": "probability normalised and min \u0394G = 0",
+    "pass": true,
+    "measured": "\u03a3P = 1.0000000000, min \u0394G = -0.0e+00",
+    "expected": "1, 0",
+    "tolerance": "1e-9",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "PCA",
+    "check": "eigenvalues (top 3) vs MDAnalysis.analysis.pca, same atoms/reference (N\u22121 \u2192 N rescaled)",
+    "pass": true,
+    "measured": "max rel. diff 7.19e-08",
+    "expected": "0",
+    "tolerance": "< 1e-3",
+    "reference": "MDAnalysis 2.x PCA",
+    "note": ""
+  },
+  {
+    "section": "PCA",
+    "check": "PC1 eigenvector |cos| vs MDAnalysis (PC2\u2013PC4 of the demo are degenerate, not compared)",
+    "pass": true,
+    "measured": "1.00000",
+    "expected": "1",
+    "tolerance": "> 0.999",
+    "reference": "MDAnalysis 2.x PCA",
+    "note": ""
+  },
+  {
+    "section": "PCA",
+    "check": "variance reconstructed by 10 components = cumulative explained variance",
+    "pass": true,
+    "measured": "91.84 %",
+    "expected": "91.84 %",
+    "tolerance": "0.5 %",
+    "reference": "reconstruction identity",
+    "note": ""
+  },
+  {
+    "section": "PCA",
+    "check": "SVD dual route (3N > frames) equals covariance eigendecomposition",
+    "pass": true,
+    "measured": "max |\u0394\u03bb| 9.7e-08 \u00c5\u00b2",
+    "expected": "0",
+    "tolerance": "rtol 1e-6",
+    "reference": "linear-algebra identity",
+    "note": ""
+  },
+  {
+    "section": "PCA",
+    "check": "eigenvalues (top 3) vs gmx covar -fit on 'Backbone' (\u00c5\u00b2 \u2192 nm\u00b2)",
+    "pass": true,
+    "measured": "max rel. diff 0.0000",
+    "expected": "0",
+    "tolerance": "< 2 % (xtc precision, single-precision covar)",
+    "reference": "GROMACS covar",
+    "note": ""
+  },
+  {
+    "section": "Superposition",
+    "check": "Kabsch RMSD after fit vs MDAnalysis rms.rmsd(superposition=True)",
+    "pass": true,
+    "measured": "1.367116 \u00c5",
+    "expected": "1.367116 \u00c5",
+    "tolerance": "1e-5 \u00c5",
+    "reference": "MDAnalysis QCP",
+    "note": ""
+  },
+  {
+    "section": "Superposition",
+    "check": "rotation is proper and orthonormal",
+    "pass": true,
+    "measured": "det 1.000000000",
+    "expected": "1",
+    "tolerance": "1e-9",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "Timeseries",
+    "check": "statistical inefficiency g vs pymbar (AR(1), \u03c6 = 0.95)",
+    "pass": true,
+    "measured": "34.42",
+    "expected": "pymbar 34.42; theory 39",
+    "tolerance": "< 5 %",
+    "reference": "pymbar.timeseries.statistical_inefficiency",
+    "note": ""
+  },
+  {
+    "section": "Timeseries",
+    "check": "equilibration start t\u2080 vs pymbar.detect_equilibration",
+    "pass": true,
+    "measured": "2075",
+    "expected": "pymbar 2075 (true burn-in 3000)",
+    "tolerance": "\u2264 300 frames",
+    "reference": "pymbar (Chodera 2016)",
+    "note": ""
+  },
+  {
+    "section": "Basins",
+    "check": "two basins detected on an analytic double well",
+    "pass": true,
+    "measured": "2 states",
+    "expected": "2",
+    "tolerance": "exact",
+    "reference": "double-well potential (Metropolis sample)",
+    "note": ""
+  },
+  {
+    "section": "Basins",
+    "check": "left-well population vs Boltzmann integral",
+    "pass": true,
+    "measured": "0.6650",
+    "expected": "0.6636",
+    "tolerance": "< 0.01",
+    "reference": "\u222bexp(\u2212V/kT) dx",
+    "note": ""
+  },
+  {
+    "section": "Basins",
+    "check": "saddle barriers vs analytical V(saddle) \u2212 V(min)",
+    "pass": true,
+    "measured": "3.38, 5.10 kJ/mol",
+    "expected": "2.89, 4.89 kJ/mol",
+    "tolerance": "< 0.6 kJ/mol (finite bins; saddle sampled sparsely)",
+    "reference": "analytical potential",
+    "note": ""
+  },
+  {
+    "section": "Basins",
+    "check": "min_barrier above the true barrier merges the wells",
+    "pass": true,
+    "measured": "1 state(s)",
+    "expected": "1",
+    "tolerance": "exact",
+    "reference": "definition of --min-barrier",
+    "note": ""
+  },
+  {
+    "section": "Basins",
+    "check": "frames outside major states lie only in sub-threshold minor basins (reported as 'Unassigned / Minor')",
+    "pass": true,
+    "measured": "153 frames (3.8e-04), all in isolated high-\u0394G pockets",
+    "expected": "\u2248 0",
+    "tolerance": "< 0.1 %",
+    "reference": "design: minor basins below --min-state-population are not merged",
+    "note": ""
+  },
+  {
+    "section": "Bootstrap",
+    "check": "95 % CI coverage of the true state population (120 correlated Markov systems)",
+    "pass": true,
+    "measured": "0.917 (mean CI width 0.175)",
+    "expected": "0.95",
+    "tolerance": "0.88\u20130.99 (binomial SE \u2248 0.02; block bootstrap is slightly anti-conservative)",
+    "reference": "known stationary distribution \u03c0 = (0.7, 0.3)",
+    "note": ""
+  },
+  {
+    "section": "Bootstrap",
+    "check": "control: block length 1 (iid bootstrap) under-covers on correlated data",
+    "pass": true,
+    "measured": "coverage 0.30",
+    "expected": "\u226a 0.95",
+    "tolerance": "< 0.80",
+    "reference": "demonstrates why g-based blocks are used",
+    "note": ""
+  },
+  {
+    "section": "Kinetics",
+    "check": "transition matrix vs generating Markov chain (4\u00d710\u2075 steps)",
+    "pass": true,
+    "measured": "max |\u0394P| 0.0009",
+    "expected": "0",
+    "tolerance": "< 0.003",
+    "reference": "known transition matrix",
+    "note": ""
+  },
+  {
+    "section": "Kinetics",
+    "check": "Markov MFPT vs analytical hitting times",
+    "pass": true,
+    "measured": "max rel. diff 0.020",
+    "expected": "0",
+    "tolerance": "< 5 %",
+    "reference": "linear-system solution for the known chain",
+    "note": ""
+  },
+  {
+    "section": "Kinetics",
+    "check": "mean dwell time vs geometric expectation \u0394t/(1\u2212p\u1d62\u1d62)",
+    "pass": true,
+    "measured": "max rel. diff 0.013",
+    "expected": "0",
+    "tolerance": "< 5 %",
+    "reference": "geometric dwell distribution",
+    "note": ""
+  },
+  {
+    "section": "TICA",
+    "check": "leading eigenvalue vs analytical AR(1) autocorrelation \u03c6^\u03c4",
+    "pass": true,
+    "measured": "0.9094",
+    "expected": "0.9044",
+    "tolerance": "< 0.02",
+    "reference": "AR(1) autocorrelation",
+    "note": ""
+  },
+  {
+    "section": "TICA",
+    "check": "implied timescale vs \u22121/ln \u03c6",
+    "pass": true,
+    "measured": "105.3 frames",
+    "expected": "99.5 frames",
+    "tolerance": "< 20 %",
+    "reference": "AR(1)",
+    "note": ""
+  },
+  {
+    "section": "TICA",
+    "check": "leading eigenvalue vs deeptime TICA",
+    "pass": true,
+    "measured": "0.9094",
+    "expected": "deeptime 0.9094",
+    "tolerance": "< 0.01",
+    "reference": "deeptime 0.4.5",
+    "note": ""
+  },
+  {
+    "section": "TICA",
+    "check": "leading IC direction vs deeptime",
+    "pass": true,
+    "measured": "|cos| 1.0000",
+    "expected": "1",
+    "tolerance": "> 0.99",
+    "reference": "deeptime",
+    "note": ""
+  },
+  {
+    "section": "Dihedral PCA",
+    "check": "cos \u03c6 features vs MDAnalysis Ramachandran",
+    "pass": true,
+    "measured": "max |\u0394| 3.0e-08",
+    "expected": "0",
+    "tolerance": "1e-5",
+    "reference": "MDAnalysis Ramachandran",
+    "note": ""
+  },
+  {
+    "section": "Dihedral PCA",
+    "check": "features bounded in [\u22121, 1] (periodicity handled via sin/cos)",
+    "pass": true,
+    "measured": "max |f| 0.999994",
+    "expected": "\u2264 1",
+    "tolerance": "exact",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "Descriptors",
+    "check": "C\u03b1 RMSD vs MDAnalysis rms.RMSD (fit + RMSD)",
+    "pass": true,
+    "measured": "max |\u0394| 5.0e-06 \u00c5",
+    "expected": "0",
+    "tolerance": "1e-3 \u00c5",
+    "reference": "MDAnalysis",
+    "note": ""
+  },
+  {
+    "section": "Descriptors",
+    "check": "mass-weighted Rg vs MDAnalysis AtomGroup.radius_of_gyration",
+    "pass": true,
+    "measured": "max |\u0394| 2.1e-06 \u00c5",
+    "expected": "0",
+    "tolerance": "1e-3 \u00c5",
+    "reference": "MDAnalysis",
+    "note": ""
+  },
+  {
+    "section": "Descriptors",
+    "check": "C\u03b1 RMSF (fitted) vs MDAnalysis rms.RMSF on aligned trajectory",
+    "pass": true,
+    "measured": "max |\u0394| 4.6e-07 \u00c5",
+    "expected": "0",
+    "tolerance": "1e-3 \u00c5",
+    "reference": "MDAnalysis",
+    "note": ""
+  },
+  {
+    "section": "Descriptors",
+    "check": "Rg vs gmx gyrate (nm \u2192 \u00c5)",
+    "pass": true,
+    "measured": "max |\u0394| 0.000 \u00c5",
+    "expected": "0",
+    "tolerance": "< 0.05 \u00c5 (GROMACS mass table vs MDAnalysis guessed masses)",
+    "reference": "GROMACS gyrate",
+    "note": ""
+  },
+  {
+    "section": "Convergence",
+    "check": "cosine content of a half-period cosine = 1",
+    "pass": true,
+    "measured": "1.000000",
+    "expected": "1",
+    "tolerance": "1e-9",
+    "reference": "Hess 2000/2002 definition",
+    "note": ""
+  },
+  {
+    "section": "Convergence",
+    "check": "cosine content: PC1 of a 90-D random walk \u2248 1 (Hess 2000), white noise \u2248 0",
+    "pass": true,
+    "measured": "walk PC1 0.992, noise 0.0002",
+    "expected": "\u21921, \u22480",
+    "tolerance": "> 0.85, < 0.02",
+    "reference": "Hess 2000 (random diffusion)",
+    "note": ""
+  },
+  {
+    "section": "Convergence",
+    "check": "cosine content of centred 1-D Brownian paths (informational: broad distribution)",
+    "pass": true,
+    "measured": "mean 0.43",
+    "expected": "~0.4\u20130.6",
+    "tolerance": "informational",
+    "reference": "Karhunen\u2013Lo\u00e8ve modes of Brownian motion",
+    "note": ""
+  },
+  {
+    "section": "Convergence",
+    "check": "RMSIP: identical subspaces 1, orthogonal 0, 5/10 shared \u2192 \u221a0.5",
+    "pass": true,
+    "measured": "1, 0, 0.7071",
+    "expected": "1, 0, 0.7071",
+    "tolerance": "1e-12",
+    "reference": "Amadei 1999 definition",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "Jensen\u2013Shannon divergence vs scipy.spatial.distance.jensenshannon\u00b2",
+    "pass": true,
+    "measured": "0.134921",
+    "expected": "0.134921",
+    "tolerance": "1e-12",
+    "reference": "SciPy",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "Bhattacharyya coefficient and Hellinger distance vs direct formula",
+    "pass": true,
+    "measured": "0.898119",
+    "expected": "0.898119",
+    "tolerance": "1e-12",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "type-I error of the bootstrap population-difference test under the null (\u03b1 = 0.05, 100 trials)",
+    "pass": true,
+    "measured": "0.090",
+    "expected": "0.05",
+    "tolerance": "\u2264 0.12 (binomial SE \u2248 0.02; mild anti-conservatism expected)",
+    "reference": "two systems from one Markov process",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "95 % CI of the population difference contains 0 under the null",
+    "pass": true,
+    "measured": "0.890",
+    "expected": "0.95",
+    "tolerance": "\u2265 0.88",
+    "reference": "same null experiment",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "Welch's t-test matches scipy.stats.ttest_ind(equal_var=False)",
+    "pass": true,
+    "measured": "t = -6.274, p = 0.026",
+    "expected": "same call",
+    "tolerance": "identity",
+    "reference": "SciPy (the table calls this function)",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "bootstrap p-value: floor 1/B and two-sidedness",
+    "pass": true,
+    "measured": "0.005, 1.0",
+    "expected": "0.005, 1.0",
+    "tolerance": "exact",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "End-to-end",
+    "check": "state populations: GROMACS covar/anaeig backend vs Python backend",
+    "pass": true,
+    "measured": "[30.5 69.5] vs [30.5 69.5] %",
+    "expected": "equal",
+    "tolerance": "< 2 pp",
+    "reference": "GROMACS 2023 covar + anaeig",
+    "note": ""
+  },
+  {
+    "section": "End-to-end",
+    "check": "explained variance (top 3): GROMACS vs Python",
+    "pass": true,
+    "measured": "max |\u0394| 0.00 pp",
+    "expected": "0",
+    "tolerance": "< 1 pp",
+    "reference": "GROMACS",
+    "note": ""
+  },
+  {
+    "section": "End-to-end",
+    "check": "representative.pdb coordinates equal the trajectory frame at the recorded time",
+    "pass": true,
+    "measured": "max |\u0394x| 3.8e-06 \u00c5 (frame 8, t = 80.0 ps)",
+    "expected": "0",
+    "tolerance": "2e-3 \u00c5 (PDB precision)",
+    "reference": "trajectory frame",
+    "note": ""
+  },
+  {
+    "section": "End-to-end",
+    "check": "per-atom mode contributions: \u03a3 w\u00b2 = 1 for each mode (unit eigenvectors)",
+    "pass": true,
+    "measured": "[1. 1. 1.]",
+    "expected": "1",
+    "tolerance": "1e-6",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "End-to-end",
+    "check": "modes.nmd parsed by ProDy; eigenvectors orthonormal",
+    "pass": true,
+    "measured": "10 modes, max |V\u1d40V \u2212 I| 1.2e-05",
+    "expected": "orthonormal",
+    "tolerance": "1e-3 (NMD text precision)",
+    "reference": "ProDy 2.6.1",
+    "note": ""
+  },
+  {
+    "section": "End-to-end",
+    "check": "PC1_extremes.pdb models project to the min/max of PC1",
+    "pass": true,
+    "measured": "[-3.739, 1.770]",
+    "expected": "[-3.739, 1.770]",
+    "tolerance": "0.05 \u00c5",
+    "reference": "projection identity",
+    "note": ""
+  },
+  {
+    "section": "End-to-end",
+    "check": "summary.json populations equal states/basins.csv",
+    "pass": true,
+    "measured": "[30.5, 69.5]",
+    "expected": "[30.5, 69.5]",
+    "tolerance": "1e-6",
+    "reference": "internal consistency",
+    "note": ""
+  }
+]

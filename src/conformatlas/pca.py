@@ -248,9 +248,29 @@ def run_gromacs_pca(
     eigenvec_trr = pca_dir / "eigenvec.trr"
     average_pdb = pca_dir / "average.pdb"
 
-    # Step 1: covar on the first/pooled trajectory
+    # Step 1: covar on the pooled trajectory (all replicates concatenated with
+    # trjcat -cat, so every frame enters the covariance with equal weight — the
+    # 'frames' weighting of the Python backend).
     input_groups = f"{lsq_group}\n{cov_group}\n"
-    primary_traj = trajectory_paths[0]
+    if len(trajectory_paths) > 1:
+        pooled = pca_dir / "pooled_for_covar.xtc"
+        logger.info(
+            f"Concatenating {len(trajectory_paths)} trajectories for covar (gmx trjcat -cat)..."
+        )
+        gmx_runner.run(
+            "trjcat",
+            [
+                "-f",
+                *[str(Path(t).resolve()) for t in trajectory_paths],
+                "-o",
+                str(pooled.resolve()),
+                "-cat",
+            ],
+            cwd=pca_dir,
+        )
+        primary_traj = pooled
+    else:
+        primary_traj = Path(trajectory_paths[0])
 
     logger.info("Executing GROMACS covar...")
     gmx_runner.run(

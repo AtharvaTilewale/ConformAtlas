@@ -60,3 +60,12 @@ def test_block_length_respects_min_blocks():
     assert block_length_from_g(1.0, 1000) >= 1
     assert block_length_from_g(50.0, 100, min_blocks=5) <= 20
     assert block_length_from_g(3.0, 10_000) >= 3
+
+
+def test_g_is_unbiased_against_ar1_theory_over_many_realisations():
+    """The geometric-lag approximation of g overestimated by ~14 %; the FFT estimator
+    must average within 5 % of (1+phi)/(1-phi)."""
+    rng = np.random.default_rng(10)
+    phi = 0.9
+    gs = [statistical_inefficiency(_ar1(40_000, phi, rng)) for _ in range(10)]
+    assert abs(np.mean(gs) - 19.0) / 19.0 < 0.05

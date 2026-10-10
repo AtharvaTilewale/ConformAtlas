@@ -69,6 +69,7 @@ def calculate_cosine_content(projections_1d: np.ndarray, period_k: int = 1) -> f
     n = len(p)
     if n < 3:
         return 0.0
+    p = p - p.mean()  # Hess's measure is defined for zero-mean PC projections
 
     t = np.arange(n, dtype=np.float64)
     cos_wave = np.cos(period_k * np.pi * t / (n - 1.0))

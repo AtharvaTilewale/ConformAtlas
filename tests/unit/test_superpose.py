@@ -87,7 +87,7 @@ def test_stream_trajectory_coordinates_fit_flag(tmp_path):
     fitted, times = stream_trajectory_coordinates(
         topo, traj, group="Backbone", fit=True, fit_group="Backbone"
     )
-    assert raw.shape == fitted.shape == (100, 20, 3)
+    assert raw.shape == fitted.shape == (100, 15, 3)  # GROMACS Backbone = N, CA, C (5 residues)
     assert len(times) == 100
 
     # The demo trajectory tumbles freely: centroids wander by Angstroms before
