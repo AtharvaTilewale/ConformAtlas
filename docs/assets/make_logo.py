@@ -118,8 +118,8 @@ def render(kind, mode, fname, fmt=("svg", "png"), dpi=300):
         gap = 0.46
         x0 = r + gap
         p1, w1 = text_path("Conform", FONT_LIGHT, size, x0, -0.33)
-        p2, w2 = text_path("Atlas", FONT_SEMI, size, x0 + w1 + 0.02, -0.33)
-        right = x0 + w1 + 0.02 + w2
+        p2, w2 = text_path("Atlas", FONT_SEMI, size, x0 + w1 + 0.13, -0.33)
+        right = x0 + w1 + 0.13 + w2
         tag = None
         if kind == "banner":
             tag, wt = text_path(
