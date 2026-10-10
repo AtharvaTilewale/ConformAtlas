@@ -24,11 +24,13 @@
 
 ## Key Features
 
+* **Superposition Before PCA**:
+  Every frame is least-squares fitted (Kabsch) on the `--lsq-group` atoms to the structure file before the covariance matrix is built, so the principal components describe internal motion rather than tumbling and drift in the box. Equivalent to `gmx covar -fit`; disable with `--no-fit` only for pre-fitted trajectories.
 * **Temperature-Aware Free Energy Surfaces**:
   $$\Delta G(x, y) = -R \cdot T \cdot \ln\left[ \frac{P(x, y)}{P_{\max}} \right]$$
   Evaluated in $\text{kJ/mol}$ with explicit temperature validation ($T > 0$ K). Zero-occupancy bins are safely masked as $\text{NaN}$ rather than erroneously assigned zero free energy.
 * **Topological Watershed Basin Segmentation**:
-  Automatically identifies discrete conformational energy basins and assigns every trajectory frame to its underlying basin.
+  Automatically identifies discrete conformational energy basins and assigns every trajectory frame to its underlying basin. Sub-basins separated by less than `--min-barrier` (default 1 kT) are merged, so counting noise inside one broad well does not masquerade as several states.
 * **Verified Representative Structure Extraction**:
   Extracts the real trajectory frame closest in PC space to each basin minimum as a full-atom PDB structure with complete provenance metadata.
 * **Multi-Replicate Analysis**:
@@ -36,7 +38,7 @@
 * **Condition & Mutant Comparisons in Shared PCA Space**:
   Compares Wild-Type and mutants within an identical PCA coordinate system with invariant atom selection validation.
 * **Rigorous Convergence & Sampling Diagnostics**:
-  Evaluates first-half vs second-half subspace overlap (RMSIP), progressive overlap across sampling fractions, cosine content (diffusion test), and state population stability curves.
+  Evaluates first-half vs second-half subspace overlap (RMSIP) pooled over all replicates and per replicate, progressive overlap across sampling fractions, cosine content (diffusion test), and state population stability on cumulative time per replicate.
 * **Replicate Uncertainty Estimation**:
   Reports Mean, SD, SEM, and 95% Confidence Intervals for state populations.
 * **Automated Publication Figures & HTML Reports**:
@@ -92,6 +94,12 @@ conformatlas compare --config comparison.yaml -o results/comparison
 ```bash
 conformatlas example --output demo_project
 ```
+The demonstration peptide switches between a bent and a twisted conformation and tumbles freely in the box, so it only resolves into two states once frames have been superposed. Run it with `--bins 32 --smooth-sigma 1.0` (200 frames do not populate a 64 × 64 grid).
+
+### Input requirements
+* Trajectories must be whole across periodic boundaries (`gmx trjconv -pbc mol`); fitting a broken molecule is meaningless.
+* `-s` should carry coordinates (`.gro`, `.pdb`) to serve as the superposition reference. With a `.tpr` the first trajectory frame is used instead.
+* For enhanced-sampling or biased trajectories see the thermodynamic limitations below.
 
 ---
 
@@ -146,7 +154,7 @@ If you use ConformAtlas in your research, please cite:
   author = {Tilewale, Atharva},
   title = {ConformAtlas: MD Ensemble, PCA, and Free Energy Landscape Analysis},
   year = {2026},
-  version = {0.1.1},
+  version = {0.2.0},
   url = {https://github.com/AtharvaTilewale/ConformAtlas}
 }
 ```

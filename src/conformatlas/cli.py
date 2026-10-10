@@ -51,6 +51,7 @@ from conformatlas.representatives import extract_representative_structures
 from conformatlas.trajectory import (
     HAS_MDANALYSIS,
     inspect_trajectory,
+    load_reference_coordinates,
     stream_trajectory_coordinates,
 )
 from conformatlas.uncertainty import (
@@ -62,6 +63,7 @@ from conformatlas.utils import (
     CYAN,
     GREEN,
     NC,
+    R_GAS_CONSTANT,
     RED,
     YELLOW,
     print_banner,
@@ -270,6 +272,31 @@ def main(ctx, structure, trajectory, temperature, output):
     default=None,
     help="Path to custom GROMACS executable.",
 )
+@click.option(
+    "--min-barrier",
+    type=float,
+    default=None,
+    help=(
+        "Minimum free-energy barrier (kJ/mol) between two basins; shallower "
+        "watershed basins are merged. Default: 1 kT at the given temperature."
+    ),
+)
+@click.option(
+    "--fit/--no-fit",
+    default=True,
+    show_default=True,
+    help=(
+        "Least-squares superpose every frame onto the structure file using the "
+        "--lsq-group atoms before PCA (removes overall rotation/translation). "
+        "Use --no-fit only for trajectories already fitted with gmx trjconv -fit."
+    ),
+)
+@click.option(
+    "--mass-weighted-fit",
+    is_flag=True,
+    default=False,
+    help="Mass-weight the least-squares fit (requires masses in the topology).",
+)
 def analyze(
     structure,
     trajectory,
@@ -286,6 +313,9 @@ def analyze(
     max_states,
     fel_backend,
     gmx_command,
+    min_barrier,
+    fit,
+    mass_weighted_fit,
 ):
     """Perform PCA and Free Energy Landscape analysis on single or multi-replicate MD trajectories."""
     out_dir = Path(output)
@@ -332,10 +362,31 @@ def analyze(
     system_times = {}
 
     if HAS_MDANALYSIS:
+        reference_fit = None
+        if fit:
+            reference_fit = load_reference_coordinates(
+                structure, group=lsq_group, fallback_trajectory=trajectory[0]
+            )
+            click.echo(
+                f"  • Superposing frames on '{lsq_group}' ({len(reference_fit)} atoms) "
+                f"of {Path(structure).name} before PCA"
+            )
+        else:
+            click.echo(
+                f"  {YELLOW}• Superposition disabled (--no-fit): trajectories are assumed "
+                f"to be pre-fitted; otherwise PC1/PC2 will contain rigid-body motion.{NC}"
+            )
         for idx, t_path in enumerate(trajectory):
             rep_id = f"Rep_{idx + 1}"
             coords, times = stream_trajectory_coordinates(
-                structure, t_path, group=cov_group, stride=stride
+                structure,
+                t_path,
+                group=cov_group,
+                stride=stride,
+                fit=fit,
+                fit_group=lsq_group,
+                reference_fit_coords=reference_fit,
+                mass_weighted=mass_weighted_fit,
             )
             coords_dict[rep_id] = coords
             system_times[rep_id] = times
@@ -411,6 +462,7 @@ def analyze(
         pca_results.projections,
         min_state_population=min_state_population,
         max_states=max_states,
+        min_barrier=min_barrier,
     )
     save_basin_results(states, frame_assignments, basin_map, out_dir)
 
@@ -497,6 +549,21 @@ def analyze(
         "smooth_sigma": smooth_sigma,
         "stride": stride,
         "pca_weighting": pca_weighting,
+        "lsq_group": lsq_group,
+        "cov_group": cov_group,
+        "min_barrier_kJ_mol": (
+            min_barrier if min_barrier is not None else R_GAS_CONSTANT * temperature
+        ),
+        "superposition": (
+            {
+                "enabled": True,
+                "fit_group": lsq_group,
+                "reference": str(Path(structure).resolve()),
+                "mass_weighted": mass_weighted_fit,
+            }
+            if (fit and HAS_MDANALYSIS)
+            else {"enabled": False, "note": "gmx covar -fit" if not HAS_MDANALYSIS else "--no-fit"}
+        ),
         "topology": str(Path(structure).resolve()),
         "trajectories": [str(Path(p).resolve()) for p in trajectory],
         "uncertainty_type": unc_type,
@@ -507,10 +574,21 @@ def analyze(
             topology=Path(structure),
             trajectories=[Path(p) for p in trajectory],
             temperature=temperature,
+            lsq_group=lsq_group,
+            cov_group=cov_group,
+            lig_group=lig_group,
             output_dir=out_dir,
             bins=bins,
             smooth_sigma=smooth_sigma,
+            pca_weighting=pca_weighting,
             stride=stride,
+            min_state_population=min_state_population,
+            max_states=max_states,
+            fel_backend=fel_backend,
+            gmx_command=gmx_command,
+            fit=fit,
+            mass_weighted_fit=mass_weighted_fit,
+            min_barrier=min_barrier,
         ),
         trajectories_info=traj_infos,
         pca=pca_results,

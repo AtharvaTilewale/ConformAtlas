@@ -8,6 +8,7 @@ import pandas as pd
 
 from conformatlas.gromacs import GromacsRunner
 from conformatlas.models import TrajectoryInfo
+from conformatlas.superpose import superpose_frame
 
 logger = logging.getLogger("conformatlas.trajectory")
 
@@ -213,36 +214,103 @@ def build_common_atom_mapping(
     return mapping_indices, mapping_df
 
 
+def load_reference_coordinates(
+    topology_path: str | Path,
+    atom_indices: list[int] | None = None,
+    group: str = "Backbone",
+    fallback_trajectory: str | Path | None = None,
+) -> np.ndarray:
+    """Return reference coordinates (n_atoms, 3) for a fit group.
+
+    The structure file is used when it carries coordinates (.pdb, .gro). Topologies
+    without coordinates (.tpr) fall back to the first frame of ``fallback_trajectory``.
+    """
+    if not HAS_MDANALYSIS:
+        raise RuntimeError("MDAnalysis is required to load reference coordinates.")
+
+    def _select(universe):
+        if atom_indices is not None:
+            return universe.atoms[atom_indices]
+        return universe.select_atoms(map_group_to_mda_selection(group))
+
+    try:
+        u = mda.Universe(str(topology_path))
+        ag = _select(u)
+        if len(ag) == 0:
+            raise ValueError(f"Fit selection '{group}' matched 0 atoms in {topology_path}.")
+        positions = ag.positions
+        if positions is not None and np.all(np.isfinite(positions)):
+            return np.array(positions, dtype=np.float64)
+    except ValueError:
+        raise
+    except Exception as e:  # topology without coordinates, e.g. .tpr
+        logger.debug(f"Structure file carries no usable coordinates ({e}); using trajectory.")
+
+    if fallback_trajectory is None:
+        raise ValueError(
+            f"{topology_path} carries no coordinates and no trajectory was given for a reference."
+        )
+    u = mda.Universe(str(topology_path), str(fallback_trajectory))
+    ag = _select(u)
+    if len(ag) == 0:
+        raise ValueError(f"Fit selection '{group}' matched 0 atoms in {topology_path}.")
+    u.trajectory[0]
+    return np.array(ag.positions, dtype=np.float64)
+
+
 def stream_trajectory_coordinates(
     topology_path: str | Path,
     trajectory_path: str | Path,
     atom_indices: list[int] | None = None,
     group: str = "Backbone",
     stride: int = 1,
+    fit: bool = True,
+    fit_atom_indices: list[int] | None = None,
+    fit_group: str | None = None,
+    reference_fit_coords: np.ndarray | None = None,
+    mass_weighted: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Stream trajectory frames and return coordinates for selected atoms.
+    """Stream trajectory frames and return (optionally superposed) coordinates.
+
+    Every frame is least-squares fitted onto a reference using the fit group, and the
+    resulting rigid-body transform is applied to the analysis group before the
+    coordinates are stored. This removes overall translation and rotation so that
+    the subsequent Cartesian PCA describes internal motion only -- the same step
+    ``gmx covar -fit`` performs. Pass ``fit=False`` for trajectories that were
+    already fitted (e.g. ``gmx trjconv -fit rot+trans``).
 
     Parameters
     ----------
-    topology_path : Union[str, Path]
-    trajectory_path : Union[str, Path]
-    atom_indices : Optional[List[int]]
-        Explicit atom indices to extract. If None, uses group.
+    topology_path, trajectory_path : path-like
+    atom_indices : list of int, optional
+        Explicit analysis-group atom indices. If None, ``group`` is used.
     group : str
-        Selection string if atom_indices is None.
+        Analysis selection (GROMACS group name or MDAnalysis selection string).
     stride : int
         Frame stride.
+    fit : bool
+        Superpose frames onto the reference before storing coordinates.
+    fit_atom_indices : list of int, optional
+        Explicit fit-group atom indices. If None, ``fit_group`` is used.
+    fit_group : str, optional
+        Fit selection. Defaults to the analysis selection.
+    reference_fit_coords : (n_fit, 3) array, optional
+        Reference coordinates for the fit group. Defaults to the structure file
+        (or the first frame when the structure carries no coordinates).
+    mass_weighted : bool
+        Mass-weight the fit (requires masses in the topology).
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray]
-        (coords, times) where coords has shape (n_frames, n_atoms, 3) in Angstroms/nm,
-        and times is array of frame times in ps.
+    (coords, times)
+        coords has shape (n_frames, n_atoms, 3) in the trajectory's length unit
+        (Angstrom for MDAnalysis), times is in ps.
     """
     if not HAS_MDANALYSIS:
         raise RuntimeError("MDAnalysis is required for direct streaming of trajectory coordinates.")
 
     u = mda.Universe(str(topology_path), str(trajectory_path))
+    sel_str = None
     if atom_indices is not None:
         ag = u.atoms[atom_indices]
     else:
@@ -254,11 +322,57 @@ def stream_trajectory_coordinates(
             f"Atom selection '{group}' (query: '{sel_str}') matched 0 atoms in {topology_path}."
         )
 
+    fit_ag = None
+    weights = None
+    if fit:
+        if fit_atom_indices is not None:
+            fit_ag = u.atoms[fit_atom_indices]
+        elif fit_group is not None:
+            fit_ag = u.select_atoms(map_group_to_mda_selection(fit_group))
+            if len(fit_ag) == 0:
+                raise ValueError(f"Fit selection '{fit_group}' matched 0 atoms in {topology_path}.")
+        else:
+            fit_ag = ag
+
+        if reference_fit_coords is None:
+            u.trajectory[0]
+            reference_fit_coords = np.array(fit_ag.positions, dtype=np.float64)
+        else:
+            reference_fit_coords = np.asarray(reference_fit_coords, dtype=np.float64)
+            if reference_fit_coords.shape != (len(fit_ag), 3):
+                raise ValueError(
+                    f"reference_fit_coords has shape {reference_fit_coords.shape}, "
+                    f"expected {(len(fit_ag), 3)} for the fit group."
+                )
+
+        if mass_weighted:
+            try:
+                weights = np.asarray(fit_ag.masses, dtype=np.float64)
+                if not np.all(np.isfinite(weights)) or weights.sum() <= 0:
+                    raise ValueError("non-positive or missing masses")
+            except Exception as e:
+                logger.warning(
+                    f"Mass-weighted fit requested but masses unavailable ({e}); "
+                    "falling back to an unweighted fit."
+                )
+                weights = None
+
+        if len(fit_ag) < 3:
+            raise ValueError(
+                f"Fit group has only {len(fit_ag)} atoms; at least 3 are needed for a rigid fit."
+            )
+
     coords_list = []
     times_list = []
 
     for ts in u.trajectory[::stride]:
-        coords_list.append(ag.positions.copy())
+        if fit:
+            frame_coords = superpose_frame(
+                fit_ag.positions, ag.positions, reference_fit_coords, weights
+            )
+        else:
+            frame_coords = ag.positions
+        coords_list.append(np.array(frame_coords, dtype=np.float32))
         times_list.append(float(ts.time))
 
     coords = np.array(coords_list, dtype=np.float32)

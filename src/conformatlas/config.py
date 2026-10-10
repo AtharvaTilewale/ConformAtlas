@@ -38,11 +38,15 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
     reference = pca_dict.get("reference", "combined")
     reference_system = pca_dict.get("reference_system", None)
     components = int(pca_dict.get("components", 10))
+    fit = bool(pca_dict.get("fit", True))
+    mass_weighted_fit = bool(pca_dict.get("mass_weighted_fit", False))
 
     bins = int(data.get("bins", 64))
     smooth_sigma = float(data.get("smooth_sigma", 0.0))
     min_state_population = float(data.get("min_state_population", 0.05))
     max_states = int(data.get("max_states", 10))
+    min_barrier_raw = data.get("min_barrier", None)
+    min_barrier = float(min_barrier_raw) if min_barrier_raw is not None else None
     stride = int(data.get("stride", 1))
 
     systems_raw = data.get("systems", [])
@@ -86,6 +90,9 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
         min_state_population=min_state_population,
         max_states=max_states,
         stride=stride,
+        fit=fit,
+        mass_weighted_fit=mass_weighted_fit,
+        min_barrier=min_barrier,
     )
 
 
@@ -104,11 +111,14 @@ pca:
   reference: combined       # Options: 'combined' or 'reference-system'
   reference_system: WT      # Required if reference is 'reference-system'
   components: 10
+  fit: true                 # superpose frames on fit_group before PCA (false only for pre-fitted trajectories)
+  mass_weighted_fit: false
 
 bins: 64                    # Number of 2D FEL bins along PC1 and PC2
 smooth_sigma: 1.0           # Gaussian smoothing sigma (0.0 for raw)
 min_state_population: 0.05  # Minimum fraction for major state (5%)
 max_states: 10
+# min_barrier: 2.5          # kJ/mol; basins separated by less are merged (default: 1 kT)
 stride: 1                   # Frame stride
 
 systems:

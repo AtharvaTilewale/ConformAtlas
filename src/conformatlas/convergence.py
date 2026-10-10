@@ -81,78 +81,129 @@ def calculate_cosine_content(projections_1d: np.ndarray, period_k: int = 1) -> f
     return float(np.clip(c, 0.0, 1.0))
 
 
+def describe_rmsip(value: float) -> str:
+    """Qualitative descriptor for a subspace overlap (RMSIP) value."""
+    if value >= 0.70:
+        return "high"
+    if value >= 0.50:
+        return "moderate"
+    return "low"
+
+
+def describe_cosine_content(value: float) -> str:
+    """Qualitative descriptor for a cosine content value (Hess 2002 heuristics)."""
+    if value >= 0.70:
+        return "high"
+    if value >= 0.50:
+        return "moderate"
+    return "low"
+
+
+def _cumulative_fraction_per_replicate(df: pd.DataFrame, fraction: float) -> pd.DataFrame:
+    """First ``fraction`` of the frames of EVERY replicate, pooled.
+
+    Frames are stored replicate after replicate, so slicing the pooled table
+    directly would make the 25 % point consist of replicate 1 only. Slicing each
+    replicate separately gives a true cumulative-simulation-time fraction.
+    """
+    if "replicate" not in df.columns:
+        end_idx = max(1, int(len(df) * fraction))
+        return df.iloc[:end_idx]
+    parts = []
+    for _, rep_df in df.groupby("replicate", sort=False):
+        end_idx = max(1, int(len(rep_df) * fraction))
+        parts.append(rep_df.iloc[:end_idx])
+    return pd.concat(parts)
+
+
 def compute_convergence_diagnostics(
     coords_dict: dict[str, np.ndarray],  # rep_id -> (n_frames, n_atoms, 3)
     projections_df: pd.DataFrame,
     frame_assignments_df: pd.DataFrame,
     n_modes: int = 10,
+    fractions: tuple[int, ...] = (25, 50, 75, 100),
 ) -> ConvergenceResults:
-    """Run comprehensive convergence analysis across trajectory coordinates and projections."""
-    # 1. First-half vs Second-half RMSIP
+    """Run sampling / convergence diagnostics across all replicates.
+
+    * ``rmsip_halves`` compares the essential subspace of the pooled first halves
+      of every replicate with that of the pooled second halves. Per-replicate
+      values are reported in ``rmsip_halves_per_replicate``.
+    * ``progressive_overlap`` compares the subspace of the first f % of every
+      replicate with the full-data subspace, for each f in ``fractions``. The
+      100 % entry is computed like the others and equals 1 by construction; it is
+      kept as the end point of the curve.
+    * ``population_stability`` evaluates state populations on the first f % of
+      every replicate (true cumulative simulation time, not table order).
+    """
     all_reps = list(coords_dict.keys())
-    primary_coords = coords_dict[all_reps[0]]
-    n_frames = len(primary_coords)
+    if not all_reps:
+        raise ValueError("coords_dict must contain at least one replicate.")
 
-    if n_frames >= 4:
-        half_idx = n_frames // 2
-        first_half = primary_coords[:half_idx]
-        second_half = primary_coords[half_idx:]
+    # ---- Half-vs-half subspace overlap -------------------------------------
+    first_halves: dict[str, np.ndarray] = {}
+    second_halves: dict[str, np.ndarray] = {}
+    per_rep_halves: dict[str, float] = {}
+    for rep, coords in coords_dict.items():
+        n = len(coords)
+        if n < 4:
+            logger.warning(f"Replicate {rep} has {n} frames; half-vs-half RMSIP skipped.")
+            continue
+        h = n // 2
+        first_halves[rep] = coords[:h]
+        second_halves[rep] = coords[h:]
+        _, ev1, _, _, _ = compute_cartesian_pca({rep: coords[:h]}, n_components=n_modes)
+        _, ev2, _, _, _ = compute_cartesian_pca({rep: coords[h:]}, n_components=n_modes)
+        k = min(ev1.shape[1], ev2.shape[1], n_modes)
+        per_rep_halves[rep] = calculate_subspace_rmsip(ev1[:, :k], ev2[:, :k])
 
-        _, evecs_1, _, _, _ = compute_cartesian_pca({"half1": first_half}, n_components=n_modes)
-        _, evecs_2, _, _, _ = compute_cartesian_pca({"half2": second_half}, n_components=n_modes)
-        s_modes = min(evecs_1.shape[1], evecs_2.shape[1], n_modes)
-        rmsip_halves = calculate_subspace_rmsip(evecs_1[:, :s_modes], evecs_2[:, :s_modes])
+    if first_halves:
+        _, ev_first, _, _, _ = compute_cartesian_pca(first_halves, n_components=n_modes)
+        _, ev_second, _, _, _ = compute_cartesian_pca(second_halves, n_components=n_modes)
+        k = min(ev_first.shape[1], ev_second.shape[1], n_modes)
+        rmsip_halves = calculate_subspace_rmsip(ev_first[:, :k], ev_second[:, :k])
     else:
-        rmsip_halves = 1.0
+        rmsip_halves = float("nan")
 
-    # 2. Progressive overlap at 25%, 50%, 75%, 100%
-    progressive_overlap = {}
-    fractions = [25, 50, 75, 100]
+    # ---- Progressive subspace overlap --------------------------------------
+    progressive_overlap: dict[int, float] = {}
     _, evecs_full, _, _, _ = compute_cartesian_pca(coords_dict, n_components=n_modes)
     s_full = min(evecs_full.shape[1], n_modes)
-
     for frac in fractions:
-        if frac == 100:
-            progressive_overlap[100] = 1.0
-        else:
-            sub_dict = {}
-            for k, c in coords_dict.items():
-                end_f = max(2, int(len(c) * (frac / 100.0)))
-                sub_dict[k] = c[:end_f]
-            try:
-                _, evecs_frac, _, _, _ = compute_cartesian_pca(sub_dict, n_components=s_full)
-                s_cur = min(evecs_frac.shape[1], s_full)
-                progressive_overlap[frac] = calculate_subspace_rmsip(
-                    evecs_frac[:, :s_cur], evecs_full[:, :s_cur]
-                )
-            except Exception as e:
-                logger.debug(f"Progressive PCA at {frac}% failed: {e}")
-                progressive_overlap[frac] = 0.0
+        sub_dict = {}
+        for k_rep, c in coords_dict.items():
+            end_f = max(2, int(round(len(c) * (frac / 100.0))))
+            sub_dict[k_rep] = c[:end_f]
+        try:
+            _, evecs_frac, _, _, _ = compute_cartesian_pca(sub_dict, n_components=s_full)
+            s_cur = min(evecs_frac.shape[1], s_full)
+            progressive_overlap[int(frac)] = calculate_subspace_rmsip(
+                evecs_frac[:, :s_cur], evecs_full[:, :s_cur]
+            )
+        except Exception as e:
+            logger.warning(f"Progressive overlap at {frac}% could not be computed: {e}")
+            progressive_overlap[int(frac)] = float("nan")
 
-    # 3. Cosine content for first 5 PCs
-    cosine_dict = {}
-    for i in range(1, min(6, 11)):
+    # ---- Cosine content of the leading projections --------------------------
+    cosine_dict: dict[int, float] = {}
+    for i in range(1, 6):
         col = f"PC{i}"
         if col in projections_df.columns:
             cosine_dict[i] = calculate_cosine_content(projections_df[col].to_numpy(), period_k=1)
 
-    # 4. State population stability over cumulative time
+    # ---- State population stability (cumulative time per replicate) ---------
     pop_stability_records = []
-    major_states = [s for s in frame_assignments_df["state"].unique() if s != "Unassigned"]
-
+    major_states = [st for st in frame_assignments_df["state"].unique() if st != "Unassigned"]
     for frac in fractions:
-        end_idx = max(1, int(len(frame_assignments_df) * (frac / 100.0)))
-        subset = frame_assignments_df.iloc[:end_idx]
+        subset = _cumulative_fraction_per_replicate(frame_assignments_df, frac / 100.0)
         tot_sub = len(subset)
-        row = {"Fraction_Percent": frac, "Frames": tot_sub}
+        row = {"Fraction_Percent": int(frac), "Frames": tot_sub}
         for st in major_states:
-            st_cnt = np.sum(subset["state"] == st)
-            row[st] = (st_cnt / tot_sub) * 100.0
+            st_cnt = int(np.sum(subset["state"] == st))
+            row[st] = (st_cnt / tot_sub) * 100.0 if tot_sub else float("nan")
         pop_stability_records.append(row)
-
     pop_stability_df = pd.DataFrame(pop_stability_records)
 
-    # 5. Pairwise RMSIP if multiple replicates
+    # ---- Pairwise replicate subspace overlap --------------------------------
     pairwise_df = None
     if len(coords_dict) > 1:
         rep_names = list(coords_dict.keys())
@@ -163,7 +214,6 @@ def compute_convergence_diagnostics(
                 {r_name: coords_dict[r_name]}, n_components=n_modes
             )
             rep_evecs[r_name] = ev
-
         for i, r1 in enumerate(rep_names):
             for j, r2 in enumerate(rep_names):
                 if i < j:
@@ -173,36 +223,50 @@ def compute_convergence_diagnostics(
                     )
                     matrix[i, j] = score
                     matrix[j, i] = score
-
         pairwise_df = pd.DataFrame(matrix, index=rep_names, columns=rep_names)
 
-    # 6. Overall Sampling Assessment (Heuristic)
+    # ---- Heuristic assessment ----------------------------------------------
     notes = []
     pc1_cosine = cosine_dict.get(1, 0.0)
+    rmsip_word = describe_rmsip(rmsip_halves) if np.isfinite(rmsip_halves) else "undetermined"
+    cos_word = describe_cosine_content(pc1_cosine)
 
-    if rmsip_halves >= 0.70 and pc1_cosine < 0.50:
+    if np.isfinite(rmsip_halves) and rmsip_halves >= 0.70 and pc1_cosine < 0.50:
         assessment = "Good evidence of stability"
-        notes.append(
-            f"High subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f} >= 0.70)."
-        )
-        notes.append(
-            f"Low PC1 cosine content ({pc1_cosine:.2f} < 0.50), indicating motion is not simple diffusive drift."
-        )
-    elif rmsip_halves >= 0.50 and pc1_cosine < 0.70:
+    elif np.isfinite(rmsip_halves) and rmsip_halves >= 0.50 and pc1_cosine < 0.70:
         assessment = "Mixed evidence"
-        notes.append(
-            f"Moderate subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f})."
-        )
-        notes.append(f"Moderate PC1 cosine content ({pc1_cosine:.2f}).")
     else:
         assessment = "Insufficient evidence"
+
+    if np.isfinite(rmsip_halves):
         notes.append(
-            f"Low subspace overlap between trajectory halves (RMSIP = {rmsip_halves:.2f} < 0.50)."
+            f"{rmsip_word.capitalize()} subspace overlap between the first and second "
+            f"halves of the replicates (RMSIP = {rmsip_halves:.2f}; "
+            f"heuristic: >= 0.70 high, 0.50-0.70 moderate, < 0.50 low)."
         )
-        if pc1_cosine >= 0.70:
-            notes.append(
-                f"High PC1 cosine content ({pc1_cosine:.2f} >= 0.70) suggests diffusive behavior along PC1."
-            )
+    else:
+        notes.append("Half-vs-half RMSIP could not be evaluated (too few frames).")
+    if len(per_rep_halves) > 1:
+        worst = min(per_rep_halves, key=per_rep_halves.get)
+        notes.append(
+            f"Per-replicate half-vs-half RMSIP ranges from {per_rep_halves[worst]:.2f} ({worst}) "
+            f"to {max(per_rep_halves.values()):.2f}."
+        )
+    if cos_word == "low":
+        notes.append(
+            f"Low PC1 cosine content ({pc1_cosine:.2f} < 0.50): the dominant motion is not "
+            "consistent with random diffusion."
+        )
+    elif cos_word == "moderate":
+        notes.append(
+            f"Moderate PC1 cosine content ({pc1_cosine:.2f}): PC1 partly resembles random "
+            "diffusion; the leading mode may not be converged."
+        )
+    else:
+        notes.append(
+            f"High PC1 cosine content ({pc1_cosine:.2f} >= 0.70): PC1 resembles random "
+            "diffusion, which indicates insufficient sampling along the dominant mode."
+        )
 
     return ConvergenceResults(
         rmsip_halves=rmsip_halves,
@@ -212,6 +276,7 @@ def compute_convergence_diagnostics(
         pairwise_rmsip=pairwise_df,
         sampling_assessment=assessment,
         assessment_notes=notes,
+        rmsip_halves_per_replicate=per_rep_halves,
     )
 
 
@@ -220,16 +285,25 @@ def save_convergence_results(conv: ConvergenceResults, output_dir: str | Path) -
     conv_dir = Path(output_dir) / "convergence"
     conv_dir.mkdir(parents=True, exist_ok=True)
 
-    # rmsip.csv
-    pd.DataFrame(
-        [
+    # rmsip.csv: pooled half-vs-half value first, then one row per replicate
+    rmsip_rows = [
+        {
+            "Metric": "First_vs_Second_Half_RMSIP",
+            "Scope": "all_replicates_pooled",
+            "Value": conv.rmsip_halves,
+            "Sampling_Assessment": conv.sampling_assessment,
+        }
+    ]
+    for rep, val in conv.rmsip_halves_per_replicate.items():
+        rmsip_rows.append(
             {
                 "Metric": "First_vs_Second_Half_RMSIP",
-                "Value": conv.rmsip_halves,
-                "Sampling_Assessment": conv.sampling_assessment,
+                "Scope": rep,
+                "Value": val,
+                "Sampling_Assessment": "",
             }
-        ]
-    ).to_csv(conv_dir / "rmsip.csv", index=False)
+        )
+    pd.DataFrame(rmsip_rows).to_csv(conv_dir / "rmsip.csv", index=False)
 
     # cosine_content.csv
     cosine_df = pd.DataFrame(

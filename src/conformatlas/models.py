@@ -51,6 +51,9 @@ class AnalysisConfig:
     fel_backend: str = "python"  # 'python' or 'gromacs'
     gmx_command: str | None = None
     system_name: str = "System"
+    fit: bool = True  # least-squares superposition on lsq_group before PCA
+    mass_weighted_fit: bool = False
+    min_barrier: float | None = None  # kJ/mol; None -> 1 kT
 
     def __post_init__(self):
         self.topology = Path(self.topology)
@@ -88,6 +91,9 @@ class ComparisonConfig:
     pca_weighting: str = "equal-replicate"
     stride: int = 1
     gmx_command: str | None = None
+    fit: bool = True  # least-squares superposition on fit_group before PCA
+    mass_weighted_fit: bool = False
+    min_barrier: float | None = None  # kJ/mol; None -> 1 kT
 
     def __post_init__(self):
         self.output_dir = Path(self.output_dir)
@@ -153,6 +159,7 @@ class ConvergenceResults:
     pairwise_rmsip: pd.DataFrame | None = None
     sampling_assessment: str = "Insufficient evidence"
     assessment_notes: list[str] = field(default_factory=list)
+    rmsip_halves_per_replicate: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass

@@ -5,6 +5,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import label as ndi_label
 
 try:
     from skimage.feature import peak_local_max
@@ -15,8 +17,71 @@ except ImportError:
     HAS_SKIMAGE = False
 
 from conformatlas.models import BasinState, FELGrid
+from conformatlas.utils import R_GAS_CONSTANT
 
 logger = logging.getLogger("conformatlas.basins")
+
+
+def merge_shallow_basins(
+    basin_labels: np.ndarray,
+    free_energy: np.ndarray,
+    min_barrier: float,
+) -> np.ndarray:
+    """Merge adjacent watershed basins separated by a barrier lower than ``min_barrier``.
+
+    Watershed segmentation splits a single broad minimum into several basins
+    whenever histogram noise creates shallow ripples. Two basins are only kept
+    apart if the lowest saddle on their shared boundary lies at least
+    ``min_barrier`` (kJ/mol) above the minimum of the shallower basin.
+    Merging proceeds iteratively from the shallowest barrier upwards.
+    """
+    labels = basin_labels.copy()
+    fe = np.where(np.isfinite(free_energy), free_energy, np.inf)
+
+    while True:
+        ids = [int(i) for i in np.unique(labels) if i > 0]
+        if len(ids) < 2:
+            return labels
+        minima = {i: float(np.min(fe[labels == i])) for i in ids}
+
+        # Lowest crossing height between every pair of 4-connected neighbours.
+        saddles: dict[tuple[int, int], float] = {}
+        for a, b in (
+            (labels[:, :-1], labels[:, 1:]),
+            (labels[:-1, :], labels[1:, :]),
+        ):
+            fa, fb = (
+                (fe[:, :-1], fe[:, 1:])
+                if a.shape == labels[:, :-1].shape
+                else (fe[:-1, :], fe[1:, :])
+            )
+            diff = (a != b) & (a > 0) & (b > 0)
+            if not np.any(diff):
+                continue
+            crossing = np.maximum(fa[diff], fb[diff])
+            for la, lb, h in zip(a[diff], b[diff], crossing):
+                key = (int(min(la, lb)), int(max(la, lb)))
+                if np.isfinite(h) and h < saddles.get(key, np.inf):
+                    saddles[key] = float(h)
+
+        if not saddles:
+            return labels
+
+        best_pair, best_barrier = None, np.inf
+        for (i, j), h in saddles.items():
+            barrier = h - max(minima[i], minima[j])
+            if barrier < best_barrier:
+                best_pair, best_barrier = (i, j), barrier
+
+        if best_pair is None or best_barrier >= min_barrier:
+            return labels
+
+        i, j = best_pair
+        keep, drop = (i, j) if minima[i] <= minima[j] else (j, i)
+        labels[labels == drop] = keep
+        logger.debug(
+            f"Merged basin {drop} into {keep} (barrier {best_barrier:.2f} kJ/mol < {min_barrier:.2f})."
+        )
 
 
 def detect_energy_basins(
@@ -25,6 +90,7 @@ def detect_energy_basins(
     min_state_population: float = 0.05,
     max_states: int = 10,
     min_peak_distance: int = 3,
+    min_barrier: float | None = None,
 ) -> tuple[list[BasinState], float, pd.DataFrame, np.ndarray]:
     """Detect local free energy minima and segment conformational basins using watershed.
 
@@ -40,6 +106,9 @@ def detect_energy_basins(
         Maximum number of major states to report.
     min_peak_distance : int
         Minimum grid bin distance between adjacent local minima.
+    min_barrier : float, optional
+        Minimum free-energy barrier (kJ/mol) separating two basins; shallower
+        neighbours are merged. Defaults to 1 kT at the grid temperature.
 
     Returns
     -------
@@ -61,7 +130,11 @@ def detect_energy_basins(
     # Detect peaks in probability density (corresponds to energy minima)
     # peak_local_max returns (row, col) = (y_idx, x_idx)
     min_dist = max(1, min_peak_distance)
-    peak_coords = peak_local_max(prob, min_distance=min_dist, threshold_rel=0.01)
+    # exclude_border must be False: a basin at the extreme of PC1/PC2 sits at
+    # the edge of the grid by construction and would otherwise lose its marker.
+    peak_coords = peak_local_max(
+        prob, min_distance=min_dist, threshold_rel=0.01, exclude_border=False
+    )
 
     if len(peak_coords) == 0:
         # Fallback: global maximum of probability
@@ -69,12 +142,50 @@ def detect_energy_basins(
         peak_coords = np.array([max_idx])
 
     # Create markers image for watershed
+    support = np.isfinite(fe) | occupancy
+
+    # Every connected region of sampled space must own at least one marker;
+    # otherwise watershed cannot label it. Add the densest bin of any region
+    # that has none.
+    components, n_components = ndi_label(support)
+    peak_list = [tuple(pc) for pc in peak_coords]
+    marked = {components[r, c] for r, c in peak_list}
+    for comp_id in range(1, n_components + 1):
+        if comp_id in marked:
+            continue
+        comp_prob = np.where(components == comp_id, prob, -np.inf)
+        peak_list.append(tuple(np.unravel_index(np.argmax(comp_prob), prob.shape)))
+
     markers = np.zeros(prob.shape, dtype=np.int32)
-    for idx, (r, c) in enumerate(peak_coords, start=1):
+    for idx, (r, c) in enumerate(peak_list, start=1):
         markers[r, c] = idx
 
-    # Run watershed segmentation on clean free energy surface
-    basin_labels = watershed(fe_clean, markers=markers, mask=occupancy)
+    # Run watershed segmentation on the clean free energy surface. The mask is
+    # the finite-energy support (the smoothed support when smoothing is on),
+    # which is connected; the raw occupancy mask is a sparse scatter of islands
+    # for short trajectories and would leave most occupied bins unlabelled.
+    basin_labels = watershed(fe_clean, markers=markers, mask=support)
+
+    # Merge basins separated by barriers below the significance threshold.
+    if min_barrier is None:
+        min_barrier = R_GAS_CONSTANT * fel_grid.temperature  # 1 kT
+    n_before = len(np.unique(basin_labels[basin_labels > 0]))
+    basin_labels = merge_shallow_basins(basin_labels, fe, min_barrier)
+    n_after = len(np.unique(basin_labels[basin_labels > 0]))
+    if n_after < n_before:
+        logger.info(
+            f"Merged {n_before - n_after} shallow watershed basins "
+            f"(barrier < {min_barrier:.2f} kJ/mol); {n_after} remain."
+        )
+
+    # Any occupied bin that watershed could not reach from a marker (an island
+    # disconnected from the support) inherits the label of the nearest labelled
+    # bin, so every sampled frame belongs to a basin.
+    orphan = occupancy & (basin_labels == 0)
+    if np.any(orphan) and np.any(basin_labels > 0):
+        _, (near_r, near_c) = distance_transform_edt(basin_labels == 0, return_indices=True)
+        basin_labels[orphan] = basin_labels[near_r[orphan], near_c[orphan]]
+    basin_labels = np.where(occupancy, basin_labels, 0)
 
     # Assign each frame in projections to its basin
     pc1_vals = projections["PC1"].to_numpy()
@@ -82,8 +193,13 @@ def detect_energy_basins(
     total_frames = len(projections)
 
     # Bin indices
+    # Bin indices; np.histogram2d treats the right-most edge as inclusive, so a
+    # value exactly on it belongs to the last bin.
     x_idx = np.digitize(pc1_vals, fel_grid.x_edges) - 1
     y_idx = np.digitize(pc2_vals, fel_grid.y_edges) - 1
+    nx, ny = len(fel_grid.x_centers), len(fel_grid.y_centers)
+    x_idx[(x_idx == nx) & (pc1_vals == fel_grid.x_edges[-1])] = nx - 1
+    y_idx[(y_idx == ny) & (pc2_vals == fel_grid.y_edges[-1])] = ny - 1
 
     # Valid grid boundaries
     valid_bounds = (

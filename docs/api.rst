@@ -22,6 +22,13 @@ Principal Component Analysis (PCA)
    :undoc-members:
    :show-inheritance:
 
+Least-Squares Superposition
+---------------------------
+.. automodule:: conformatlas.superpose
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Watershed Energy Basins
 -----------------------
 .. automodule:: conformatlas.basins

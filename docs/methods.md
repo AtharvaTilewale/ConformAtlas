@@ -25,6 +25,17 @@ Bins with zero counts ($N(x, y) = 0$) represent unobserved regions of conformati
 
 ## 2. Principal Component Analysis (PCA) & Coordinate Projection
 
+### 2.0 Least-Squares Superposition (Removal of Rigid-Body Motion)
+Cartesian coordinates taken directly from a trajectory contain the overall translation and rotation of the molecule in the simulation box. Unless this rigid-body motion is removed, the leading principal components describe how the molecule drifts and tumbles rather than how it changes shape. ConformAtlas therefore superposes every frame on a reference structure before building the covariance matrix, exactly as `gmx covar -fit` does.
+
+For each frame the optimal proper rotation $\mathbf{R}$ and translation are obtained by the Kabsch algorithm on the **fit group** (`--lsq-group`, default `Backbone`): with both coordinate sets centred on their centroids, the SVD of the cross-covariance $\mathbf{H} = \mathbf{X}_{\text{mobile}}^T \mathbf{X}_{\text{ref}} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$ gives
+
+$$\mathbf{R} = \mathbf{U} \, \mathrm{diag}(1, 1, \det(\mathbf{U}\mathbf{V}^T)) \, \mathbf{V}^T$$
+
+where the determinant correction excludes reflections so that chirality is preserved. The same transform is then applied to the **analysis group** (`--cov-group`), which may differ from the fit group. The reference is the structure file passed with `-s` (or the first trajectory frame when the structure carries no coordinates, e.g. `.tpr`). In condition comparisons every system is superposed on the *same* reference (the reference system's structure, restricted to the common fit atoms), so projections of different systems are directly comparable.
+
+The fit is unweighted by default; `--mass-weighted-fit` uses topology masses. `--no-fit` skips the step and should only be used for trajectories already fitted with `gmx trjconv -fit rot+trans`. Molecules must be whole across periodic boundaries (`gmx trjconv -pbc mol`) before analysis; a broken molecule cannot be superposed meaningfully.
+
 ### 2.1 Coordinate Centering
 Let $\mathbf{x}_{k, i} \in \mathbb{R}^{3M}$ denote the Cartesian coordinates of $M$ selected atoms (e.g. Backbone or $\text{C}\alpha$) in frame $i$ of replicate $k \in \{1, \dots, K\}$.
 
@@ -75,9 +86,10 @@ Rather than selecting arbitrary pixel minima, conformational states are segmente
 
 1. **Local Minima Identification**: Candidate energy minima are identified by locating local maxima in the probability density $P(x, y)$ separated by at least $d_{\min}$ grid bins.
 2. **Watershed Flooding**: Local minima serve as marker seeds. The watershed algorithm floods upward along the free energy surface $\Delta G(x, y)$, segmenting the landscape into catchment basins separated by energy ridges.
-3. **Frame-to-Basin Assignment**: Every trajectory frame $(p_1, p_2)$ is mapped to its corresponding spatial grid bin $(x_{\text{bin}}, y_{\text{bin}})$ and assigned to the underlying basin.
-4. **Major State Filtering**: Basins containing $\ge \text{min\_state\_population}$ (default: 5%) of total frames are designated as major conformational states (ordered by population as `State A`, `State B`, etc.).
-5. **Representative Frame**: For each basin, the real trajectory frame minimizing the Euclidean distance to the basin's free energy minimum in $(PC_1, PC_2)$ space is extracted as the representative structure:
+3. **Barrier-Based Merging**: Watershed over-segments any broad minimum whose surface is rippled by counting noise. Adjacent basins are therefore merged iteratively, starting from the shallowest separation, whenever the lowest saddle on their shared boundary lies less than $\Delta G_{\text{barrier}}$ above the minimum of the shallower basin. The default threshold is $1\,k_B T = RT$ (2.49 kJ/mol at 300 K) and can be changed with `--min-barrier` (kJ/mol).
+4. **Frame-to-Basin Assignment**: Every trajectory frame $(p_1, p_2)$ is mapped to its corresponding spatial grid bin $(x_{\text{bin}}, y_{\text{bin}})$ and assigned to the underlying basin. Occupied bins that watershed could not reach from any marker (isolated islands of sampled space) inherit the label of the nearest labelled bin, so every sampled frame belongs to a basin. Density maxima on the border of the grid are valid markers (a basin at the extreme of PC1 or PC2 sits on the border by construction).
+5. **Major State Filtering**: Basins containing $\ge \text{min\_state\_population}$ (default: 5%) of total frames are designated as major conformational states (ordered by population as `State A`, `State B`, etc.).
+6. **Representative Frame**: For each basin, the real trajectory frame minimizing the Euclidean distance to the basin's free energy minimum in $(PC_1, PC_2)$ space is extracted as the representative structure:
    $$d = \sqrt{(PC_{1, \text{frame}} - PC_{1, \min})^2 + (PC_{2, \text{frame}} - PC_{2, \min})^2}$$
 
 ---
@@ -93,9 +105,11 @@ $$\text{RMSIP} = \sqrt{\frac{1}{s} \sum_{i=1}^s \sum_{j=1}^s (\mathbf{u}_i \cdot
 * $\text{RMSIP} = 0.0$: Mutually orthogonal subspaces.
 
 In ConformAtlas, RMSIP is evaluated:
-* Between the first half and second half of each trajectory.
-* Progressively across 25%, 50%, 75%, and 100% of trajectory time.
+* Between the pooled first halves and the pooled second halves of all replicates (the headline value), and separately for each replicate (`rmsip.csv`, one row per replicate).
+* Progressively, between the first 25%, 50%, 75% and 100% of every replicate and the full data set. The 100% point is the full data set compared with itself and equals 1 by construction; it is the end point of the curve, not evidence.
 * Pairwise between independent replicates.
+
+State population stability is evaluated on the same cumulative fractions, taken *per replicate* (the first 25% of every replicate pooled, and so on), so that the curve reflects cumulative simulation time rather than the order in which replicates were listed.
 
 ### 5.2 Cosine Content
 To detect whether motion along large-amplitude modes represents genuine conformational transitions or random diffusive drift (random walk), the cosine content $c_k$ is evaluated (Hess, 2000, 2002):

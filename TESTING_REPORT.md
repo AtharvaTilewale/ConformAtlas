@@ -1,9 +1,11 @@
 # ConformAtlas Testing & Verification Report
 
+> This report documents the verification of the 0.1.x release. Version 0.2.0 changed the PCA input (frames are superposed before PCA), the basin segmentation and the convergence diagnostics; see `CHANGELOG.md`. The automated suite now has 39 tests.
+
 ## 1. Execution Environment
 * **Date & Time:** 2026-09-19
 * **Host Operating System:** Linux (Ubuntu 20.04 LTS kernel x86_64)
-* **Python Runtime:** Python 3.11.7 (`/home/dhaval/anaconda3/bin/python3`)
+* **Python Runtime:** Python 3.11.7 
 * **GROMACS Binary:** `/usr/local/gromacs-2024.4/bin/gmx` (GROMACS 2024.4)
 * **Key Python Dependencies:**
   - `numpy`: 1.26.4
@@ -126,8 +128,8 @@ conformatlas compare \
 ### 4.3 Real 10-Microsecond Production MD Simulation Run
 ```bash
 conformatlas analyze \
-    -s /home/dhaval/step5_production.gro \
-    -f /home/dhaval/step5_production.xtc \
+    -s <data_dir>/step5_production.gro \
+    -f <data_dir>/step5_production.xtc \
     -T 303.15 \
     --stride 1000 \
     --bins 30 \

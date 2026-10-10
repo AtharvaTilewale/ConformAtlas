@@ -33,10 +33,10 @@ results/
 │       └── metadata.json
 │
 ├── convergence/
-│   ├── rmsip.csv                # First-half vs second-half subspace overlap
+│   ├── rmsip.csv                # Half-vs-half RMSIP: pooled replicates, then one row per replicate
 │   ├── cosine_content.csv       # Cosine content for PC1 through PC5
-│   ├── progressive_overlap.csv  # Subspace similarity at 25%, 50%, 75%, 100%
-│   ├── population_stability.csv # State population progression over cumulative time
+│   ├── progressive_overlap.csv  # Subspace overlap of first 25/50/75/100% vs full data
+│   ├── population_stability.csv # State populations on the first f% of every replicate
 │   └── pairwise_rmsip.csv       # Inter-replicate subspace overlap matrix
 │
 ├── statistics/
@@ -51,3 +51,5 @@ results/
     ├── state_populations.png    # Bar chart of conformational populations with error bars
     └── convergence.png          # 4-panel convergence diagnostics figure
 ```
+
+Annotated figures are also written without labels as `<name>_unannotated.png` for manual annotation in a figure editor. `run_metadata.json` records the superposition settings (`superposition.enabled`, `fit_group`, `reference`, `mass_weighted`) and the basin-merging threshold (`min_barrier_kJ_mol`) used for the run.

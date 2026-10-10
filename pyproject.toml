@@ -4,15 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "conformatlas"
-version = "0.1.1"
+version = "0.2.0"
 description = "ConformAtlas: Rigorous PCA and Free Energy Landscape (FEL) analysis of molecular dynamics trajectories"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    { name = "Atharva Tilewale" },
-    { name = "Antigravity Engineering" }
+    { name = "Atharva Tilewale" }
 ]
 keywords = ["molecular-dynamics", "gromacs", "pca", "free-energy-landscape", "biophysics", "structural-biology", "conformatlas"]
 classifiers = [

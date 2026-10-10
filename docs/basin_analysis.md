@@ -7,10 +7,13 @@ ConformAtlas automatically detects energy basins and extracts verified full-atom
 ## 1. Topological Watershed Segmentation
 
 Rather than simply finding local minimum pixels, ConformAtlas uses **topological watershed segmentation**:
-1. Candidate minimum energy seeds are identified as local peaks in probability density.
+1. Candidate minimum energy seeds are identified as local peaks in probability density (peaks on the grid border count; every connected region of sampled space receives at least one seed).
 2. The watershed algorithm segments the continuous energy landscape into catchment basins bounded by energy ridges.
-3. Every occupied grid cell is assigned to its catchment basin.
-4. Frames are assigned to the basin corresponding to their $(PC_1, PC_2)$ coordinates.
+3. Basins separated by a barrier lower than `--min-barrier` (default 1 kT = RT at the analysis temperature, 2.49 kJ/mol at 300 K) are merged, shallowest separation first. This removes the sub-basins that watershed produces from counting noise inside one broad well. Lower the threshold to resolve finer substates, raise it to be more conservative.
+4. Every occupied grid cell is assigned to its catchment basin; isolated occupied cells inherit the nearest basin.
+5. Frames are assigned to the basin corresponding to their $(PC_1, PC_2)$ coordinates.
+
+Grid resolution matters: with fewer than about two frames per occupied bin the landscape is dominated by counting noise and ConformAtlas prints a warning. Reduce `--bins`, enable `--smooth-sigma` (1.0 is a reasonable start), or sample longer.
 
 ---
 

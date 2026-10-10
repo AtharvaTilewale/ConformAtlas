@@ -18,6 +18,7 @@ from conformatlas.pca import (
 from conformatlas.representatives import extract_representative_structures
 from conformatlas.trajectory import (
     build_common_atom_mapping,
+    load_reference_coordinates,
     stream_trajectory_coordinates,
 )
 
@@ -52,6 +53,39 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
     pca_dir.mkdir(parents=True, exist_ok=True)
     mapping_df.to_csv(pca_dir / "common_atom_mapping.csv", index=False)
 
+    # 1b. Common fit-group mapping and a single shared reference structure.
+    # Every frame of every system is superposed onto the SAME reference (the
+    # reference system's structure file, or the first system's), so that the
+    # projections of different systems are directly comparable.
+    fit_indices_dict: dict[str, list[int]] | None = None
+    reference_fit: np.ndarray | None = None
+    if config.fit:
+        if config.fit_group == config.analysis_group:
+            fit_indices_dict = atom_indices_dict
+        else:
+            fit_indices_dict, fit_mapping_df = build_common_atom_mapping(
+                topologies, group=config.fit_group
+            )
+            fit_mapping_df.to_csv(pca_dir / "common_fit_atom_mapping.csv", index=False)
+        ref_sys = config.reference_system or config.systems[0].name
+        if ref_sys not in topologies:
+            raise ValueError(f"Reference system '{ref_sys}' not found in systems.")
+        ref_cfg = next(sc for sc in config.systems if sc.name == ref_sys)
+        reference_fit = load_reference_coordinates(
+            ref_cfg.topology,
+            atom_indices=fit_indices_dict[ref_sys],
+            fallback_trajectory=ref_cfg.trajectories[0],
+        )
+        logger.info(
+            f"Superposing all frames on '{config.fit_group}' "
+            f"({len(reference_fit)} common atoms) of reference system '{ref_sys}'."
+        )
+    else:
+        logger.warning(
+            "Superposition disabled (pca.fit: false); trajectories are assumed pre-fitted "
+            "to a common reference, otherwise projections are not comparable across systems."
+        )
+
     # 2. Stream coordinates for each system and replicate
     system_coords: dict[str, dict[str, np.ndarray]] = {}
     system_times: dict[str, dict[str, np.ndarray]] = {}
@@ -66,7 +100,14 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
             rep_id = f"{s.name}_Rep{rep_idx + 1}"
             trajectories_map[rep_id] = traj_path
             coords, times = stream_trajectory_coordinates(
-                s.topology, traj_path, atom_indices=indices, stride=config.stride
+                s.topology,
+                traj_path,
+                atom_indices=indices,
+                stride=config.stride,
+                fit=config.fit,
+                fit_atom_indices=fit_indices_dict[s.name] if fit_indices_dict else None,
+                reference_fit_coords=reference_fit,
+                mass_weighted=config.mass_weighted_fit,
             )
             system_coords[s.name][rep_id] = coords
             system_times[s.name][rep_id] = times
@@ -148,6 +189,7 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         master_projections,
         min_state_population=config.min_state_population,
         max_states=config.max_states,
+        min_barrier=config.min_barrier,
     )
     save_basin_results(states, frame_assignments, basin_map, out_dir)
 

@@ -1,7 +1,7 @@
 """Publication-quality visualization of PCA, Free Energy Landscapes, and Convergence."""
 
 import logging
-import shutil
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -114,16 +114,6 @@ def _compute_smart_label_offsets(
     return offsets
 
 
-def _save_unannotated_copy(out_path: Path, unann_path: Path) -> None:
-    """Ensure non-annotated figure is accessible as both _unannotated and _non_annotated."""
-    try:
-        non_ann_path = out_path.parent / f"{out_path.stem}_non_annotated{out_path.suffix}"
-        if unann_path.exists() and unann_path != non_ann_path:
-            shutil.copyfile(unann_path, non_ann_path)
-    except Exception as e:
-        logger.debug(f"Could not copy non-annotated figure: {e}")
-
-
 # ==============================================================================
 # 1. PCA Projections & Variance (Separate Figures)
 # ==============================================================================
@@ -209,7 +199,6 @@ def plot_eigenvalues_and_variance(
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
         plot_eigenvalues_and_variance(pca_res, unann_path, annotate=False, save_unannotated=False)
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 
@@ -426,7 +415,6 @@ def plot_fel_2d(
         plot_fel_2d(
             fel_grid, states=states, out_path=unann_path, annotate=False, save_unannotated=False
         )
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 
@@ -552,7 +540,6 @@ def plot_fel(
         plot_fel(
             fel_grid, states=states, out_path=unann_path, annotate=False, save_unannotated=False
         )
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 
@@ -637,7 +624,6 @@ def plot_basin_map(
         plot_basin_map(
             fel_grid, basin_map, states, out_path=unann_path, annotate=False, save_unannotated=False
         )
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 
@@ -789,7 +775,6 @@ def plot_state_populations(
         plot_state_populations(
             summary_df, detailed_df, out_path=unann_path, annotate=False, save_unannotated=False
         )
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 
@@ -858,7 +843,6 @@ def plot_convergence_progressive(
         plot_convergence_progressive(
             conv, out_path=unann_path, annotate=False, save_unannotated=False
         )
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 
@@ -914,7 +898,6 @@ def plot_convergence_cosine(
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
         plot_convergence_cosine(conv, out_path=unann_path, annotate=False, save_unannotated=False)
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 
@@ -1032,7 +1015,10 @@ def plot_convergence_diagnostics(
         f"Interpretative Notes:\n"
     )
     for note in conv.assessment_notes:
-        eval_text += f"• {note}\n"
+        eval_text += (
+            textwrap.fill(f"• {note}", width=64, subsequent_indent="   ", break_long_words=False)
+            + "\n"
+        )
 
     eval_text += (
         "\nNote: Convergence metrics are empirical diagnostics.\n"
@@ -1050,7 +1036,7 @@ def plot_convergence_diagnostics(
     )
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
+    fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     return out_path
 
@@ -1176,7 +1162,6 @@ def plot_comparison_populations(
         plot_comparison_populations(
             comp_dict, out_path=unann_path, annotate=False, save_unannotated=False
         )
-        _save_unannotated_copy(out_path, unann_path)
 
     return out_path
 

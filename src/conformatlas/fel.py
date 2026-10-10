@@ -1,5 +1,6 @@
 """Free Energy Landscape (FEL) calculation and Boltzmann inversion."""
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -8,6 +9,8 @@ from scipy.ndimage import gaussian_filter
 
 from conformatlas.models import FELGrid
 from conformatlas.utils import R_GAS_CONSTANT
+
+logger = logging.getLogger("conformatlas.fel")
 
 
 def calculate_fel(
@@ -76,6 +79,20 @@ def calculate_fel(
 
     raw_prob = hist_2d / total_counts
     occupancy_mask = hist_2d > 0
+
+    n_occupied = int(np.sum(occupancy_mask))
+    counts_per_occupied_bin = total_counts / max(n_occupied, 1)
+    if counts_per_occupied_bin < 2.0:
+        advice = (
+            "reduce --bins or set --smooth-sigma (e.g. 1.0)"
+            if smooth_sigma <= 0.0
+            else "reduce --bins or increase sampling"
+        )
+        logger.warning(
+            f"Sparse FEL grid: {int(total_counts)} frames spread over {n_occupied} occupied "
+            f"bins ({counts_per_occupied_bin:.1f} frames/bin). Basin populations on such a "
+            f"grid carry large counting noise; {advice}."
+        )
 
     if smooth_sigma > 0.0:
         smoothed_prob = gaussian_filter(raw_prob, sigma=smooth_sigma, mode="nearest")

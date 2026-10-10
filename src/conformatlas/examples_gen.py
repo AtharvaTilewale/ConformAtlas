@@ -66,52 +66,82 @@ def generate_mini_example_dataset(base_dir: str | Path):
         )
         return
 
-    # Generate synthetic conformational ensembles with 2 distinct basins for WT and MUT
+    # ------------------------------------------------------------------
+    # Synthetic two-state ensembles with GENUINE internal motion.
+    #
+    # The peptide is split at a hinge (residues 1-2 vs 3-5). State A bends the
+    # C-terminal half about an axis perpendicular to the helix; State B twists
+    # it about the helix axis. Each frame additionally receives a random
+    # rigid-body rotation and translation, exactly as a molecule tumbling in a
+    # simulation box would, so the dataset only yields two basins once frames
+    # have been least-squares superposed (which ConformAtlas does before PCA).
+    # Replicates switch between states through a two-state Markov chain whose
+    # stationary distribution gives the target populations.
+    # ------------------------------------------------------------------
     u = mda.Universe(str(wt_topo))
-    base_pos = u.atoms.positions.copy()
+    base_pos = u.atoms.positions.copy().astype(np.float64)
     n_atoms = len(base_pos)
-
-    # Replicate trajectories (100 frames each)
     n_frames = 100
-    np.random.seed(42)
 
-    # WT: mostly Basin A (65%), some Basin B (35%)
-    for rep_idx, rep_name in enumerate(["rep1.xtc", "rep2.xtc"]):
-        out_xtc = wt_dir / rep_name
+    hinge_atom = 11  # CA of residue 3 (0-based index)
+    moving = np.arange(n_atoms) >= 10  # residues 3-5 move relative to residues 1-2
+    hinge = base_pos[hinge_atom]
+    helix_axis = base_pos[21] - base_pos[1]  # CA(5) - CA(1)
+    helix_axis /= np.linalg.norm(helix_axis)
+    bend_axis = np.cross(helix_axis, [0.0, 0.0, 1.0])
+    bend_axis /= np.linalg.norm(bend_axis)
+
+    def _rotation(axis: np.ndarray, angle_rad: float) -> np.ndarray:
+        axis = np.asarray(axis, dtype=np.float64) / np.linalg.norm(axis)
+        k = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+        return np.eye(3) + np.sin(angle_rad) * k + (1 - np.cos(angle_rad)) * (k @ k)
+
+    def _random_rotation(rng: np.random.Generator) -> np.ndarray:
+        q = rng.normal(size=4)
+        q /= np.linalg.norm(q)
+        w, x, y, z = q
+        return np.array(
+            [
+                [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+            ]
+        )
+
+    def _conformation(state: str, rng: np.random.Generator) -> np.ndarray:
+        pos = base_pos.copy()
+        if state == "A":
+            angle = np.deg2rad(40.0 + rng.normal(0.0, 4.0))
+            rot = _rotation(bend_axis, angle)
+        else:
+            angle = np.deg2rad(70.0 + rng.normal(0.0, 5.0))
+            rot = _rotation(helix_axis, angle)
+        pos[moving] = (pos[moving] - hinge) @ rot.T + hinge
+        pos += rng.normal(0.0, 0.15, size=pos.shape)  # thermal noise, Angstrom
+        # Rigid-body tumbling and drift in the box (removed by superposition).
+        pos = (pos - pos.mean(axis=0)) @ _random_rotation(rng).T
+        pos += rng.uniform(-8.0, 8.0, size=3) + 20.0
+        return pos
+
+    def _write_replicate(out_xtc: Path, p_state_a: float, seed: int) -> None:
+        rng = np.random.default_rng(seed)
+        # Two-state Markov chain: pi_A = b / (a + b) with persistence a + b = 0.2
+        a_to_b = 0.2 * (1.0 - p_state_a)
+        b_to_a = 0.2 * p_state_a
+        state = "A" if rng.random() < p_state_a else "B"
         with mda.Writer(str(out_xtc), n_atoms=n_atoms) as w:
             for f in range(n_frames):
                 u.trajectory.ts.time = float(f * 10)  # 10 ps timestep
-                noise = np.random.normal(0, 0.15, size=base_pos.shape)
-                if f < 65:
-                    # State A: bending motion along mode 1
-                    shift = np.sin(f / 10.0) * 0.8
-                    pos = base_pos + noise
-                    pos[:, 0] += shift
-                else:
-                    # State B: twisting motion along mode 2
-                    shift = np.cos(f / 8.0) * 0.6
-                    pos = base_pos + noise
-                    pos[:, 1] += shift
-                u.atoms.positions = pos
+                u.atoms.positions = _conformation(state, rng).astype(np.float32)
                 w.write(u)
+                flip = a_to_b if state == "A" else b_to_a
+                if rng.random() < flip:
+                    state = "B" if state == "A" else "A"
 
-    # MUT: shifted populations, mostly Basin B (70%), some Basin A (30%)
+    # WT: mostly State A (65%); MUT: mostly State B (70%)
     for rep_idx, rep_name in enumerate(["rep1.xtc", "rep2.xtc"]):
-        out_xtc = mut_dir / rep_name
-        with mda.Writer(str(out_xtc), n_atoms=n_atoms) as w:
-            for f in range(n_frames):
-                u.trajectory.ts.time = float(f * 10)
-                noise = np.random.normal(0, 0.15, size=base_pos.shape)
-                if f < 30:
-                    shift = np.sin(f / 10.0) * 0.8
-                    pos = base_pos + noise
-                    pos[:, 0] += shift
-                else:
-                    shift = np.cos(f / 8.0) * 0.6
-                    pos = base_pos + noise
-                    pos[:, 1] += shift
-                u.atoms.positions = pos
-                w.write(u)
+        _write_replicate(wt_dir / rep_name, p_state_a=0.65, seed=100 + rep_idx)
+        _write_replicate(mut_dir / rep_name, p_state_a=0.30, seed=200 + rep_idx)
 
     # Create comparison.yaml
     yaml_text = f"""# Example Comparison Configuration
@@ -148,7 +178,13 @@ systems:
 
     readme_text = """# ConformAtlas Example Project
 
-This directory contains a miniature 5-residue polyalanine MD dataset with 2 replicates for WT and MUT.
+This directory contains a miniature 5-residue polyalanine dataset with 2 replicates (100 frames each) for WT and MUT.
+
+The peptide switches between a bent (State A) and a twisted (State B) conformation
+(WT about 65 % A, MUT about 30 % A) and every frame carries a random rigid-body rotation
+and translation. The two states are only resolved after superposition, which
+`conformatlas analyze` performs by default. Use `--bins 32 --smooth-sigma 1.0`:
+200 frames do not populate a 64 x 64 grid.
 
 ### 1. Analyze WT Multi-Replicate Trajectories
 ```bash
@@ -157,6 +193,7 @@ conformatlas analyze \\
     -f WT/rep1.xtc \\
     -f WT/rep2.xtc \\
     -T 300 \\
+    --bins 32 --smooth-sigma 1.0 \\
     -o results_wt
 ```
 
