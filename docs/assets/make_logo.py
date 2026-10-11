@@ -156,4 +156,21 @@ render("banner", "dark", "conformatlas-banner-white")
 render("icon", "light", "conformatlas-icon", dpi=256)
 render("icon", "dark", "conformatlas-icon-white", dpi=256)
 
+
+
+def on_white(src: str, dst: str, pad_frac: float = 0.08) -> None:
+    """Composite a transparent export on an opaque white card (README header:
+    renders identically on GitHub's light and dark themes)."""
+    from PIL import Image
+
+    im = Image.open(OUT / f"{src}.png").convert("RGBA")
+    pad_x, pad_y = int(im.width * pad_frac), int(im.height * pad_frac * 1.6)
+    card = Image.new("RGBA", (im.width + 2 * pad_x, im.height + 2 * pad_y), (255, 255, 255, 255))
+    card.alpha_composite(im, (pad_x, pad_y))
+    card.convert("RGB").save(OUT / f"{dst}.png", optimize=True)
+
+
+on_white("conformatlas-logo", "conformatlas-logo-on-white")
+on_white("conformatlas-banner", "conformatlas-banner-on-white")
+
 print(sorted(p.name for p in OUT.glob("conformatlas-*")))

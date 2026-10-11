@@ -80,10 +80,13 @@ project_update.txt
 
 # Sphinx build and tutorial outputs
 docs/_build/
-tutorial/
+/tutorial/
 
 # Scratch output of the stand-alone enhanced-sampling validation run
 validation/results_enhanced.json
 
 # Hand-off notes from the 1.0.0 development tracks (applied; kept locally for reference)
 .integration_notes_applied/
+
+# Papers
+paper/

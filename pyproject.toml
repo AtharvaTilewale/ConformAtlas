@@ -11,7 +11,8 @@ requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    { name = "Atharva Tilewale" }
+    { name = "Atharva Tilewale" },
+    { name = "Dhaval Patel" },
 ]
 keywords = ["molecular-dynamics", "gromacs", "pca", "free-energy-landscape", "biophysics", "structural-biology", "conformatlas"]
 classifiers = [

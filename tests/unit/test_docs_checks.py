@@ -33,6 +33,10 @@ def test_bib_dois_parses_braces_and_quotes():
     assert checks_docs.bib_dois(bib) == ["10.1000/x1", "10.1000/y2"]
 
 
+@pytest.mark.skipif(
+    not (ROOT / "paper" / "paper.bib").exists(),
+    reason="the manuscript (paper/) is kept out of the public repository",
+)
 def test_paper_bib_entries_all_have_dois_and_are_cited():
     bib = (ROOT / "paper" / "paper.bib").read_text()
     keys = re.findall(r"^@\w+\{([^,]+),", bib, re.M)

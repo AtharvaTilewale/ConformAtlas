@@ -10,7 +10,7 @@ the software it describes:
    value re-read from the output file it was taken from;
 3. the validation table in ``docs/benchmarks.md`` is the rendering of
    ``validation/results.json`` (one row per check, nothing invented);
-4. every DOI in ``paper/paper.bib`` resolves at doi.org (skipped, not failed, when
+4. every DOI in ``paper/paper.bib`` resolves at doi.org (skipped when paper/ is absent or when
    the network is unreachable);
 5. ``.zenodo.json`` agrees with ``CITATION.cff`` and ``pyproject.toml``;
 6. the Sphinx documentation builds with warnings treated as errors.
@@ -678,13 +678,27 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
     )
 
     # 4. DOIs ---------------------------------------------------------------
-    dois = bib_dois((ROOT / "paper" / "paper.bib").read_text())
+    # The manuscript lives outside the public repository; the check runs only
+    # where paper/paper.bib is present (the authors' working copies).
+    bib_path = ROOT / "paper" / "paper.bib"
+    dois = bib_dois(bib_path.read_text()) if bib_path.exists() else []
     statuses = {d: resolve_doi(d) for d in dois}
     offline = [d for d, s in statuses.items() if s is None]
     bad_dois = [
         d for d, s in statuses.items() if s is not None and s not in (200, 301, 302, 303, 307, 308)
     ]
-    if offline and len(offline) == len(dois):
+    if not dois:
+        record(
+            "Docs",
+            "every DOI in paper/paper.bib resolves at doi.org",
+            True,
+            "paper/ not present in this checkout",
+            "HTTP 200/30x",
+            "doi.org HEAD request",
+            "doi.org",
+            note="skipped",
+        )
+    elif offline and len(offline) == len(dois):
         record(
             "Docs",
             "every DOI in paper/paper.bib resolves at doi.org",

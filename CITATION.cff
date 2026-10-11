@@ -8,6 +8,8 @@ repository-code: "https://github.com/AtharvaTilewale/ConformAtlas"
 authors:
   - family-names: "Tilewale"
     given-names: "Atharva"
+  - family-names: "Patel"
+    given-names: "Dhaval"
 keywords:
   - "molecular dynamics"
   - "GROMACS"
