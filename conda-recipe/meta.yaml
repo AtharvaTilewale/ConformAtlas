@@ -1,10 +1,9 @@
 {% set name = "conformatlas" %}
 {% set version = "1.0.0" %}
-# sha256 of the PyPI sdist conformatlas-{{ version }}.tar.gz. Obtain it after the
-# release with:  pip download conformatlas=={{ version }} --no-binary :all: --no-deps
-#                && sha256sum conformatlas-{{ version }}.tar.gz
-# conda-forge's bot (regro-cf-autotick-bot) updates this value on later releases.
-{% set sha256 = "0000000000000000000000000000000000000000000000000000000000000000" %}
+# sha256 of the PyPI sdist conformatlas-{{ version }}.tar.gz (from the PyPI release
+# record). conda-forge's bot (regro-cf-autotick-bot) updates version and sha256
+# in the feedstock on later releases.
+{% set sha256 = "4cd9a9034de7c8118bece4b17949375363d62e160d26b6c957bcc9e63a1101f6" %}
 
 package:
   name: {{ name|lower }}
@@ -49,10 +48,6 @@ test:
   requires:
     - python {{ python_min }}
     - pip
-    - pytest
-  source_files:
-    - tests
-    - pyproject.toml
   imports:
     - conformatlas
     - conformatlas.pipeline
@@ -62,11 +57,13 @@ test:
     - conformatlas --version
     - conformatlas --help
     - conformatlas doctor
-    - pytest -q tests/unit
+    # end-to-end smoke test on the package's own synthetic dataset (the sdist ships no tests)
+    - conformatlas example -o ca_example
+    - conformatlas analyze -s ca_example/WT/topology.pdb -f ca_example/WT/rep1.xtc -f ca_example/WT/rep2.xtc -T 300 --bins 16 --bootstrap 0 --quiet -o ca_example/results
 
 about:
   home: https://github.com/AtharvaTilewale/ConformAtlas
-  summary: "PCA and free energy landscape analysis of molecular dynamics trajectories with validated uncertainties"
+  summary: "Mapping conformational landscapes from molecular simulations"
   description: |
     ConformAtlas analyses molecular dynamics trajectories: least-squares
     superposition, Cartesian/dihedral PCA and TICA, Boltzmann-inverted free
@@ -78,7 +75,9 @@ about:
     implementations (MDAnalysis, GROMACS, pymbar, deeptime, SciPy, ProDy).
   license: MIT
   license_family: MIT
-  license_file: LICENSE
+  license_file:
+    - LICENSE
+    - src/conformatlas/templates/assets/NGL_LICENSE.txt
   doc_url: https://conformatlas.readthedocs.io
   dev_url: https://github.com/AtharvaTilewale/ConformAtlas
 
