@@ -266,7 +266,44 @@ def print_version(ctx, param, value):
     ctx.exit()
 
 
+def _harden_text_streams(streams=None) -> None:
+    """Make console output independent of the platform's default code page.
+
+    The CLI prints ΔG, Å, ✔ and similar symbols. When stdout/stderr are not a
+    terminal (CI logs, ``> file``, pipes) Python encodes with the locale code
+    page, which on Windows is cp1252 and cannot represent them: the run then
+    dies with ``UnicodeEncodeError`` in the middle of an analysis. Redirected
+    streams are therefore switched to UTF-8; a terminal keeps its encoding but
+    never raises on an unencodable character. Must run before any output,
+    including ``--help``.
+    """
+    for stream in streams if streams is not None else (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:  # replaced by a test harness / not a text stream
+            continue
+        try:
+            is_tty = bool(stream.isatty())
+            encoding = (getattr(stream, "encoding", None) or "").lower().replace("_", "-")
+            if encoding in ("utf-8", "utf8") and not is_tty:
+                continue
+            if is_tty:
+                reconfigure(errors="replace")
+            else:
+                reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # closed or exotic stream: leave it alone
+            continue
+
+
+class _ConformAtlasGroup(click.Group):
+    """Command group that hardens the text streams before anything is printed."""
+
+    def main(self, *args, **kwargs):
+        _harden_text_streams()
+        return super().main(*args, **kwargs)
+
+
 @click.group(
+    cls=_ConformAtlasGroup,
     invoke_without_command=True,
     context_settings=dict(help_option_names=["-h", "--help"]),
 )

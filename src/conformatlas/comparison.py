@@ -424,7 +424,7 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         "landscape_overlap": overlap_df.to_dict(orient="records"),
         "subspace_rmsip": subspace_df.round(4).to_dict() if subspace_df is not None else None,
     }
-    with (comp_dir / "comparison_summary.json").open("w") as fh:
+    with (comp_dir / "comparison_summary.json").open("w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2, default=_json_default)
 
     logger.info("Shared-PCA condition comparison completed successfully.")

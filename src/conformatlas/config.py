@@ -446,7 +446,7 @@ def build_analysis_config(options: dict, config_file: str | Path | None = None):
         import json
 
         meta_path = from_results / "run_metadata.json"
-        meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
         # settings not given on the command line / YAML default to the stored run
         stored = {
             "temperature": meta.get("temperature_K"),

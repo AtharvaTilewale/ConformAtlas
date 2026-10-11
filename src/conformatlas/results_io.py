@@ -397,7 +397,9 @@ def load_results_dir(path: str | Path) -> AnalysisResults:
     if not root.is_dir():
         raise FileNotFoundError(f"{root} is not a results directory")
     meta_path = root / "run_metadata.json"
-    meta: dict[str, Any] = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+    meta: dict[str, Any] = (
+        json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+    )
 
     # ---- configuration (as far as it was recorded) --------------------------
     cv_meta = meta.get("collective_variables", {})

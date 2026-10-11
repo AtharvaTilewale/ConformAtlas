@@ -293,7 +293,7 @@ def run_gromacs_pca(
 
     # Parse eigenvalues
     eigenvalues = []
-    with eigenval_xvg.open("r") as f:
+    with eigenval_xvg.open("r", encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
             if line.startswith("#") or line.startswith("@"):
@@ -362,7 +362,7 @@ def _read_anaeig_projection(proj_xvg: Path) -> tuple[np.ndarray, np.ndarray]:
     columns per row are accepted too.
     """
     sets: list[list[list[float]]] = [[]]
-    with proj_xvg.open("r") as f:
+    with proj_xvg.open("r", encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
             if not line or line[0] in "#@":
