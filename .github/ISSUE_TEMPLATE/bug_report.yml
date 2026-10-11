@@ -1,0 +1,46 @@
+name: Bug report
+description: Something produced an error, a crash or a result that cannot be right
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you run, what did you expect, what did you get?
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or code
+      description: The exact `conformatlas` command line (or Python snippet) and the YAML file if one was used.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: metadata
+    attributes:
+      label: run_metadata.json
+      description: Paste the contents of `run_metadata.json` from the output directory (it records versions, options and warnings). If the run did not get that far, paste the output of `conformatlas doctor`.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Error output / traceback
+      render: text
+  - type: input
+    id: data
+    attributes:
+      label: Data
+      description: Number of atoms, frames and replicates; file formats; whether the molecule was made whole (`trjconv -pbc mol`). Attach a fragment if it is small enough.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and the FAQ (docs/faq.md).
+          required: true
+        - label: I can reproduce the problem on the latest release or the main branch.

@@ -501,6 +501,20 @@ if __name__ == "__main__":
     from validate_part2 import run_part2
 
     run_part2(tmp, truth, record, ROOT, KB)
+
+    # Checks added with 1.0.0 (one module per development track). Each ``run``
+    # records through the same ``record`` so the report stays one table.
+    import checks_docs
+    import checks_enhanced
+    import checks_msm
+    import checks_performance
+    import checks_report
+
+    for mod in (checks_msm, checks_enhanced, checks_performance, checks_report, checks_docs):
+        print(f"\n=== {mod.__name__} ===", flush=True)
+        sub = tmp / mod.__name__
+        sub.mkdir(parents=True, exist_ok=True)
+        mod.run(record, sub, ROOT, KB)
     OUT.mkdir(exist_ok=True)
     json.dump(RESULTS, open(OUT / "results.json", "w"), indent=2, default=str)
     n_skip = sum(r["note"] == "skipped" for r in RESULTS)
@@ -524,5 +538,8 @@ if __name__ == "__main__":
             f"| {r['section']} | {r['check']} | {flag} | {r['measured']} | {r['expected']} | {r['tolerance']} | {r['reference']} |"
         )
     (OUT / "VALIDATION.md").write_text("\n".join(lines) + "\n")
+    # docs/benchmarks.md is rendered from results.json: regenerate it from THIS
+    # run (inside checks_docs.run it would still reflect the previous report).
+    checks_docs.write_benchmarks(ROOT)
     print(f"\n{n_pass}/{n_tot} passed, {n_skip} skipped; report at {OUT / 'VALIDATION.md'}")
     sys.exit(0 if n_pass == n_tot else 1)

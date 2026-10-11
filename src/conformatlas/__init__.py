@@ -1,8 +1,9 @@
-"""ConformAtlas: MD ensemble, PCA, and Free Energy Landscape analysis."""
+"""ConformAtlas: mapping conformational landscapes from molecular simulations."""
 
-__version__ = "0.3.0"
+__version__ = "1.0.0"
 __author__ = "Atharva Tilewale"
 
+from conformatlas import api  # noqa: E402,F401  (imports pipeline lazily)
 from conformatlas.models import (
     AnalysisConfig,
     BasinState,
@@ -11,6 +12,8 @@ from conformatlas.models import (
     FELGrid,
     PCAResults,
 )
+from conformatlas.msm import build_msm, save_msm  # noqa: E402
+from conformatlas.results_io import load_results, load_results_dir, save_results  # noqa: E402
 
 __all__ = [
     "AnalysisConfig",
@@ -20,4 +23,10 @@ __all__ = [
     "FELGrid",
     "PCAResults",
     "__version__",
+    "api",
+    "build_msm",
+    "save_msm",
+    "load_results",
+    "load_results_dir",
+    "save_results",
 ]

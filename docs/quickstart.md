@@ -37,6 +37,8 @@ conformatlas analyze \
 * `--smooth-sigma`: Gaussian smoothing sigma for free energy surface (e.g. `--smooth-sigma 1.0`).
 * `--pca-weighting`: Weighting mode (`equal-replicate` or `frames`).
 
+The complete option list with help text is in the [command-line reference](cli.md).
+
 ---
 
 ## 3. WT vs Mutant Comparison in Shared PCA Space
@@ -118,3 +120,25 @@ A real-protein regression dataset (influenza neuraminidase Cα + zanamivir, 81 f
 conformatlas analyze -s tests/data/h1n1_ca/neuraminidase_ca.pdb -f tests/data/h1n1_ca/neuraminidase_ca.xtc \
     -n tests/data/h1n1_ca/index.ndx --cov-group C-alpha --lsq-group C-alpha --lig ZMR -T 300 -o na_test
 ```
+
+---
+
+## 6. Beyond the landscape
+
+```bash
+# Markov state model on the leading components, residue-level analyses, HDF5 container
+conformatlas analyze -s WT/topology.pdb -f WT/rep1.xtc -f WT/rep2.xtc -T 300 --bins 32 --smooth-sigma 1.0 \
+    --msm --msm-lag 10 --residue-analysis --bootstrap-mode resegment --save-hdf5 -o results_wt_full
+
+# Re-bin an existing run without reading the trajectories again
+conformatlas analyze --from results_wt_full --bins 24 -T 300 -o results_wt_24
+
+# Weights for a metadynamics run, then a reweighted landscape
+conformatlas reweight metad --hills HILLS --colvar COLVAR --cv d1 -T 300 --frame-times times.dat -o reweight
+conformatlas analyze -s md.gro -f md.xtc -T 300 --weights-file reweight/weights_COLVAR.dat -o results_reweighted
+```
+
+The 200-frame demonstration data set is too short for a Markov state model
+(`msm_summary.json` reports `plateau_found: false`); the run shows the output
+files, not usable rates. What each option computes, and what has been validated,
+is described in [Methods](methods.md) §15–§21 and the [FAQ](faq.md).

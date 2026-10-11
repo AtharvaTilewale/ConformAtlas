@@ -2,6 +2,9 @@
 
 import logging
 import textwrap
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +15,7 @@ import pandas as pd
 matplotlib.use("Agg")  # Headless backend
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+from matplotlib.collections import LineCollection
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 from conformatlas.models import BasinState, ConvergenceResults, FELGrid, PCAResults
@@ -58,6 +62,203 @@ plt.rcParams.update(
         "lines.linewidth": 2.0,
     }
 )
+
+# ----------------------------------------------------------------------------
+# Figure style context (format, colormap, font scale, dpi, path overlay)
+# ----------------------------------------------------------------------------
+
+#: rcParams font sizes at font_scale = 1 (the values set above).
+_BASE_FONT_RC: dict[str, float] = {
+    "font.size": 11,
+    "axes.labelsize": 12,
+    "axes.titlesize": 13,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "legend.fontsize": 10,
+    "figure.titlesize": 14,
+}
+
+FIGURE_FORMATS: tuple[str, ...] = ("png", "svg", "pdf")
+
+
+@dataclass(frozen=True)
+class FigureStyle:
+    """Rendering options shared by every figure function.
+
+    ``formats`` are written for every figure; the first one is the *primary*
+    format whose path the figure functions return (and which the HTML report
+    embeds). ``colormap`` is any registered matplotlib colormap and is used for
+    all landscape / density maps (``turbo`` by default, unchanged from 0.3.x).
+    ``font_scale`` multiplies every font size (rcParams and explicit sizes),
+    ``dpi`` applies to raster output, and ``path_overlay`` asks the landscape
+    figures to draw the time-coloured trajectory path of each replicate.
+    """
+
+    formats: tuple[str, ...] = ("png",)
+    colormap: str = "turbo"
+    font_scale: float = 1.0
+    dpi: int = 300
+    path_overlay: bool = False
+
+
+_STYLE = FigureStyle()
+
+
+def parse_fig_format(spec: str | None) -> tuple[str, ...]:
+    """Turn ``'png' | 'svg' | 'pdf' | 'all' | 'png,svg'`` into an ordered format tuple."""
+    if spec is None:
+        return ("png",)
+    spec = str(spec).strip().lower()
+    if spec == "all":
+        return FIGURE_FORMATS
+    out: list[str] = []
+    for tok in spec.replace(";", ",").split(","):
+        tok = tok.strip().lstrip(".")
+        if not tok:
+            continue
+        if tok not in FIGURE_FORMATS:
+            raise ValueError(
+                f"Unknown figure format '{tok}'. Choose from {', '.join(FIGURE_FORMATS)} or 'all'."
+            )
+        if tok not in out:
+            out.append(tok)
+    if not out:
+        raise ValueError("At least one figure format is required.")
+    return tuple(out)
+
+
+def _apply_style(style: FigureStyle) -> None:
+    global _STYLE
+    _STYLE = style
+    plt.rcParams.update({k: v * style.font_scale for k, v in _BASE_FONT_RC.items()})
+    plt.rcParams["savefig.dpi"] = style.dpi
+
+
+def get_figure_style() -> FigureStyle:
+    """Return the active :class:`FigureStyle`."""
+    return _STYLE
+
+
+def set_figure_style(
+    fig_format: str | tuple[str, ...] | None = None,
+    colormap: str | None = None,
+    font_scale: float | None = None,
+    dpi: int | None = None,
+    path_overlay: bool | None = None,
+) -> FigureStyle:
+    """Set the module-wide figure style; ``None`` keeps the current value.
+
+    Raises ``ValueError`` for an unknown colormap / format or an out-of-range
+    font scale or dpi.
+    """
+    cur = _STYLE
+    kw: dict[str, Any] = {}
+    if fig_format is not None:
+        kw["formats"] = (
+            parse_fig_format(fig_format) if isinstance(fig_format, str) else tuple(fig_format)
+        )
+    if colormap is not None:
+        if colormap not in matplotlib.colormaps:
+            raise ValueError(
+                f"Unknown colormap '{colormap}'. Examples: turbo, viridis, magma, cividis, "
+                "coolwarm, RdYlBu_r, jet (any matplotlib colormap name)."
+            )
+        kw["colormap"] = colormap
+    if font_scale is not None:
+        if not (0.3 <= float(font_scale) <= 4.0):
+            raise ValueError(f"font_scale must be between 0.3 and 4 (got {font_scale}).")
+        kw["font_scale"] = float(font_scale)
+    if dpi is not None:
+        if not (36 <= int(dpi) <= 1200):
+            raise ValueError(f"dpi must be between 36 and 1200 (got {dpi}).")
+        kw["dpi"] = int(dpi)
+    if path_overlay is not None:
+        kw["path_overlay"] = bool(path_overlay)
+    _apply_style(replace(cur, **kw))
+    return _STYLE
+
+
+def reset_figure_style() -> FigureStyle:
+    """Restore the default style (png, turbo, scale 1, 300 dpi, no overlay)."""
+    _apply_style(FigureStyle())
+    return _STYLE
+
+
+@contextmanager
+def figure_style(**kwargs: Any) -> Iterator[FigureStyle]:
+    """Temporarily apply a style: ``with figure_style(fig_format="svg"): ...``."""
+    previous = _STYLE
+    try:
+        yield set_figure_style(**kwargs)
+    finally:
+        _apply_style(previous)
+
+
+def landscape_cmap() -> str:
+    """Colormap name used for landscape / density maps under the active style."""
+    return _STYLE.colormap
+
+
+def _fs(size: float) -> float:
+    """Explicit font size scaled by the active ``font_scale``."""
+    return float(size) * _STYLE.font_scale
+
+
+def save_figure(fig, out_path: str | Path) -> Path:
+    """Write ``fig`` in every configured format and close it.
+
+    The suffix of ``out_path`` is replaced by each configured format, so callers
+    may keep passing ``.png`` paths. Returns the path of the primary format.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    formats = _STYLE.formats
+    written: list[Path] = []
+    for fmt in formats:
+        target = out_path.with_suffix(f".{fmt}")
+        fig.savefig(target, format=fmt, dpi=_STYLE.dpi, bbox_inches="tight")
+        written.append(target)
+    plt.close(fig)
+    return written[0]
+
+
+def _draw_trajectory_paths(
+    ax,
+    path_df: pd.DataFrame,
+    cv_cols: tuple[str, str] = ("CV1", "CV2"),
+    time_col: str = "time_ps",
+    rep_col: str = "replicate",
+    max_points: int = 5000,
+    cmap: str = "Greys",
+) -> None:
+    """Draw each replicate's path through the landscape as a time-coloured line.
+
+    Frames are taken in file order within every replicate; when a replicate has
+    more than ``max_points`` frames the path is subsampled evenly for legibility
+    (the landscape itself is never subsampled). Colour runs from light (start)
+    to dark (end) of each replicate's own time axis.
+    """
+    if path_df is None or len(path_df) == 0:
+        return
+    reps = list(dict.fromkeys(path_df[rep_col].tolist())) if rep_col in path_df else [None]
+    for rep in reps:
+        sub = path_df if rep is None else path_df[path_df[rep_col] == rep]
+        if time_col in sub:
+            sub = sub.sort_values(time_col, kind="stable")
+        xy = sub[list(cv_cols)].to_numpy(dtype=float)
+        if len(xy) > max_points:
+            xy = xy[np.linspace(0, len(xy) - 1, max_points).astype(int)]
+        if len(xy) < 2:
+            continue
+        segs = np.stack([xy[:-1], xy[1:]], axis=1)
+        t = np.linspace(0.15, 1.0, len(segs))
+        lc = LineCollection(
+            segs, cmap=cmap, norm=plt.Normalize(0, 1), linewidths=0.9, alpha=0.75, zorder=4
+        )
+        lc.set_array(t)
+        ax.add_collection(lc)
+        ax.plot(xy[0, 0], xy[0, 1], "o", ms=4, color="white", mec="black", mew=0.6, zorder=5)
+        ax.plot(xy[-1, 0], xy[-1, 1], "s", ms=4, color="black", mec="white", mew=0.6, zorder=5)
 
 
 def _compute_smart_label_offsets(
@@ -179,7 +380,7 @@ def plot_eigenvalues_and_variance(
                 f"{val:.1f}%",
                 ha="center",
                 va="bottom",
-                fontsize=9.5,
+                fontsize=_fs(9.5),
                 weight="bold",
                 color=color_bar,
             )
@@ -209,8 +410,7 @@ def plot_eigenvalues_and_variance(
 
     ax1.set_title("PCA Eigenvalue Spectrum & Cumulative Variance", pad=12)
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
@@ -260,8 +460,7 @@ def plot_pca_scatter(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -294,8 +493,7 @@ def plot_pca_density(
     cb.ax.tick_params(labelsize=9.5)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -343,8 +541,7 @@ def plot_pca_projections(
     fig.colorbar(hb, ax=ax2, label="Frame Count", pad=0.03)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -359,8 +556,17 @@ def plot_fel_2d(
     out_path: str | Path = "figures/fel_2d.png",
     annotate: bool = True,
     save_unannotated: bool = True,
+    path: pd.DataFrame | None = None,
+    path_columns: tuple[str, str] = ("CV1", "CV2"),
 ) -> Path:
-    """Plot standalone, publication-quality 2D Free Energy Landscape with collision-free labels."""
+    """Plot standalone, publication-quality 2D Free Energy Landscape with collision-free labels.
+
+    ``path`` (optional) is a frame table with the two landscape coordinates in
+    ``path_columns`` plus ``replicate`` and ``time_ps`` columns (the pipeline's
+    ``frame_assignments``); when given, each replicate's trajectory is drawn as
+    a time-coloured line (light = start, dark = end; circle = first frame,
+    square = last frame) on top of the landscape.
+    """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -374,9 +580,11 @@ def plot_fel_2d(
     vmax = min(np.percentile(valid_z, 98), 35.0) if len(valid_z) > 0 else 25.0
     levels = np.linspace(0.0, vmax, 40)
 
-    cf = ax.contourf(X, Y, Z, levels=levels, cmap="turbo", extend="max")
+    cf = ax.contourf(X, Y, Z, levels=levels, cmap=landscape_cmap(), extend="max")
     cs = ax.contour(X, Y, Z, levels=levels[::4], colors="black", linewidths=0.5, alpha=0.55)
-    ax.clabel(cs, inline=True, fontsize=8, fmt="%.1f")
+    ax.clabel(cs, inline=True, fontsize=_fs(8), fmt="%.1f")
+    if path is not None:
+        _draw_trajectory_paths(ax, path, cv_cols=path_columns)
 
     # Annotate states with collision avoidance if enabled
     if states and annotate:
@@ -408,7 +616,7 @@ def plot_fel_2d(
                     alpha=0.92,
                 ),
                 arrowprops=dict(arrowstyle="->", color="#222222", lw=0.9, shrinkA=2, shrinkB=3),
-                fontsize=9.5,
+                fontsize=_fs(9.5),
                 weight="bold",
                 ha="center" if abs(dx) < 8 else ("left" if dx > 0 else "right"),
                 va="center" if abs(dy) < 8 else ("bottom" if dy > 0 else "top"),
@@ -423,13 +631,18 @@ def plot_fel_2d(
     cb.ax.tick_params(labelsize=9.5)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if states and annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
         plot_fel_2d(
-            fel_grid, states=states, out_path=unann_path, annotate=False, save_unannotated=False
+            fel_grid,
+            states=states,
+            out_path=unann_path,
+            annotate=False,
+            save_unannotated=False,
+            path=path,
+            path_columns=path_columns,
         )
 
     return out_path
@@ -455,7 +668,7 @@ def plot_fel_3d(
     # Replace NaNs for smooth surface edge without tearing
     Z_3d = np.where(np.isnan(Z), vmax * 1.05, Z)
     surf = ax.plot_surface(
-        X, Y, Z_3d, cmap="turbo", edgecolor="none", alpha=0.92, vmin=0, vmax=vmax
+        X, Y, Z_3d, cmap=landscape_cmap(), edgecolor="none", alpha=0.92, vmin=0, vmax=vmax
     )
 
     ax.set_zlim(0, vmax)
@@ -469,8 +682,7 @@ def plot_fel_3d(
     cb.ax.tick_params(labelsize=9.5)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -499,9 +711,9 @@ def plot_fel(
     ax1 = fig.add_subplot(gs[0])
     ax1.set_facecolor("#f0f0f0")
 
-    cf = ax1.contourf(X, Y, Z, levels=levels, cmap="turbo", extend="max")
+    cf = ax1.contourf(X, Y, Z, levels=levels, cmap=landscape_cmap(), extend="max")
     cs = ax1.contour(X, Y, Z, levels=levels[::4], colors="black", linewidths=0.5, alpha=0.6)
-    ax1.clabel(cs, inline=True, fontsize=8, fmt="%.1f")
+    ax1.clabel(cs, inline=True, fontsize=_fs(8), fmt="%.1f")
 
     if states and annotate:
         points = [(st.min_pc1, st.min_pc2) for st in states]
@@ -523,7 +735,7 @@ def plot_fel(
                 textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.88, ec="gray"),
                 arrowprops=dict(arrowstyle="->", color="#333333", lw=0.8),
-                fontsize=9,
+                fontsize=_fs(9),
                 weight="bold",
                 ha="center" if abs(dx) < 6 else ("left" if dx > 0 else "right"),
             )
@@ -537,7 +749,7 @@ def plot_fel(
     ax2 = fig.add_subplot(gs[1], projection="3d")
     Z_3d = np.where(np.isnan(Z), vmax * 1.05, Z)
     surf = ax2.plot_surface(
-        X, Y, Z_3d, cmap="turbo", edgecolor="none", alpha=0.9, vmin=0, vmax=vmax
+        X, Y, Z_3d, cmap=landscape_cmap(), edgecolor="none", alpha=0.9, vmin=0, vmax=vmax
     )
     ax2.set_zlim(0, vmax)
     ax2.set_xlabel(CV_SHORT[0], labelpad=8)
@@ -548,8 +760,7 @@ def plot_fel(
     fig.colorbar(surf, ax=ax2, shrink=0.6, aspect=12, label="ΔG (kJ/mol)", pad=0.08)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if states and annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
@@ -617,7 +828,7 @@ def plot_basin_map(
                     alpha=0.92,
                 ),
                 arrowprops=dict(arrowstyle="->", color="black", lw=0.9, shrinkA=2, shrinkB=3),
-                fontsize=9.5,
+                fontsize=_fs(9.5),
                 weight="bold",
                 ha="center" if abs(dx) < 6 else ("left" if dx > 0 else "right"),
                 va="center" if abs(dy) < 6 else ("bottom" if dy > 0 else "top"),
@@ -632,8 +843,7 @@ def plot_basin_map(
     cb.ax.tick_params(labelsize=9.5)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if states and annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
@@ -679,12 +889,11 @@ def plot_state_populations(
             "No major conformational states to display",
             ha="center",
             va="center",
-            fontsize=12,
+            fontsize=_fs(12),
         )
         ax.set_title("Conformational State Populations")
         fig.tight_layout()
-        plt.savefig(out_path, bbox_inches="tight")
-        plt.close(fig)
+        out_path = save_figure(fig, out_path)
         return out_path
 
     states = summary_df["State"].tolist()
@@ -774,11 +983,11 @@ def plot_state_populations(
                 va="bottom",
                 color="#111111",
                 weight="bold",
-                fontsize=10.5,
+                fontsize=_fs(10.5),
             )
 
     ax.set_xticks(x_pos)
-    ax.set_xticklabels(states, weight="bold", fontsize=11)
+    ax.set_xticklabels(states, weight="bold", fontsize=_fs(11))
     ax.set_ylabel("Conformational Population (%)", labelpad=8)
     ax.set_title("Conformational State Populations & Uncertainty", pad=12)
     ax.grid(axis="y", linestyle="--", alpha=0.4)
@@ -787,8 +996,7 @@ def plot_state_populations(
     ax.legend(loc="upper right", framealpha=0.9, edgecolor="#cccccc")
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
@@ -839,7 +1047,7 @@ def plot_convergence_progressive(
                 f"{s:.2f}",
                 ha="center",
                 va="bottom",
-                fontsize=9.5,
+                fontsize=_fs(9.5),
                 weight="bold",
                 color="#1b6e1b",
             )
@@ -855,8 +1063,7 @@ def plot_convergence_progressive(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
@@ -897,7 +1104,7 @@ def plot_convergence_cosine(
                 f"{val:.2f}",
                 ha="center",
                 va="bottom",
-                fontsize=9.5,
+                fontsize=_fs(9.5),
                 weight="bold",
                 color="#222222",
             )
@@ -912,8 +1119,7 @@ def plot_convergence_cosine(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
@@ -963,7 +1169,7 @@ def plot_convergence_stability(
             "Population stability data not available",
             ha="center",
             va="center",
-            fontsize=11,
+            fontsize=_fs(11),
         )
         ax.set_title("State Population Stability Curves")
 
@@ -971,8 +1177,7 @@ def plot_convergence_stability(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -1050,14 +1255,13 @@ def plot_convergence_diagnostics(
         0.95,
         eval_text,
         transform=ax4.transAxes,
-        fontsize=10.5,
+        fontsize=_fs(10.5),
         va="top",
         bbox=dict(boxstyle="round,pad=0.8", facecolor="#f8f9fa", edgecolor="#ced4da"),
     )
 
     fig.tight_layout()
-    fig.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -1099,8 +1303,7 @@ def plot_comparison_shared_pca(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -1191,13 +1394,13 @@ def plot_comparison_populations(
                         f"{val:.1f}%",
                         ha="center",
                         va="bottom",
-                        fontsize=8.5,
+                        fontsize=_fs(8.5),
                         weight="bold",
                         color="#111111",
                     )
 
     ax.set_xticks(x_pos)
-    ax.set_xticklabels(states, weight="bold", fontsize=11)
+    ax.set_xticklabels(states, weight="bold", fontsize=_fs(11))
     ax.set_ylabel("Population (%)", labelpad=8)
     ax.set_title("Conformational Population Shifts", pad=12)
     ax.legend(loc="upper right", framealpha=0.9, edgecolor="#cccccc")
@@ -1206,8 +1409,7 @@ def plot_comparison_populations(
     ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
 
     if annotate and save_unannotated:
         unann_path = out_path.parent / f"{out_path.stem}_unannotated{out_path.suffix}"
@@ -1239,11 +1441,13 @@ def plot_comparison_system_fel(
     sys_fels = comp_dict["system_fels"]
     if system_name in sys_fels:
         fe = sys_fels[system_name].free_energy
-        cf = ax.contourf(X, Y, fe, levels=levels, cmap="turbo", extend="max")
+        cf = ax.contourf(X, Y, fe, levels=levels, cmap=landscape_cmap(), extend="max")
         cs = ax.contour(X, Y, fe, levels=levels[::4], colors="black", linewidths=0.5, alpha=0.5)
-        ax.clabel(cs, inline=True, fontsize=8, fmt="%.1f")
+        ax.clabel(cs, inline=True, fontsize=_fs(8), fmt="%.1f")
     else:
-        cf = ax.contourf(X, Y, global_fel.free_energy, levels=levels, cmap="turbo", extend="max")
+        cf = ax.contourf(
+            X, Y, global_fel.free_energy, levels=levels, cmap=landscape_cmap(), extend="max"
+        )
 
     ax.set_xlabel("Shared PC1 Projection", labelpad=8)
     ax.set_ylabel("Shared PC2 Projection", labelpad=8)
@@ -1253,8 +1457,7 @@ def plot_comparison_system_fel(
     cb.ax.tick_params(labelsize=9.5)
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path
 
 
@@ -1331,7 +1534,7 @@ def plot_condition_comparison(
 
     ax3 = fig.add_subplot(gs[1, 0])
     fe1 = sys_fels[s1_name].free_energy
-    cf1 = ax3.contourf(X, Y, fe1, levels=levels, cmap="turbo", extend="max")
+    cf1 = ax3.contourf(X, Y, fe1, levels=levels, cmap=landscape_cmap(), extend="max")
     ax3.set_xlabel("Shared PC1")
     ax3.set_ylabel("Shared PC2")
     ax3.set_title(f"FEL: {s1_name}")
@@ -1340,13 +1543,12 @@ def plot_condition_comparison(
     ax4 = fig.add_subplot(gs[1, 1])
     if len(systems) > 1:
         fe2 = sys_fels[s2_name].free_energy
-        cf2 = ax4.contourf(X, Y, fe2, levels=levels, cmap="turbo", extend="max")
+        cf2 = ax4.contourf(X, Y, fe2, levels=levels, cmap=landscape_cmap(), extend="max")
         ax4.set_xlabel("Shared PC1")
         ax4.set_ylabel("Shared PC2")
         ax4.set_title(f"FEL: {s2_name}")
         fig.colorbar(cf2, ax=ax4, label="ΔG (kJ/mol)")
 
     fig.tight_layout()
-    plt.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
+    out_path = save_figure(fig, out_path)
     return out_path

@@ -2,7 +2,8 @@
 
 ## 1. Prerequisites
 * **Python**: Version 3.10, 3.11, or 3.12.
-* **GROMACS**: (Optional but recommended) GROMACS 2020 or newer (`gmx` or `gmx_mpi` accessible in PATH).
+* **MDAnalysis**: 2.2 or newer, installed automatically by `pip` together with numpy, scipy, pandas, matplotlib, scikit-image, click, jinja2 and PyYAML.
+* **GROMACS**: (Optional) GROMACS 2020 or newer (`gmx` or `gmx_mpi` accessible in PATH) for the `--pca-backend gromacs` route.
 * **Package Manager**: Standard `pip`.
 
 ---
@@ -16,11 +17,25 @@ cd /path/to/ConformAtlas
 pip install .
 ```
 
-For development (editable mode with testing dependencies):
+Optional features are installed as extras:
+
+| Extra | Installs | Enables |
+|---|---|---|
+| `pdf` | WeasyPrint | `--pdf` (static-figure PDF of the report) |
+| `interactive` | plotly ≥ 5.18 | Plotly landscape and NGL viewer in `report.html`, `comparison_interactive.html` |
+| `hdf5` | h5py ≥ 3.6 | `--save-hdf5` (`results.h5`), `results_io.save_results/load_results` |
+| `progress` | rich ≥ 12 | progress bars on a terminal (a plain bar is used without it) |
+| `all` | all of the above | |
+| `dev` | pytest, pytest-cov, ruff, build, twine, plotly, h5py, rich, deeptime, pymbar | tests and the validation suite's cross-checks |
+| `docs` | sphinx, sphinx-rtd-theme, myst-parser | building this documentation |
 
 ```bash
-pip install -e ".[dev]"
+pip install ".[all]"          # every optional feature
+pip install -e ".[dev,docs]"  # development
 ```
+
+The core numerics (PCA, landscapes, bootstrap, MSM, reweighting, residue
+analyses) need none of the extras.
 
 ---
 
@@ -36,23 +51,26 @@ Example output:
 ```text
 ConformAtlas System Diagnostics
 ========================================
-ConformAtlas Version: 0.1.1
-Python Version:     3.11.7 (/home/.../python)
+ConformAtlas Version: 1.0.0
+Python Version:     3.11.16 (/home/user/projects/ConformAtlas/.venv/bin/python3.11)
 
 Checking GROMACS installation:
-  ✔ Found GROMACS: /usr/local/gromacs-2024.4/bin/gmx (GROMACS 2024.4)
+  ✔ Found GROMACS: /usr/bin/gmx (2023.3-Ubuntu_2023.3_1ubuntu3)
 
 Checking Python libraries:
-  ✔ numpy        [Required]: version 1.26.4
-  ✔ scipy        [Required]: version 1.13.1
-  ✔ pandas       [Required]: version 3.0.5
-  ✔ matplotlib   [Required]: version 3.10.7
-  ✔ click        [Required]: version 8.4.2
-  ✔ jinja2       [Required]: version 3.1.3
-  ✔ yaml         [Required]: version 6.0.2
-  ✔ skimage      [Required]: version 0.22.0
-  ✔ MDAnalysis   [Optional]: version 2.7.0
-  ○ weasyprint   [Optional]
+  ✔ numpy        [Required]: version 2.4.6
+  ✔ scipy        [Required]: version 1.17.1
+  ✔ pandas       [Required]: version 3.0.6
+  ✔ matplotlib   [Required]: version 3.11.2
+  ✔ click        [Required]: version 8.5.0
+  ✔ jinja2       [Required]: version 3.1.6
+  ✔ yaml         [Required]: version 6.0.3
+  ✔ skimage      [Required]: version 0.26.0
+  ✔ MDAnalysis   [Required]: version 2.10.0 — trajectory reading, PCA backend, descriptors, residue analyses
+  ✔ weasyprint   [Optional]: version 70.0 — report.pdf (--pdf)
+  ✔ plotly       [Optional]: version 7.1.0 — interactive report figures (--interactive)
+  ✔ h5py         [Optional]: version 3.16.0 — HDF5 results container (--save-hdf5)
+  ✔ rich         [Optional]: version 15.0.0 — progress bars on a terminal
 ```
 
 Run test suite:

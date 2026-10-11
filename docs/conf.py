@@ -41,6 +41,13 @@ myst_heading_anchors = 3
 
 master_doc = "index"
 
+# Files under docs/ that are not documentation pages.
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "assets/README.md"]
+
+# Several dataclasses share attribute names (e.g. ``n_frames``); autodoc's
+# type-hint cross-references cannot disambiguate them and would fail a -W build.
+suppress_warnings = ["ref.python"]
+
 # HTML output styling
 html_theme = "sphinx_rtd_theme"
 html_logo = "assets/conformatlas-logo-white.png"

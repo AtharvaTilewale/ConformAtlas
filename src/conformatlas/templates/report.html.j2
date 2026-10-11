@@ -146,7 +146,54 @@
             border-radius: 6px;
             overflow-x: auto;
         }
+        .interp {
+            background-color: #ebf8ff;
+            border-left: 5px solid var(--secondary);
+            padding: 12px 18px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .interp p { margin: 6px 0; }
+        .interp .lead { font-weight: 600; color: var(--primary); }
+        .not-shown {
+            background-color: #fff5f5;
+            border-left: 5px solid var(--danger);
+            padding: 12px 18px;
+            border-radius: 4px;
+        }
+        .alert-info {
+            background-color: #edf2f7;
+            border-left: 5px solid #718096;
+            padding: 10px 16px;
+            margin: 12px 0;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+        .plotly-box { margin: 15px 0; }
+        #ngl-viewport { width: 100%; height: 520px; border: 1px solid var(--border); border-radius: 6px; }
+        .viewer-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
+        .viewer-controls select, .viewer-controls button {
+            padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer;
+        }
+        .viewer-controls button.active { background: var(--secondary); color: #fff; }
+        .rmsf-bar {
+            height: 12px; width: 220px; border-radius: 3px; display: inline-block; vertical-align: middle;
+            background: linear-gradient(to right, #313695, #74add1, #ffffbf, #f46d43, #a50026);
+        }
+        ul.warnings li { margin: 4px 0; }
+        @page { size: A4; margin: 10mm; }
+        @media print {
+            body { padding: 0; background: #fff; }
+            .container { max-width: none; }
+            .card { padding: 12px 14px; break-inside: avoid; box-shadow: none; }
+            table { font-size: 0.78rem; table-layout: auto; }
+            th, td { padding: 5px 7px; word-break: break-word; }
+            code { word-break: break-all; }
+            .plotly-box, #ngl-viewport, .viewer-controls { display: none; }
+        }
     </style>
+    {% if interactive_enabled %}{{ plotly_js_tag|safe }}{% endif %}
+    {% if viewer_enabled %}<script type="text/javascript">{{ ngl_js|safe }}</script>{% endif %}
 </head>
 <body>
     <div class="container">
@@ -175,6 +222,21 @@
             </p>
         </div>
 
+        {% if interp.warnings %}
+        <div class="alert-warning">
+            <h4>{{ interp.warnings|length }} warning(s) were raised during this run</h4>
+            <ul class="warnings">
+            {% for w in interp.warnings %}<li>{{ w }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% if pdf_mode %}
+        <div class="alert-info">
+            This PDF shows the static figures only. The interactive landscape (hover ΔG, trajectory paths,
+            time slider) and the 3-D structure viewer are available in <code>report.html</code>.
+        </div>
+        {% endif %}
+
         <!-- 1. Executive Summary -->
         <div class="card">
             <h2>1. Executive Summary & Detected Basins</h2>
@@ -184,6 +246,12 @@
                 <strong>{{ major_population_percent }}%</strong> of the sampled ensemble
                 (with {{ unassigned_population_percent }}% classified as minor/transitional conformations).
             </p>
+            {% if interp.summary %}
+            <div class="interp">
+                <p class="lead">In words</p>
+                {% for s in interp.summary %}<p>{{ s }}</p>{% endfor %}
+            </div>
+            {% endif %}
             <table>
                 <thead>
                     <tr>
@@ -207,7 +275,7 @@
                         <td>{{ "%.2f"|format(st.min_free_energy) }}</td>
                         <td>{{ st.representative_replicate }} (frame {{ st.representative_frame }})</td>
                         <td>{{ "%.1f"|format(st.representative_time_ps) }}</td>
-                        <td><code>{{ st.representative_pdb or "representative.pdb" }}</code></td>
+                        <td><code>{{ state_pdb_paths.get(st.label, st.representative_pdb or "representative.pdb") }}</code></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -217,13 +285,39 @@
         <!-- 2. Free Energy Landscapes -->
         <div class="card">
             <h2>2. Free Energy Landscape (FEL)</h2>
+            {% if interactive_enabled %}
+            <div class="plotly-box" id="interactive-section">
+                <p>
+                    <strong>Interactive landscape.</strong> Hover a bin for its centre, ΔG, probability and state;
+                    click legend entries to hide or show each replicate's path (light → dark = early → late);
+                    drag the slider to move the red markers to a given time. Black outlines are the watershed
+                    basins of the major states; stars mark their minima.
+                    {% if plotly_mode == 'cdn' %}(Plotly is loaded from cdn.plot.ly; this figure needs network access.){% endif %}
+                </p>
+                {{ interactive_landscape_div|safe }}
+                <p><strong>One-dimensional profiles</strong> along each coordinate (Boltzmann inversion of the
+                marginals of the 2-D histogram; dotted lines = state minima).</p>
+                {{ interactive_profile_div|safe }}
+            </div>
+            {% elif interactive_note %}
+            <div class="alert-info">{{ interactive_note }}</div>
+            {% endif %}
             <div class="figure-box">
                 <img src="{{ fig_fel_2d }}" alt="2D Free Energy Landscape">
                 <div class="figure-caption">
-                    Figure 1: 2D Free Energy Surface at T = {{ temperature }} K along principal components PC1 and PC2.
+                    Figure 1: 2D Free Energy Surface at T = {{ temperature }} K along the two landscape coordinates.
                     Annotated stars indicate identified conformational basin minima (ΔG in kJ/mol).
                 </div>
             </div>
+            {% if fig_fel_2d_path %}
+            <div class="figure-box">
+                <img src="{{ fig_fel_2d_path }}" alt="2D Free Energy Landscape with trajectory paths">
+                <div class="figure-caption">
+                    Figure 1b: the same landscape with every replicate's path through it (light = start,
+                    dark = end; circle = first frame, square = last frame).
+                </div>
+            </div>
+            {% endif %}
             {% if fig_fel_3d %}
             <div class="figure-box">
                 <img src="{{ fig_fel_3d }}" alt="3D Free Energy Landscape Perspective">
@@ -271,7 +365,86 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% if interp.populations %}
+            <div class="interp">
+                <p class="lead">What the intervals mean</p>
+                {% for s in interp.populations %}<p>{{ s }}</p>{% endfor %}
+            </div>
+            {% endif %}
         </div>
+
+        {% if viewer_enabled %}
+        <!-- 3b. Structure viewer -->
+        <div class="card">
+            <h2>3b. Representative Structures (interactive)</h2>
+            <p>
+                Representative structure of every major state and the average structure, coloured by
+                per-residue RMSF (Å) written into the B-factor column
+                (<span class="rmsf-bar"></span> 0 → {{ "%.2f"|format(viewer_rmsf_max) }} Å).
+                Structures and the NGL viewer are embedded in this file; nothing is downloaded.
+            </p>
+            <div class="viewer-controls">
+                <label for="ngl-structure">Structure:</label>
+                <select id="ngl-structure">
+                    {% for s in viewer_structures %}<option value="{{ s.id }}">{{ s.label }} — {{ s.rmsf_source }}</option>{% endfor %}
+                </select>
+                <span>Representation:</span>
+                <button type="button" data-repr="cartoon" class="active">cartoon</button>
+                <button type="button" data-repr="licorice">licorice</button>
+                <button type="button" data-repr="ball+stick">ball+stick</button>
+                <button type="button" data-repr="spacefill">spacefill</button>
+                <button type="button" id="ngl-reset">reset view</button>
+            </div>
+            <div id="ngl-viewport"></div>
+            <script id="ca-structures" type="application/json">{{ viewer_structures|tojson }}</script>
+            <script type="text/javascript">
+            (function () {
+                var entries = JSON.parse(document.getElementById("ca-structures").textContent);
+                var byId = {};
+                entries.forEach(function (e) { byId[e.id] = e; });
+                var rmsfMax = {{ "%.4f"|format(viewer_rmsf_max) }};
+                var stage = new NGL.Stage("ngl-viewport", { backgroundColor: "white" });
+                window.addEventListener("resize", function () { stage.handleResize(); }, false);
+                var repr = "cartoon";
+                var currentId = entries.length ? entries[0].id : null;
+                function render() {
+                    if (!currentId) { return; }
+                    var entry = byId[currentId];
+                    stage.removeAllComponents();
+                    var blob = new Blob([entry.pdb], { type: "text/plain" });
+                    stage.loadFile(blob, { ext: "pdb", name: entry.label }).then(function (comp) {
+                        var atomsPerResidue = comp.structure.atomCount / Math.max(comp.structure.residueCount, 1);
+                        var polymerRepr = (repr === "cartoon" && atomsPerResidue < 3) ? "ball+stick" : repr;
+                        comp.addRepresentation(polymerRepr, {
+                            sele: "protein or nucleic",
+                            colorScheme: "bfactor", colorScale: "RdYlBu", colorReverse: true,
+                            colorDomain: [0, rmsfMax]
+                        });
+                        comp.addRepresentation("licorice", {
+                            sele: "not (protein or nucleic or water or ion)", colorScheme: "element", multipleBond: true
+                        });
+                        comp.autoView();
+                    });
+                }
+                document.getElementById("ngl-structure").addEventListener("change", function (ev) {
+                    currentId = ev.target.value; render();
+                });
+                var buttons = document.querySelectorAll(".viewer-controls button[data-repr]");
+                buttons.forEach(function (b) {
+                    b.addEventListener("click", function () {
+                        buttons.forEach(function (o) { o.classList.remove("active"); });
+                        b.classList.add("active");
+                        repr = b.getAttribute("data-repr"); render();
+                    });
+                });
+                document.getElementById("ngl-reset").addEventListener("click", function () { stage.autoView(); });
+                render();
+            })();
+            </script>
+        </div>
+        {% elif viewer_note %}
+        <div class="alert-info">{{ viewer_note }}</div>
+        {% endif %}
 
         <!-- 4. PCA Projections & Variance -->
         <div class="card">
@@ -311,6 +484,13 @@
                 <li><strong>First vs Second Half Subspace Overlap (RMSIP):</strong> {{ "%.2f"|format(convergence.rmsip_halves) }}</li>
                 <li><strong>PC1 Cosine Content:</strong> {{ "%.2f"|format(convergence.cosine_content.get(1, 0.0)) }}</li>
             </ul>
+            {% if interp.convergence or interp.n_eff %}
+            <div class="interp">
+                <p class="lead">What the diagnostics mean</p>
+                {% for s in interp.n_eff %}<p>{{ s }}</p>{% endfor %}
+                {% for s in interp.convergence %}<p>{{ s }}</p>{% endfor %}
+            </div>
+            {% endif %}
             {% if fig_convergence_progressive %}
             <div class="figure-box">
                 <img src="{{ fig_convergence_progressive }}" alt="Progressive Subspace Convergence">
@@ -360,8 +540,21 @@
                 </tbody>
             </table>
             {% endif %}
+            {% if sec.interpretation %}
+            <div class="interp">
+                <p class="lead">In words</p>
+                {% for s in sec.interpretation %}<p>{{ s }}</p>{% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
+
+        <div class="card">
+            <h2>Limits of this analysis</h2>
+            <div class="not-shown">
+                {% for s in interp.not_shown %}<p>{{ s }}</p>{% endfor %}
+            </div>
+        </div>
 
         <div class="card">
             <h2>6. Methods & Mathematical Formulations</h2>

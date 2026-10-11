@@ -5,6 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
+from conformatlas.errors import MissingDependencyError
+
 try:
     import MDAnalysis as mda
 
@@ -16,7 +18,18 @@ logger = logging.getLogger("conformatlas.examples")
 
 
 def generate_mini_example_dataset(base_dir: str | Path):
-    """Generate lightweight PDB topology and mini XTC trajectories for WT and MUT."""
+    """Generate lightweight PDB topology and mini XTC trajectories for WT and MUT.
+
+    Raises :class:`~conformatlas.errors.MissingDependencyError` before writing
+    anything when MDAnalysis (needed to write the XTC trajectories) is missing.
+    """
+    if not HAS_MDA:
+        raise MissingDependencyError(
+            "MDAnalysis",
+            "pip install MDAnalysis",
+            "writing the example XTC trajectories",
+            optional=False,
+        )
     base_dir = Path(base_dir)
     wt_dir = base_dir / "WT"
     mut_dir = base_dir / "MUT"
@@ -59,12 +72,6 @@ def generate_mini_example_dataset(base_dir: str | Path):
     mut_topo = mut_dir / "topology.pdb"
     wt_topo.write_text(pdb_content, encoding="utf-8")
     mut_topo.write_text(pdb_content, encoding="utf-8")
-
-    if not HAS_MDA:
-        logger.warning(
-            "MDAnalysis not installed; cannot generate synthetic binary XTC trajectories."
-        )
-        return
 
     # ------------------------------------------------------------------
     # Synthetic two-state ensembles with GENUINE internal motion.

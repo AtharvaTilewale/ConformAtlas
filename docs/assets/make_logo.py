@@ -123,7 +123,7 @@ def render(kind, mode, fname, fmt=("svg", "png"), dpi=300):
         tag = None
         if kind == "banner":
             tag, wt = text_path(
-                "Conformational landscapes from molecular dynamics", FONT_REG, 0.30, x0 + 0.03, -0.95
+                "Mapping conformational landscapes from molecular simulations", FONT_REG, 0.30, x0 + 0.03, -0.95
             )
             right = max(right, x0 + 0.03 + wt)
         xlim = (-1.22, right + 0.22)

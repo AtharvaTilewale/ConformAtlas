@@ -1,0 +1,36 @@
+{
+  "title": "ConformAtlas: mapping conformational landscapes from molecular simulations",
+  "description": "ConformAtlas is a Python package and command-line tool for the analysis of molecular dynamics trajectories: least-squares superposition, Cartesian/dihedral PCA and TICA, Boltzmann-inverted free energy landscapes with block-bootstrap uncertainties, topological (watershed) state segmentation with barriers and lag-1 kinetics, convergence diagnostics (RMSIP, cosine content, statistical inefficiency and effective sample size, equilibration detection), and multi-system comparisons in a shared PCA space with population-difference statistics. Every numerical component is validated against analytical results or independent implementations (MDAnalysis, GROMACS, pymbar, deeptime, SciPy, ProDy); the validation report ships with the package.",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Tilewale, Atharva"
+    }
+  ],
+  "keywords": [
+    "molecular dynamics",
+    "GROMACS",
+    "principal component analysis",
+    "free energy landscape",
+    "conformational states",
+    "biophysics",
+    "conformatlas"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/AtharvaTilewale/ConformAtlas",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://conformatlas.readthedocs.io",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-softwaredocumentation",
+      "scheme": "url"
+    }
+  ],
+  "language": "eng"
+}

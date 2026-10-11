@@ -54,6 +54,13 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
     min_barrier_raw = data.get("min_barrier", None)
     min_barrier = float(min_barrier_raw) if min_barrier_raw is not None else None
     stride = int(data.get("stride", 1))
+    bootstrap_mode = str(data.get("bootstrap_mode", "fixed"))
+    fig_format = data.get("fig_format", None)
+    colormap = data.get("colormap", None)
+    font_scale = data.get("font_scale", None)
+    fig_dpi = data.get("fig_dpi", None)
+    interactive = data.get("interactive", None)
+    plotly_js = data.get("plotly_js", None)
 
     systems_raw = data.get("systems", [])
     if not systems_raw:
@@ -104,6 +111,13 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
         index_file=_resolve_file(index_file) if index_file else None,
         n_bootstrap=n_bootstrap,
         seed=seed,
+        bootstrap_mode=bootstrap_mode,
+        fig_format=fig_format,
+        colormap=colormap,
+        font_scale=None if font_scale is None else float(font_scale),
+        fig_dpi=None if fig_dpi is None else int(fig_dpi),
+        interactive=None if interactive is None else bool(interactive),
+        plotly_js=plotly_js,
     )
 
 
@@ -134,7 +148,16 @@ begin_ps: null              # time window applied to every trajectory
 end_ps: null
 index_file: null            # GROMACS .ndx for group names
 n_bootstrap: 200
+bootstrap_mode: fixed       # fixed | resegment (re-run the watershed on every resample)
 stride: 1                   # Frame stride
+
+# Figures and report (optional; defaults keep png / turbo / 1.0 / 300 dpi)
+# fig_format: png           # png | svg | pdf | all | png,svg
+# colormap: turbo
+# font_scale: 1.0
+# fig_dpi: 300
+# interactive: null         # comparison_interactive.html when plotly is installed
+# plotly_js: inline         # inline | cdn
 
 systems:
   - name: WT
@@ -203,11 +226,49 @@ min_barrier: null             # kJ/mol; null = 1 kT
 n_bootstrap: 200              # block-bootstrap resamples (0 disables)
 seed: 0
 
+bootstrap_mode: fixed         # fixed | resegment (re-run the watershed on every resample)
+equilibration_on: rmsd        # rmsd | cv (Chodera criterion on both landscape CVs, latest t0)
+
+# Markov state model (after basin detection)
+msm: false
+msm_lag: 10                   # frames
+msm_lags: null                # e.g. [1, 2, 5, 10, 20, 50] for the implied-timescale scan
+msm_n_clusters: 100
+msm_clustering: kmeans        # kmeans | regular-space (needs msm_dmin)
+msm_dmin: null
+msm_n_components: 3           # leading components used for clustering
+msm_n_metastable: null        # PCCA+ sets; null = number of landscape states
+msm_reversible: true
+msm_ck_k: 5                   # Chapman-Kolmogorov multiples of the lag
+
+# Residue-level analyses
+residue_analysis: false       # DCCM, per-residue state differences, ligand contacts (residues/)
+ligand_selection: null        # MDAnalysis selection, e.g. "resname ZMR"; null = from lig_group
+contact_cutoff: 4.5           # Å, heavy atoms
+dihedral_set: backbone        # backbone | backbone+chi | chi | nucleic (pca_type: dihedral)
+
+# Engine and performance
+engine: auto                  # auto | memory | streaming (chunked two-pass PCA, O(D^2) memory)
+precision: float64            # float64 | float32 (stored projections, streaming engine)
+n_workers: 1                  # worker processes for the streaming engine (one per trajectory)
+chunk_size: 256               # frames per chunk (streaming engine)
+save_hdf5: false              # also write results.h5 (requires h5py)
+from_results: null            # existing output directory: rebin / resegment / MSM without trajectories
+
 # Structures and output
 n_representatives: 1
 representative_method: minimum  # minimum | medoid
 pdf: false
 fel_backend: python
+
+# Figures and report (null keeps the defaults: png, turbo, 1.0, 300 dpi)
+fig_format: null              # png | svg | pdf | all | png,svg
+colormap: null
+font_scale: null
+fig_dpi: null
+path_overlay: false           # time-coloured replicate paths on the static landscape
+interactive: null             # Plotly landscape + NGL viewer in report.html when plotly is installed
+plotly_js: null               # inline | cdn
 """
     else:
         raise ValueError(f"Unknown config type: {config_type}. Supported: 'compare', 'analyze'")
@@ -254,6 +315,37 @@ _ANALYZE_DEFAULTS = {
     "n_representatives": 1,
     "representative_method": "minimum",
     "pdf": False,
+    # analysis extensions
+    "msm": False,
+    "msm_lag": 10,
+    "msm_lags": None,
+    "msm_n_clusters": 100,
+    "msm_clustering": "kmeans",
+    "msm_dmin": None,
+    "msm_n_components": 3,
+    "msm_n_metastable": None,
+    "msm_reversible": True,
+    "msm_ck_k": 5,
+    "bootstrap_mode": "fixed",
+    "equilibration_on": "rmsd",
+    "engine": "auto",
+    "precision": "float64",
+    "n_workers": 1,
+    "chunk_size": 256,
+    "save_hdf5": False,
+    "from_results": None,
+    "progress": True,
+    "residue_analysis": False,
+    "ligand_selection": None,
+    "contact_cutoff": 4.5,
+    "dihedral_set": "backbone",
+    "fig_format": None,
+    "colormap": None,
+    "font_scale": None,
+    "fig_dpi": None,
+    "path_overlay": None,
+    "interactive": None,
+    "plotly_js": None,
 }
 
 _YAML_ALIASES = {
@@ -261,7 +353,25 @@ _YAML_ALIASES = {
     "trajectory": "trajectories",
     "fel_pcs": "fel_pcs",
     "cv_cols": "cv_columns",
+    "msm_clusters": "msm_n_clusters",
+    "msm_components": "msm_n_components",
+    "msm_states": "msm_n_metastable",
+    "pca_engine": "engine",
+    "from": "from_results",
 }
+
+
+def _int_list(value, name: str) -> list[int] | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        parts = [v for v in value.replace(";", ",").split(",") if v.strip()]
+    else:
+        parts = list(value)
+    out = [int(v) for v in parts]
+    if not out:
+        raise ValueError(f"{name} needs at least one integer")
+    return out
 
 
 def _pair(value, name: str) -> tuple[int, int]:
@@ -284,6 +394,7 @@ def build_analysis_config(options: dict, config_file: str | Path | None = None):
     from conformatlas.models import AnalysisConfig
 
     merged: dict = dict(_ANALYZE_DEFAULTS)
+    given: set[str] = set()
     trajectories: list = []
     structure = None
     base_dir = Path.cwd()
@@ -299,6 +410,7 @@ def build_analysis_config(options: dict, config_file: str | Path | None = None):
                 trajectories = list(value or [])
             elif key in merged:
                 merged[key] = value
+                given.add(key)
             else:
                 raise ValueError(f"Unknown key '{key}' in {cfg_path.name}")
 
@@ -323,18 +435,58 @@ def build_analysis_config(options: dict, config_file: str | Path | None = None):
             continue
         else:
             merged[key] = value
+            given.add(key)
 
-    if structure is None:
-        raise ValueError("A structure/topology file is required (-s or 'topology' in the config).")
-    if not trajectories:
-        raise ValueError(
-            "At least one trajectory is required (-f or 'trajectories' in the config)."
-        )
-    structure = _resolve(structure)
-    trajectories = [_resolve(t) for t in trajectories]
-    for pth in [structure, *trajectories]:
-        if not Path(pth).exists():
-            raise FileNotFoundError(f"File not found: {pth}")
+    from_results = _resolve(merged["from_results"])
+    if from_results is not None:
+        from_results = Path(from_results)
+        if not from_results.is_dir():
+            raise FileNotFoundError(f"--from: {from_results} is not a results directory")
+        # topology / trajectories default to those recorded by the previous run
+        import json
+
+        meta_path = from_results / "run_metadata.json"
+        meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+        # settings not given on the command line / YAML default to the stored run
+        stored = {
+            "temperature": meta.get("temperature_K"),
+            "bins": meta.get("bins")
+            if meta.get("bins_mode", "user") != "auto (Freedman-Diaconis)"
+            else None,
+            "smooth_sigma": meta.get("smooth_sigma"),
+            "min_barrier": meta.get("min_barrier_kJ_mol"),
+            "min_state_population": meta.get("min_state_population"),
+            "max_states": meta.get("max_states"),
+            "n_bootstrap": (meta.get("bootstrap") or {}).get("n"),
+            "seed": (meta.get("bootstrap") or {}).get("seed"),
+            "system_name": meta.get("system"),
+            "weights_files": meta.get("weights_files") or None,
+        }
+        for key, value in stored.items():
+            if key not in given and value is not None:
+                merged[key] = value
+        if structure is None:
+            structure = meta.get("topology", "unknown.pdb")
+        if not trajectories:
+            trajectories = list(meta.get("trajectories", []))
+        if not trajectories:
+            trajectories = ["<from results>"]
+        structure = _resolve(structure)
+        trajectories = [_resolve(t) for t in trajectories]
+    else:
+        if structure is None:
+            raise ValueError(
+                "A structure/topology file is required (-s or 'topology' in the config)."
+            )
+        if not trajectories:
+            raise ValueError(
+                "At least one trajectory is required (-f or 'trajectories' in the config)."
+            )
+        structure = _resolve(structure)
+        trajectories = [_resolve(t) for t in trajectories]
+        for pth in [structure, *trajectories]:
+            if not Path(pth).exists():
+                raise FileNotFoundError(f"File not found: {pth}")
 
     bins = merged["bins"]
     bins = None if bins in (None, "auto", "") else int(bins)
@@ -385,4 +537,36 @@ def build_analysis_config(options: dict, config_file: str | Path | None = None):
         n_representatives=int(merged["n_representatives"]),
         representative_method=merged["representative_method"],
         pdf=bool(merged["pdf"]),
+        msm=bool(merged["msm"]),
+        msm_lag=int(merged["msm_lag"]),
+        msm_lags=_int_list(merged["msm_lags"], "msm_lags"),
+        msm_n_clusters=int(merged["msm_n_clusters"]),
+        msm_clustering=merged["msm_clustering"],
+        msm_dmin=None if merged["msm_dmin"] is None else float(merged["msm_dmin"]),
+        msm_n_components=int(merged["msm_n_components"]),
+        msm_n_metastable=None
+        if merged["msm_n_metastable"] is None
+        else int(merged["msm_n_metastable"]),
+        msm_reversible=bool(merged["msm_reversible"]),
+        msm_ck_k=int(merged["msm_ck_k"]),
+        bootstrap_mode=merged["bootstrap_mode"],
+        equilibration_on=merged["equilibration_on"],
+        engine=merged["engine"],
+        precision=merged["precision"],
+        n_workers=int(merged["n_workers"]),
+        chunk_size=int(merged["chunk_size"]),
+        save_hdf5=bool(merged["save_hdf5"]),
+        from_results=from_results,
+        progress=bool(merged["progress"]),
+        residue_analysis=bool(merged["residue_analysis"]),
+        ligand_selection=merged["ligand_selection"] or None,
+        contact_cutoff=float(merged["contact_cutoff"]),
+        dihedral_set=merged["dihedral_set"],
+        fig_format=merged["fig_format"],
+        colormap=merged["colormap"],
+        font_scale=None if merged["font_scale"] is None else float(merged["font_scale"]),
+        fig_dpi=None if merged["fig_dpi"] is None else int(merged["fig_dpi"]),
+        path_overlay=None if merged["path_overlay"] is None else bool(merged["path_overlay"]),
+        interactive=None if merged["interactive"] is None else bool(merged["interactive"]),
+        plotly_js=merged["plotly_js"],
     )

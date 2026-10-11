@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from conformatlas.bootstrap import circular_block_indices  # noqa: E402
 from conformatlas.models import BasinState, FELGrid  # noqa: E402
-from conformatlas.plotting import CV_LABELS  # noqa: E402
+from conformatlas.plotting import CV_LABELS, _fs, landscape_cmap, save_figure  # noqa: E402
 from conformatlas.utils import R_GAS_CONSTANT  # noqa: E402
 
 logger = logging.getLogger("conformatlas.plotting")
@@ -25,12 +25,8 @@ _STATE_COLORS = plt.cm.tab10.colors
 
 
 def _finish(fig, out_path: str | Path) -> Path:
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
-    fig.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
-    return out_path
+    return save_figure(fig, out_path)
 
 
 # ----------------------------------------------------------------------------
@@ -104,7 +100,7 @@ def plot_fel_uncertainty(
 ) -> Path:
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.2))
     x, y = fel_grid.x_centers, fel_grid.y_centers
-    im0 = axes[0].pcolormesh(x, y, fel_grid.free_energy, cmap="turbo", shading="auto")
+    im0 = axes[0].pcolormesh(x, y, fel_grid.free_energy, cmap=landscape_cmap(), shading="auto")
     fig.colorbar(im0, ax=axes[0], label="ΔG (kJ/mol)")
     axes[0].set_title("Free energy landscape")
     im1 = axes[1].pcolormesh(x, y, fe_std, cmap="magma", shading="auto")
@@ -156,7 +152,7 @@ def plot_descriptors(
     axes[0, 1].set_title("Radius of gyration")
     if t0:
         axes[0, 0].plot([], [], color="grey", ls="--", label="detected equilibration")
-    axes[0, 0].legend(frameon=False, fontsize=8)
+    axes[0, 0].legend(frameon=False, fontsize=_fs(8))
 
     x = np.arange(len(res))
     axes[1, 0].plot(x, res["RMSF"], color="#2b5c8f", lw=1.5)
@@ -174,7 +170,7 @@ def plot_descriptors(
     axes[1, 1].set_xlabel("RMSD (Å)")
     axes[1, 1].set_ylabel("density")
     axes[1, 1].set_title("RMSD distribution")
-    axes[1, 1].legend(frameon=False, fontsize=8)
+    axes[1, 1].legend(frameon=False, fontsize=_fs(8))
     if has_lig:
         axes[2, 0].set_xlabel("Time (ns)")
         axes[2, 0].set_ylabel("Ligand RMSD (Å)")
@@ -215,14 +211,14 @@ def plot_state_timeseries(
             m = df["state"].to_numpy() == s
             ax.scatter(t[m], y[m], s=6, color=_STATE_COLORS[k % 10], label=s if i == 0 else None)
         ax.set_yticks(range(len(labels)))
-        ax.set_yticklabels(labels, fontsize=8)
+        ax.set_yticklabels(labels, fontsize=_fs(8))
         ax.set_ylim(-0.6, len(labels) - 0.4)
-        ax.set_ylabel(rep, fontsize=9)
+        ax.set_ylabel(rep, fontsize=_fs(9))
         ax.grid(axis="x", alpha=0.3, ls="--")
         if i == n - 1:
             ax.set_xlabel("Time (ns)")
         if i == 0:
-            ax.legend(ncol=min(len(labels), 5), fontsize=8, frameon=False, loc="upper right")
+            ax.legend(ncol=min(len(labels), 5), fontsize=_fs(8), frameon=False, loc="upper right")
             ax.set_title("State occupancy along each replicate (unassigned frames omitted)")
     ax_d = fig.add_subplot(gs[n, 0])
     ax_c = fig.add_subplot(gs[n, 1])
@@ -241,7 +237,7 @@ def plot_state_timeseries(
         ax_d.set_ylabel("visits")
         ax_d.set_title("Dwell-time distribution (uncensored visits)")
         if ax_d.get_legend_handles_labels()[0]:
-            ax_d.legend(fontsize=8, frameon=False)
+            ax_d.legend(fontsize=_fs(8), frameon=False)
     # transition count heat map
     counts = np.zeros((len(labels), len(labels)))
     for rep in reps:
@@ -256,9 +252,9 @@ def plot_state_timeseries(
             counts[a, b] += 1
     im = ax_c.imshow(counts, cmap="Blues")
     ax_c.set_xticks(range(len(labels)))
-    ax_c.set_xticklabels(labels, rotation=45, ha="right", fontsize=8)
+    ax_c.set_xticklabels(labels, rotation=45, ha="right", fontsize=_fs(8))
     ax_c.set_yticks(range(len(labels)))
-    ax_c.set_yticklabels(labels, fontsize=8)
+    ax_c.set_yticklabels(labels, fontsize=_fs(8))
     ax_c.set_xlabel("to")
     ax_c.set_ylabel("from")
     ax_c.set_title("Transition counts (lag = 1 frame)")
@@ -270,7 +266,7 @@ def plot_state_timeseries(
                 f"{int(counts[i, j])}",
                 ha="center",
                 va="center",
-                fontsize=8,
+                fontsize=_fs(8),
                 color="white" if counts[i, j] > counts.max() / 2 else "black",
             )
     fig.colorbar(im, ax=ax_c, fraction=0.046)
@@ -297,7 +293,7 @@ def plot_mode_contributions(res_df: pd.DataFrame, out_path: str | Path, n_modes:
             ax.annotate(
                 f"{r['residue_name']}{int(r['residue_number'])}",
                 (res_df.index.get_loc(r.name), r[col]),
-                fontsize=7,
+                fontsize=_fs(7),
                 ha="center",
                 va="bottom",
             )
@@ -357,7 +353,7 @@ def plot_ddg_map(
                 0.02,
                 "hatched: |ΔΔG| < 2 bootstrap SD",
                 transform=ax.transAxes,
-                fontsize=8,
+                fontsize=_fs(8),
                 bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none"},
             )
         ax2 = axes[0, 1]

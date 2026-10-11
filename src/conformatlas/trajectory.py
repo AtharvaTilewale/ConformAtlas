@@ -110,7 +110,10 @@ def extract_atom_selection_info(
 
     records = []
     for atom in ag:
-        chain = getattr(atom, "chainID", getattr(atom, "segid", "A"))
+        # chain label: PDB chainID when set, else segment id, else 'A'
+        chain = str(getattr(atom, "chainID", "") or "").strip()
+        if not chain:
+            chain = str(getattr(atom, "segid", "") or "").strip() or "A"
         records.append(
             {
                 "atom_index": atom.index,
@@ -150,8 +153,16 @@ def build_common_atom_mapping(
     topologies: dict[str, str | Path],
     group: str = "Backbone",
     ndx_groups: dict[str, np.ndarray] | None = None,
+    chain_aware: bool | None = None,
 ) -> tuple[dict[str, list[int]], pd.DataFrame]:
     """Find common intersection of atoms across multiple topologies for shared PCA.
+
+    Atoms are matched by ``(chain, residue_number, atom_name)``; ``chain`` is the
+    PDB chain ID when present, otherwise the segment ID. When the systems do not
+    share the same set of chain labels (e.g. a PDB with chain ``A`` compared with
+    a ``.gro`` whose segment is ``SYSTEM``) the key falls back to
+    ``(residue_number, atom_name)`` and a warning is logged, because residue
+    numbers that repeat across chains can then no longer be told apart.
 
     If ``ndx_groups`` contains ``group``, those (0-based) atom indices are used
     for every system; a GROMACS index file therefore only makes sense in a
@@ -163,12 +174,19 @@ def build_common_atom_mapping(
         Dictionary mapping system name to topology file path.
     group : str
         Atom selection group (e.g., 'Backbone', 'C-alpha').
+    ndx_groups : dict, optional
+        Parsed index-file groups (name -> 0-based atom indices).
+    chain_aware : bool, optional
+        ``True`` forces chain-aware keys (raises if the chain sets differ),
+        ``False`` forces the legacy ``(residue_number, atom_name)`` key, ``None``
+        (default) chooses automatically as described above.
 
     Returns
     -------
     Tuple[Dict[str, List[int]], pd.DataFrame]
         Dictionary of {system_name: list_of_atom_indices} and
-        the common atom mapping DataFrame.
+        the common atom mapping DataFrame (one row per system and common atom,
+        with ``key``, ``chain``, ``residue_number``, ``residue_name``, ``atom_name``).
     """
     system_dfs: dict[str, pd.DataFrame] = {}
     for sys_name, topo_path in topologies.items():
@@ -176,18 +194,50 @@ def build_common_atom_mapping(
             df = atom_info_for_indices(topo_path, ndx_groups[group])
         else:
             df = extract_atom_selection_info(topo_path, group=group)
-        # Create unique key per atom: (residue_number, atom_name)
-        df["key"] = df["residue_number"].astype(str) + "_" + df["atom_name"].str.strip()
+        if "chain" not in df.columns:
+            df["chain"] = "A"
+        df["chain"] = df["chain"].astype(str).str.strip().replace("", "A")
         system_dfs[sys_name] = df
+
+    chain_sets = {name: frozenset(df["chain"].unique()) for name, df in system_dfs.items()}
+    same_chains = len(set(chain_sets.values())) == 1
+    if chain_aware is None:
+        use_chain = same_chains
+        if not same_chains:
+            logger.warning(
+                "Systems carry different chain/segment labels "
+                f"({ {k: sorted(v) for k, v in chain_sets.items()} }); atoms are matched by "
+                "(residue_number, atom_name) only. Residue numbers repeated across chains "
+                "cannot be distinguished -- give all systems consistent chain IDs to enable "
+                "chain-aware matching."
+            )
+    elif chain_aware and not same_chains:
+        raise ValueError(
+            "chain_aware=True but the systems have different chain labels: "
+            f"{ {k: sorted(v) for k, v in chain_sets.items()} }"
+        )
+    else:
+        use_chain = bool(chain_aware)
+
+    for df in system_dfs.values():
+        resnum = df["residue_number"].astype(int).astype(str)
+        aname = df["atom_name"].astype(str).str.strip()
+        df["key"] = (
+            (df["chain"] + "/" + resnum + "_" + aname) if use_chain else (resnum + "_" + aname)
+        )
+        dup = df["key"].duplicated(keep=False)
+        if dup.any():
+            examples = df.loc[dup, "key"].unique()[:3].tolist()
+            logger.warning(
+                f"{int(dup.sum())} atoms share a key (e.g. {examples}); only the first "
+                "occurrence of each key is used for the mapping."
+            )
 
     # Find intersection of keys
     common_keys = None
     for sys_name, df in system_dfs.items():
         keys_set = set(df["key"].tolist())
-        if common_keys is None:
-            common_keys = keys_set
-        else:
-            common_keys = common_keys.intersection(keys_set)
+        common_keys = keys_set if common_keys is None else common_keys.intersection(keys_set)
 
     if not common_keys:
         raise ValueError(
@@ -196,25 +246,25 @@ def build_common_atom_mapping(
 
     # Maintain sequence order from the first system
     first_df = list(system_dfs.values())[0]
-    ordered_keys = [k for k in first_df["key"].tolist() if k in common_keys]
+    ordered_keys = list(dict.fromkeys(k for k in first_df["key"].tolist() if k in common_keys))
 
     mapping_indices: dict[str, list[int]] = {}
     mapping_records = []
 
     for sys_name, df in system_dfs.items():
-        df_indexed = df.set_index("key")
+        df_first = df.drop_duplicates("key", keep="first").set_index("key")
         indices = []
         for key in ordered_keys:
-            if key not in df_indexed.index:
+            if key not in df_first.index:
                 raise ValueError(f"System '{sys_name}' missing key '{key}' from common set.")
-            row = df_indexed.loc[key]
-            if isinstance(row, pd.DataFrame):
-                row = row.iloc[0]
+            row = df_first.loc[key]
             indices.append(int(row["atom_index"]))
             mapping_records.append(
                 {
                     "system": sys_name,
+                    "key": key,
                     "atom_index": int(row["atom_index"]),
+                    "chain": str(row["chain"]),
                     "residue_number": int(row["residue_number"]),
                     "residue_name": str(row["residue_name"]),
                     "atom_name": str(row["atom_name"]),
@@ -224,7 +274,8 @@ def build_common_atom_mapping(
 
     mapping_df = pd.DataFrame(mapping_records)
     logger.info(
-        f"Built common atom mapping with {len(ordered_keys)} atoms across {len(topologies)} systems."
+        f"Built common atom mapping with {len(ordered_keys)} atoms across {len(topologies)} systems "
+        f"({'chain-aware' if use_chain else 'residue-number'} keys)."
     )
     return mapping_indices, mapping_df
 

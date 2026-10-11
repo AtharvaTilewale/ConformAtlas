@@ -3,6 +3,8 @@
 ConformAtlas Documentation
 ==========================
 
+*Mapping conformational landscapes from molecular simulations*
+
 .. image:: https://img.shields.io/badge/python-3.10+-blue.svg
    :target: https://www.python.org/downloads/
    :alt: Python 3.10+
@@ -21,6 +23,9 @@ ConformAtlas Documentation
 
    installation
    quickstart
+   cli
+   tutorial_neuraminidase
+   faq
 
 .. toctree::
    :maxdepth: 2
@@ -32,6 +37,7 @@ ConformAtlas Documentation
    multiple_replicates
    comparison
    basin_analysis
+   benchmarks
 
 .. toctree::
    :maxdepth: 2
@@ -44,7 +50,14 @@ ConformAtlas Documentation
    :maxdepth: 2
    :caption: Python API Reference
 
+   python_api
    api
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Project
+
+   contributing
 
 Indices and Tables
 ==================

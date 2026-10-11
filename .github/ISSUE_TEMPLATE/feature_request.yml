@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a new analysis, option or output
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Scientific question or workflow this addresses
+      description: What would you be able to do, or do better, with this feature?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: Command-line options, YAML keys, output files and figures you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: How could it be validated?
+      description: ConformAtlas only ships numerical components that are checked against an analytical result or an independent implementation (MDAnalysis, GROMACS, pymbar, deeptime, SciPy, …). Which reference would apply here?
+    validations:
+      required: true
+  - type: textarea
+    id: refs
+    attributes:
+      label: References
+      description: Papers or software implementing the method, with DOIs where possible.

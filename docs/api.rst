@@ -75,6 +75,76 @@ Analysis Pipeline
    :members:
    :undoc-members:
 
+High-Level API
+--------------
+.. automodule:: conformatlas.api
+   :members:
+   :show-inheritance:
+
+Results Container (HDF5, reload, rebin)
+---------------------------------------
+.. automodule:: conformatlas.results_io
+   :members:
+   :show-inheritance:
+
+Streaming Covariance and Two-Pass PCA
+-------------------------------------
+.. automodule:: conformatlas.streaming
+   :members:
+   :show-inheritance:
+
+MDAnalysis AnalysisBase Interface
+---------------------------------
+.. automodule:: conformatlas.mda_analysis
+   :members:
+   :show-inheritance:
+
+Markov State Models
+-------------------
+.. automodule:: conformatlas.msm
+   :members:
+   :show-inheritance:
+
+.. automodule:: conformatlas.plotting_msm
+   :members:
+
+Enhanced-Sampling Reweighting
+-----------------------------
+.. automodule:: conformatlas.reweighting
+   :members:
+   :show-inheritance:
+
+Residue-Level Analyses
+----------------------
+.. automodule:: conformatlas.residue_analysis
+   :members:
+   :show-inheritance:
+
+.. automodule:: conformatlas.plotting_residue
+   :members:
+
+Interactive Figures
+-------------------
+.. automodule:: conformatlas.plotting_interactive
+   :members:
+
+Progress Reporting
+------------------
+.. automodule:: conformatlas.progress
+   :members:
+   :show-inheritance:
+
+Provenance
+----------
+.. automodule:: conformatlas.provenance
+   :members:
+
+Errors and Exit Codes
+---------------------
+.. automodule:: conformatlas.errors
+   :members:
+   :show-inheritance:
+
 Time-Series Statistics (g, N_eff, Equilibration)
 ------------------------------------------------
 .. automodule:: conformatlas.timeseries

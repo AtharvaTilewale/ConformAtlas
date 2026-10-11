@@ -80,6 +80,42 @@ class AnalysisConfig:
     representative_method: str = "minimum"  # 'minimum' | 'medoid'
     # --- output ---
     pdf: bool = False
+    # --- Markov state model ---
+    msm: bool = False
+    msm_lag: int = 10  # frames
+    msm_lags: list[int] | None = None  # implied-timescale scan; None -> geometric 1..5*lag
+    msm_n_clusters: int = 100
+    msm_clustering: str = "kmeans"  # 'kmeans' | 'regular-space'
+    msm_dmin: float | None = None  # regular-space radius (component units)
+    msm_n_components: int = 3  # leading components used for clustering
+    msm_n_metastable: int | None = None  # PCCA+ sets; None -> number of landscape states (>= 2)
+    msm_reversible: bool = True
+    msm_ck_k: int = 5  # Chapman-Kolmogorov multiples of the lag tested
+    # --- statistics ---
+    bootstrap_mode: str = "fixed"  # 'fixed' | 'resegment'
+    equilibration_on: str = "rmsd"  # 'rmsd' | 'cv'
+    # --- engine / performance ---
+    engine: str = "auto"  # 'auto' | 'memory' | 'streaming'
+    precision: str = "float64"  # 'float64' | 'float32' (stored projections, streaming engine)
+    n_workers: int = 1
+    chunk_size: int = 256
+    streaming_threshold_gb: float = 2.0  # engine 'auto': stream above this memory estimate
+    from_results: Path | None = None  # re-analyse an existing output directory (no trajectories)
+    save_hdf5: bool = False  # also write results.h5 (requires h5py)
+    progress: bool = True  # progress bars on a TTY
+    # --- residue-level analyses ---
+    residue_analysis: bool = False
+    ligand_selection: str | None = None  # MDAnalysis selection; None -> derived from lig_group
+    contact_cutoff: float = 4.5  # Å, heavy atoms
+    dihedral_set: str = "backbone"  # 'backbone' | 'backbone+chi' | 'chi' | 'nucleic'
+    # --- figures / report; None = keep the active module-level style ---
+    fig_format: str | None = None  # png | svg | pdf | all | comma list
+    colormap: str | None = None
+    font_scale: float | None = None
+    fig_dpi: int | None = None
+    path_overlay: bool | None = None
+    interactive: bool | None = None  # None: when plotly is installed
+    plotly_js: str | None = None  # inline | cdn
 
     def __post_init__(self):
         self.topology = Path(self.topology)
@@ -88,6 +124,9 @@ class AnalysisConfig:
         self.cv_files = [Path(p) for p in self.cv_files]
         self.weights_files = [Path(p) for p in self.weights_files]
         self.index_file = Path(self.index_file) if self.index_file else None
+        self.from_results = Path(self.from_results) if self.from_results else None
+        if self.msm_lags is not None:
+            self.msm_lags = [int(v) for v in self.msm_lags]
         self.fel_pcs = tuple(int(v) for v in self.fel_pcs)
         self.cv_columns = tuple(int(v) for v in self.cv_columns)
         if self.temperature <= 0:
@@ -116,6 +155,34 @@ class AnalysisConfig:
             raise ValueError(
                 f"min_state_population must be between 0 and 1 (got {self.min_state_population})"
             )
+        if self.bootstrap_mode not in ("fixed", "resegment"):
+            raise ValueError("bootstrap_mode must be 'fixed' or 'resegment'")
+        if self.equilibration_on not in ("rmsd", "cv"):
+            raise ValueError("equilibration_on must be 'rmsd' or 'cv'")
+        if self.msm_clustering not in ("kmeans", "regular-space"):
+            raise ValueError("msm_clustering must be 'kmeans' or 'regular-space'")
+        if self.msm and self.msm_lag < 1:
+            raise ValueError("msm_lag must be >= 1 frame")
+        if self.msm and self.msm_clustering == "regular-space" and self.msm_dmin is None:
+            raise ValueError("msm_dmin is required for regular-space clustering")
+        if self.msm_n_components < 1:
+            raise ValueError("msm_n_components must be >= 1")
+        if self.msm_ck_k < 1:
+            raise ValueError("msm_ck_k must be >= 1")
+        if self.engine not in ("auto", "memory", "streaming"):
+            raise ValueError("engine must be 'auto', 'memory' or 'streaming'")
+        if self.precision not in ("float64", "float32"):
+            raise ValueError("precision must be 'float64' or 'float32'")
+        if self.n_workers < 1:
+            raise ValueError("n_workers must be >= 1")
+        if self.chunk_size < 1:
+            raise ValueError("chunk_size must be >= 1")
+        if self.contact_cutoff <= 0:
+            raise ValueError("contact_cutoff must be positive (Å)")
+        if self.dihedral_set not in ("backbone", "backbone+chi", "chi", "nucleic"):
+            raise ValueError("dihedral_set must be 'backbone', 'backbone+chi', 'chi' or 'nucleic'")
+        if self.plotly_js not in (None, "inline", "cdn"):
+            raise ValueError("plotly_js must be 'inline' or 'cdn'")
 
 
 @dataclass
@@ -146,12 +213,24 @@ class ComparisonConfig:
     index_file: Path | None = None
     n_bootstrap: int = 200
     seed: int = 0
+    bootstrap_mode: str = "fixed"  # 'fixed' | 'resegment'
+    # --- figures / report; None = keep the active module-level style ---
+    fig_format: str | None = None
+    colormap: str | None = None
+    font_scale: float | None = None
+    fig_dpi: int | None = None
+    interactive: bool | None = None
+    plotly_js: str | None = None
 
     def __post_init__(self):
         self.output_dir = Path(self.output_dir)
         self.index_file = Path(self.index_file) if self.index_file else None
         if self.temperature <= 0:
             raise ValueError(f"Temperature must be positive Kelvin (got {self.temperature})")
+        if self.bootstrap_mode not in ("fixed", "resegment"):
+            raise ValueError("bootstrap_mode must be 'fixed' or 'resegment'")
+        if self.plotly_js not in (None, "inline", "cdn"):
+            raise ValueError("plotly_js must be 'inline' or 'cdn'")
 
 
 @dataclass

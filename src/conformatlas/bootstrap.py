@@ -7,18 +7,29 @@ preserved. The basin definitions (watershed labels) are held fixed; what varies 
 the histogram and therefore DeltaG(x, y), the state populations, the state free
 energies relative to the most populated state, the basin minima and the saddle
 heights between adjacent states.
+
+A second mode (``mode='resegment'``) additionally re-runs the watershed
+segmentation (:func:`conformatlas.basins.detect_energy_basins`) on every
+resampled landscape, records how many major states are found, matches the
+resampled states to the reference states by maximum frame overlap (Hungarian
+assignment; a match is accepted when at least half of the resampled state's
+frames come from the reference basin, or when the resampled minimum lies inside
+the reference basin) and reports population intervals that include the
+segmentation uncertainty together with the state-count distribution.
 """
 
 from __future__ import annotations
 
+import logging
 import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter
+from scipy.optimize import linear_sum_assignment
 
-from conformatlas.basins import frame_bin_indices, pairwise_saddles
+from conformatlas.basins import detect_energy_basins, frame_bin_indices, pairwise_saddles
 from conformatlas.models import BasinState, FELGrid
 from conformatlas.utils import R_GAS_CONSTANT
 
@@ -63,6 +74,10 @@ class BootstrapResult:
     state_table: pd.DataFrame  # per state: population, dG_state, min dG with CIs
     barrier_table: pd.DataFrame  # per adjacent state pair: saddle and barriers with CIs
     notes: list[str] = field(default_factory=list)
+    mode: str = "fixed"  # 'fixed' (basin labels held) or 'resegment' (watershed re-run)
+    n_states_per_resample: np.ndarray | None = None  # resegment: major states found per resample
+    state_count_distribution: pd.DataFrame | None = None  # resegment: n_states, count, fraction
+    resegment_state_table: pd.DataFrame | None = None  # resegment: per reference state
 
 
 def bootstrap_landscape(
@@ -76,8 +91,22 @@ def bootstrap_landscape(
     n_boot: int = 200,
     weights: np.ndarray | None = None,
     seed: int = 0,
+    mode: str = "fixed",
+    resegment_kwargs: dict | None = None,
 ) -> BootstrapResult:
-    """Block-bootstrap DeltaG(x, y) and the state statistics derived from it."""
+    """Block-bootstrap DeltaG(x, y) and the state statistics derived from it.
+
+    ``mode='fixed'`` (default) keeps the watershed labels of the reference
+    landscape; ``mode='resegment'`` re-runs :func:`detect_energy_basins` on every
+    resampled landscape with ``resegment_kwargs`` (``min_state_population``,
+    ``max_states``, ``min_barrier``, ``min_peak_distance``; defaults as in the
+    reference analysis must be passed explicitly to reproduce it) and fills
+    ``n_states_per_resample``, ``state_count_distribution`` and
+    ``resegment_state_table``. The fixed-label tables are produced in both modes.
+    """
+    if mode not in ("fixed", "resegment"):
+        raise ValueError("mode must be 'fixed' or 'resegment'")
+    reseg_kw = dict(resegment_kwargs or {})
     rng = np.random.default_rng(seed)
     cv1 = np.asarray(cv1, dtype=np.float64)
     cv2 = np.asarray(cv2, dtype=np.float64)
@@ -107,6 +136,13 @@ def bootstrap_landscape(
     pop_samples = np.full((n_boot, len(major)), np.nan)
     min_samples = np.full((n_boot, len(major)), np.nan)
     saddle_samples = np.full((n_boot, len(pairs)), np.nan)
+    n_states_b = np.full(n_boot, -1, dtype=np.int64)
+    reseg_pop = np.full((n_boot, len(major)), np.nan)
+    reseg_matched = np.zeros((n_boot, len(major)), dtype=bool)
+    ref_min_bins = {}
+    for s_ in major:
+        xi, yi, ok = frame_bin_indices(fel_grid, np.array([s_.min_pc1]), np.array([s_.min_pc2]))
+        ref_min_bins[s_.basin_id] = (int(yi[0]), int(xi[0])) if ok[0] else None
 
     hist_range = [
         [fel_grid.x_edges[0], fel_grid.x_edges[-1]],
@@ -140,6 +176,21 @@ def bootstrap_landscape(
             sad = pairwise_saddles(basin_labels, fe)
             for k, pr in enumerate(pairs):
                 saddle_samples[b, k] = sad.get(pr, np.nan)
+        if mode == "resegment":
+            n_states_b[b], reseg_pop[b], reseg_matched[b] = _resegment_resample(
+                sel,
+                hist.T,
+                fe,
+                cv1,
+                cv2,
+                replicate_ids,
+                w_all,
+                fel_grid,
+                basin_labels,
+                basin_ids,
+                frame_basin,
+                reseg_kw,
+            )
 
     def _ci(a, axis=0):
         with warnings.catch_warnings():
@@ -243,6 +294,41 @@ def bootstrap_landscape(
         + ", ".join(f"{r}={L}" for r, L in block_lengths.items())
         + ". Basin definitions held fixed; intervals are 2.5-97.5 percentiles."
     ]
+    count_df = reseg_table = None
+    n_states_arr = None
+    if mode == "resegment":
+        n_states_arr = n_states_b
+        vals, cnts = np.unique(n_states_b, return_counts=True)
+        count_df = pd.DataFrame(
+            {"n_states": vals, "count": cnts, "fraction": cnts / n_boot}
+        ).sort_values("n_states", ignore_index=True)
+        rrows = []
+        for k, s in enumerate(major):
+            pops = reseg_pop[:, k]
+            plo, phi = _ci(pops)
+            rrows.append(
+                {
+                    "state": s.label,
+                    "population": pop_point[k],
+                    "match_rate": float(reseg_matched[:, k].mean()),
+                    "population_mean_resegmented": float(np.nanmean(pops))
+                    if np.isfinite(pops).any()
+                    else np.nan,
+                    "population_sd_resegmented": float(np.nanstd(pops))
+                    if np.isfinite(pops).any()
+                    else np.nan,
+                    "population_ci95_low_resegmented": float(plo),
+                    "population_ci95_high_resegmented": float(phi),
+                }
+            )
+        reseg_table = pd.DataFrame(rrows)
+        mode_n = int(count_df.loc[count_df["count"].idxmax(), "n_states"]) if len(count_df) else 0
+        notes.append(
+            f"Re-segmentation mode: watershed re-run on every resample; {len(major)} reference "
+            f"states, modal state count {mode_n} (found in "
+            f"{100 * count_df['fraction'].max():.0f} % of resamples). Population intervals under "
+            "re-segmentation use only resamples in which the state was matched."
+        )
     return BootstrapResult(
         n_boot=n_boot,
         block_lengths=dict(block_lengths),
@@ -253,4 +339,101 @@ def bootstrap_landscape(
         state_table=state_table,
         barrier_table=barrier_table,
         notes=notes,
+        mode=mode,
+        n_states_per_resample=n_states_arr,
+        state_count_distribution=count_df,
+        resegment_state_table=reseg_table,
     )
+
+
+def _resegment_resample(
+    sel: np.ndarray,
+    hist_t: np.ndarray,
+    fe: np.ndarray,
+    cv1: np.ndarray,
+    cv2: np.ndarray,
+    replicate_ids: np.ndarray,
+    w_all: np.ndarray,
+    fel_grid: FELGrid,
+    basin_labels: np.ndarray,
+    basin_ids: np.ndarray,
+    frame_basin: np.ndarray,
+    kwargs: dict,
+) -> tuple[int, np.ndarray, np.ndarray]:
+    """Re-run watershed segmentation on one resample and match states to the reference.
+
+    Returns (number of major states found, matched population per reference
+    state (NaN if unmatched), matched flags). Matching maximises the total
+    weighted frame overlap between resampled and reference states (Hungarian
+    assignment); a pair is accepted when the overlap covers at least half of the
+    resampled state's weight or when the resampled state's minimum bin lies in
+    the reference basin of the original landscape.
+    """
+    n_ref = len(basin_ids)
+    pops = np.full(n_ref, np.nan)
+    matched = np.zeros(n_ref, dtype=bool)
+    total = hist_t.sum()
+    if total <= 0:
+        return 0, pops, matched
+    prob = hist_t / total
+    grid_b = FELGrid(
+        x_edges=fel_grid.x_edges,
+        y_edges=fel_grid.y_edges,
+        x_centers=fel_grid.x_centers,
+        y_centers=fel_grid.y_centers,
+        probability=gaussian_filter(prob, sigma=fel_grid.smooth_sigma, mode="nearest")
+        if fel_grid.smoothed
+        else prob,
+        free_energy=fe,
+        temperature=fel_grid.temperature,
+        smoothed=fel_grid.smoothed,
+        smooth_sigma=fel_grid.smooth_sigma,
+        occupancy_mask=hist_t > 0,
+    )
+    df_b = pd.DataFrame(
+        {
+            "system": "boot",
+            "replicate": replicate_ids[sel],
+            "frame": sel,
+            "time_ps": sel.astype(np.float64),
+            "PC1": cv1[sel],
+            "PC2": cv2[sel],
+        }
+    )
+    w_sel = w_all[sel]
+    # the resampled frame table always names its CV columns PC1/PC2
+    kwargs = {k: v for k, v in kwargs.items() if k != "cv_columns"}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        logging.getLogger("conformatlas.basins").disabled = True
+        try:
+            states_b, _, assign_b, labels_b = detect_energy_basins(
+                grid_b, df_b, weights=w_sel, **kwargs
+            )
+        finally:
+            logging.getLogger("conformatlas.basins").disabled = False
+    n_found = len(states_b)
+    if n_found == 0:
+        return 0, pops, matched
+    lab_b = assign_b["state"].to_numpy()
+    ref_b = frame_basin[sel]  # reference basin of every resampled frame
+    overlap = np.zeros((n_ref, n_found))
+    size_b = np.zeros(n_found)
+    for j, sb in enumerate(states_b):
+        m = lab_b == sb.label
+        size_b[j] = w_sel[m].sum()
+        for k, bid in enumerate(basin_ids):
+            overlap[k, j] = w_sel[m & (ref_b == bid)].sum()
+    rows, cols = linear_sum_assignment(-overlap)
+    x_idx, y_idx, ok = frame_bin_indices(
+        fel_grid,
+        np.array([sb.min_pc1 for sb in states_b]),
+        np.array([sb.min_pc2 for sb in states_b]),
+    )
+    for k, j in zip(rows, cols):
+        frac = overlap[k, j] / size_b[j] if size_b[j] > 0 else 0.0
+        in_ref_basin = bool(ok[j]) and basin_labels[y_idx[j], x_idx[j]] == basin_ids[k]
+        if frac >= 0.5 or in_ref_basin:
+            matched[k] = True
+            pops[k] = states_b[j].population
+    return n_found, pops, matched

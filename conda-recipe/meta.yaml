@@ -1,13 +1,18 @@
 {% set name = "conformatlas" %}
-{% set version = "0.1.1" %}
+{% set version = "1.0.0" %}
+# sha256 of the PyPI sdist conformatlas-{{ version }}.tar.gz. Obtain it after the
+# release with:  pip download conformatlas=={{ version }} --no-binary :all: --no-deps
+#                && sha256sum conformatlas-{{ version }}.tar.gz
+# conda-forge's bot (regro-cf-autotick-bot) updates this value on later releases.
+{% set sha256 = "0000000000000000000000000000000000000000000000000000000000000000" %}
 
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/conformatlas-{{ version }}.tar.gz
-  sha256: 2675348ee94446d23ac5329538c55746cba5b436cda9b6295bcd63dfa3512096
+  url: https://pypi.org/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  sha256: {{ sha256 }}
 
 build:
   noarch: python
@@ -18,12 +23,12 @@ build:
 
 requirements:
   host:
-    - python >=3.10
+    - python {{ python_min }}
     - pip
-    - setuptools >=61.0
+    - setuptools >=77.0
     - wheel
   run:
-    - python >=3.10
+    - python >={{ python_min }}
     - numpy >=1.22.0
     - scipy >=1.8.0
     - pandas >=1.4.0
@@ -32,22 +37,49 @@ requirements:
     - jinja2 >=3.0.0
     - pyyaml >=6.0
     - scikit-image >=0.19.0
+    - mdanalysis >=2.2.0
+  run_constrained:
+    # optional: PDF export of the report
+    - weasyprint >=59.0
+    - plotly >=5.18
+    - h5py >=3.6
+    - rich >=12
 
 test:
+  requires:
+    - python {{ python_min }}
+    - pip
+    - pytest
+  source_files:
+    - tests
+    - pyproject.toml
   imports:
     - conformatlas
+    - conformatlas.pipeline
+    - conformatlas.provenance
   commands:
+    - pip check
     - conformatlas --version
     - conformatlas --help
     - conformatlas doctor
+    - pytest -q tests/unit
 
 about:
   home: https://github.com/AtharvaTilewale/ConformAtlas
+  summary: "PCA and free energy landscape analysis of molecular dynamics trajectories with validated uncertainties"
+  description: |
+    ConformAtlas analyses molecular dynamics trajectories: least-squares
+    superposition, Cartesian/dihedral PCA and TICA, Boltzmann-inverted free
+    energy landscapes with block-bootstrap uncertainties, watershed state
+    segmentation with barriers and kinetics, convergence diagnostics
+    (RMSIP, cosine content, effective sample size, equilibration detection)
+    and multi-system comparisons in a shared PCA space. Every numerical
+    component is validated against analytical results or independent
+    implementations (MDAnalysis, GROMACS, pymbar, deeptime, SciPy, ProDy).
   license: MIT
   license_family: MIT
   license_file: LICENSE
-  summary: "ConformAtlas: Rigorous PCA and Free Energy Landscape (FEL) analysis of molecular dynamics trajectories"
-  doc_url: https://github.com/AtharvaTilewale/ConformAtlas
+  doc_url: https://conformatlas.readthedocs.io
   dev_url: https://github.com/AtharvaTilewale/ConformAtlas
 
 extra:

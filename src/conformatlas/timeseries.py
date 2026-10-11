@@ -98,3 +98,71 @@ def block_length_from_g(g: float, n: int, min_blocks: int = 5) -> int:
     at least ``min_blocks`` blocks."""
     target = int(np.ceil(2.0 * g))
     return int(max(1, min(target, max(1, n // min_blocks))))
+
+
+@dataclass
+class MultiEquilibrationResult:
+    """Equilibration decided jointly from several observables."""
+
+    t0_index: int  # production start applied to all observables
+    method: str  # 'max_neff' | 'joint'
+    deciding_observable: str  # observable whose t0 was adopted ('joint' for the joint criterion)
+    per_observable: dict[str, EquilibrationResult]
+    n_total: int
+
+
+def detect_equilibration_multi(
+    series: dict[str, np.ndarray],
+    method: str = "max_neff",
+    nskip: int = 1,
+    max_discard: float = 0.9,
+) -> MultiEquilibrationResult:
+    """Equilibration start from several observables (e.g. the two landscape CVs).
+
+    ``method='max_neff'`` applies the Chodera (2016) criterion of
+    :func:`detect_equilibration` to every observable independently and adopts the
+    *latest* of the per-observable production starts, so no observable is still
+    relaxing at ``t0`` (conservative). ``method='joint'`` scans the same candidate
+    starts and chooses the one maximising ``min_k N_eff,k(t0)``, the effective
+    sample count of the worst-equilibrated observable - a single criterion
+    rather than a maximum over separate optima. All series must have the same
+    length and be sampled on the same frames.
+    """
+    if method not in ("max_neff", "joint"):
+        raise ValueError("method must be 'max_neff' or 'joint'")
+    if not series:
+        raise ValueError("series must contain at least one observable")
+    arrays = {k: np.asarray(v, dtype=np.float64).ravel() for k, v in series.items()}
+    lengths = {len(v) for v in arrays.values()}
+    if len(lengths) != 1:
+        raise ValueError(f"all observables must have the same length (got {sorted(lengths)})")
+    n = lengths.pop()
+    per = {
+        k: detect_equilibration(v, nskip=nskip, max_discard=max_discard) for k, v in arrays.items()
+    }
+    if method == "max_neff":
+        deciding = max(per, key=lambda k: (per[k].t0_index, k))
+        return MultiEquilibrationResult(
+            t0_index=per[deciding].t0_index,
+            method=method,
+            deciding_observable=deciding,
+            per_observable=per,
+            n_total=n,
+        )
+    # joint: maximise the minimum effective sample size over observables
+    if n < 10:
+        return MultiEquilibrationResult(0, method, "joint", per, n)
+    candidates = [0, *range(nskip, int(n * max_discard), nskip)]
+    best_t0, best_val = 0, -np.inf
+    for t0 in candidates:
+        vals = []
+        for v in arrays.values():
+            seg = v[t0:]
+            if np.allclose(seg, seg[0]):
+                vals.append(0.0)
+                continue
+            vals.append((n - t0) / statistical_inefficiency(seg))
+        val = min(vals)
+        if val > best_val:
+            best_t0, best_val = t0, val
+    return MultiEquilibrationResult(best_t0, method, "joint", per, n)

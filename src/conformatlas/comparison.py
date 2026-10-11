@@ -27,7 +27,8 @@ from conformatlas.pca import (
     project_coordinates,
     save_pca_results,
 )
-from conformatlas.plotting import set_cv_labels
+from conformatlas.plotting import set_cv_labels, set_figure_style
+from conformatlas.provenance import collect_environment
 from conformatlas.representatives import extract_representative_structures
 from conformatlas.trajectory import (
     build_common_atom_mapping,
@@ -65,6 +66,26 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
     """
     out_dir = config.output_dir
     out_dir.mkdir(parents=True, exist_ok=True)
+    # figure options (None keeps the active module-level style)
+    set_figure_style(
+        fig_format=config.fig_format,
+        colormap=config.colormap,
+        font_scale=config.font_scale,
+        dpi=config.fig_dpi,
+    )
+    if config.interactive is not None or config.plotly_js is not None:
+        from conformatlas.report import set_report_options
+
+        set_report_options(
+            **{
+                k: v
+                for k, v in {
+                    "interactive": config.interactive,
+                    "plotly_js": config.plotly_js,
+                }.items()
+                if v is not None
+            }
+        )
 
     logger.info(f"Initiating shared-PCA condition comparison for project: {config.project}")
 
@@ -279,6 +300,59 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
                 f"block lengths {boots[name].block_lengths}"
             )
 
+    # 7b. Re-segmentation bootstrap of the pooled landscape (bootstrap_mode: resegment).
+    # The per-system comparison statistics below keep the fixed pooled segmentation; this
+    # step only reports how stable the number and populations of the pooled states are.
+    resegment_tables: dict[str, pd.DataFrame] = {}
+    if (
+        config.n_bootstrap
+        and config.n_bootstrap > 0
+        and config.bootstrap_mode == "resegment"
+        and states
+    ):
+        from conformatlas.bootstrap import bootstrap_landscape
+        from conformatlas.comparison_stats import system_block_lengths
+
+        pooled_block_lengths: dict[str, int] = {}
+        for name in system_names:
+            s_df = master_projections[master_projections["system"] == name]
+            pooled_block_lengths.update(system_block_lengths(s_df))
+        pooled_boot = bootstrap_landscape(
+            pc1_all,
+            pc2_all,
+            master_projections["replicate"].to_numpy(),
+            global_fel,
+            basin_map,
+            states,
+            pooled_block_lengths,
+            n_boot=int(config.n_bootstrap),
+            seed=config.seed,
+            mode="resegment",
+            resegment_kwargs={
+                "min_state_population": config.min_state_population,
+                "max_states": config.max_states,
+                "min_barrier": config.min_barrier,
+            },
+        )
+        if pooled_boot.state_count_distribution is not None:
+            pooled_boot.state_count_distribution.to_csv(
+                comp_dir / "state_count_distribution.csv", index=False
+            )
+            pooled_boot.resegment_state_table.to_csv(
+                comp_dir / "state_populations_resegmented.csv", index=False
+            )
+            resegment_tables = {
+                "state_count_distribution": pooled_boot.state_count_distribution,
+                "state_populations_resegmented": pooled_boot.resegment_state_table,
+            }
+            logger.info(
+                "Re-segmentation bootstrap of the pooled landscape: "
+                + ", ".join(
+                    f"{int(r.n_states)} states in {r.fraction * 100:.0f}%"
+                    for r in pooled_boot.state_count_distribution.itertuples()
+                )
+            )
+
     # 8. State populations per system with uncertainty and tests against the reference
     pop_comp_df = population_difference_table(
         states, frame_assignments, system_names, reference_name, boots
@@ -341,7 +415,9 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         "begin_ps": config.begin_ps,
         "end_ps": config.end_ps,
         "n_bootstrap": int(config.n_bootstrap),
+        "bootstrap_mode": config.bootstrap_mode,
         "seed": int(config.seed),
+        "environment": collect_environment(config.gmx_command),
         "states": [
             {"label": st.label, "population_percent": float(st.population * 100.0)} for st in states
         ],
@@ -367,6 +443,7 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         "landscape_overlap": overlap_df,
         "subspace_overlap": subspace_df,
         "bootstraps": boots,
+        "resegment_tables": resegment_tables,
         "reference_system": reference_name,
         "bins": bins,
         "output_dir": out_dir,

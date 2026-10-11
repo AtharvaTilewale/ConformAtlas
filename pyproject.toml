@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "conformatlas"
-version = "0.3.0"
-description = "ConformAtlas: Rigorous PCA and Free Energy Landscape (FEL) analysis of molecular dynamics trajectories"
+version = "1.0.0"
+description = "ConformAtlas: mapping conformational landscapes from molecular simulations"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -15,7 +15,7 @@ authors = [
 ]
 keywords = ["molecular-dynamics", "gromacs", "pca", "free-energy-landscape", "biophysics", "structural-biology", "conformatlas"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Topic :: Scientific/Engineering :: Chemistry",
@@ -33,6 +33,7 @@ dependencies = [
     "jinja2>=3.0.0",
     "pyyaml>=6.0",
     "scikit-image>=0.19.0",
+    "MDAnalysis>=2.2.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +43,16 @@ dev = [
     "ruff>=0.1.0",
     "build>=0.10.0",
     "twine>=4.0.0",
-    "MDAnalysis>=2.0.0",
+    # Optional-feature backends: without these the HDF5, interactive-plot and
+    # progress tests skip silently.
+    "plotly>=5.18",
+    "h5py>=3.6",
+    "rich>=12",
+    # Independent implementations the validation tests compare against
+    # (MSM estimators, statistical inefficiency, MBAR). Without them those
+    # cross-checks skip silently and CI no longer tests them.
+    "deeptime>=0.4",
+    "pymbar>=4.0",
 ]
 docs = [
     "sphinx>=6.0.0",
@@ -51,6 +61,21 @@ docs = [
 ]
 pdf = [
     "weasyprint>=59.0",
+]
+interactive = [
+    "plotly>=5.18",
+]
+hdf5 = [
+    "h5py>=3.6",
+]
+progress = [
+    "rich>=12",
+]
+all = [
+    "weasyprint>=59.0",
+    "plotly>=5.18",
+    "h5py>=3.6",
+    "rich>=12",
 ]
 
 [project.scripts]
@@ -65,7 +90,7 @@ Repository = "https://github.com/AtharvaTilewale/ConformAtlas"
 where = ["src"]
 
 [tool.setuptools.package-data]
-conformatlas = ["templates/*.j2"]
+conformatlas = ["templates/*.j2", "templates/assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

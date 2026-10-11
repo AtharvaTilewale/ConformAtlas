@@ -119,13 +119,20 @@ def _cumulative_fraction_per_replicate(df: pd.DataFrame, fraction: float) -> pd.
 
 
 def compute_convergence_diagnostics(
-    coords_dict: dict[str, np.ndarray],  # rep_id -> (n_frames, n_atoms, 3)
+    coords_dict: dict[str, np.ndarray] | None,  # rep_id -> (n_frames, n_atoms, 3)
     projections_df: pd.DataFrame,
     frame_assignments_df: pd.DataFrame,
     n_modes: int = 10,
     fractions: tuple[int, ...] = (25, 50, 75, 100),
 ) -> ConvergenceResults:
     """Run sampling / convergence diagnostics across all replicates.
+
+    ``coords_dict=None`` (or empty) means no coordinates are available (GROMACS
+    PCA backend, streaming engine, ``--from`` re-analysis): the subspace-overlap
+    diagnostics (half-vs-half, progressive and pairwise RMSIP) are reported as
+    NaN and the assessment is "Insufficient evidence"; statistical inefficiency,
+    N_eff, cosine content and population stability only need the projections and
+    are computed as usual.
 
     * ``rmsip_halves`` compares the essential subspace of the pooled first halves
       of every replicate with that of the pooled second halves. Per-replicate
@@ -137,9 +144,8 @@ def compute_convergence_diagnostics(
     * ``population_stability`` evaluates state populations on the first f % of
       every replicate (true cumulative simulation time, not table order).
     """
-    all_reps = list(coords_dict.keys())
-    if not all_reps:
-        raise ValueError("coords_dict must contain at least one replicate.")
+    have_coords = bool(coords_dict)
+    coords_dict = coords_dict or {}
 
     # ---- Half-vs-half subspace overlap -------------------------------------
     first_halves: dict[str, np.ndarray] = {}
@@ -168,9 +174,12 @@ def compute_convergence_diagnostics(
 
     # ---- Progressive subspace overlap --------------------------------------
     progressive_overlap: dict[int, float] = {}
-    _, evecs_full, _, _, _ = compute_cartesian_pca(coords_dict, n_components=n_modes)
-    s_full = min(evecs_full.shape[1], n_modes)
-    for frac in fractions:
+    if have_coords:
+        _, evecs_full, _, _, _ = compute_cartesian_pca(coords_dict, n_components=n_modes)
+        s_full = min(evecs_full.shape[1], n_modes)
+    else:
+        s_full = 0
+    for frac in fractions if have_coords else ():
         sub_dict = {}
         for k_rep, c in coords_dict.items():
             end_f = max(2, int(round(len(c) * (frac / 100.0))))
@@ -272,6 +281,12 @@ def compute_convergence_diagnostics(
             f"{rmsip_word.capitalize()} subspace overlap between the first and second "
             f"halves of the replicates (RMSIP = {rmsip_halves:.2f}; "
             f"heuristic: >= 0.70 high, 0.50-0.70 moderate, < 0.50 low)."
+        )
+    elif not have_coords:
+        notes.append(
+            "Subspace-overlap diagnostics (RMSIP) need the fitted coordinates and are not "
+            "available for this run (GROMACS PCA backend, streaming engine or re-analysis of "
+            "stored results); the verdict rests on N_eff and cosine content only."
         )
     else:
         notes.append("Half-vs-half RMSIP could not be evaluated (too few frames).")

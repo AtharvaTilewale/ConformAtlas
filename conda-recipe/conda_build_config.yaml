@@ -1,0 +1,4 @@
+# conda-forge convention for noarch: python packages (python_min pins the lowest
+# supported interpreter; see pyproject.toml requires-python).
+python_min:
+  - "3.10"

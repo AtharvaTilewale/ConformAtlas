@@ -528,5 +528,945 @@
     "tolerance": "1e-6",
     "reference": "internal consistency",
     "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "sliding count matrix within replicates vs deeptime (lags 1, 3, 7)",
+    "pass": true,
+    "measured": "identical",
+    "expected": "identical",
+    "tolerance": "exact",
+    "reference": "deeptime 0.4.5 TransitionCountEstimator(count_mode='sliding')",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "reversible maximum-likelihood T vs deeptime MaximumLikelihoodMSM(reversible=True)",
+    "pass": true,
+    "measured": "max |\u0394T| = 8.3e-09 (247 fixed-point iterations)",
+    "expected": "0",
+    "tolerance": "< 1e-6",
+    "reference": "deeptime 0.4.5",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "reversible T vs true T of a 4-state chain (10^6 steps)",
+    "pass": true,
+    "measured": "max |\u0394T_ij| = 0.0007; max |z| = 1.38 (binomial SE)",
+    "expected": "true T; |\u0394T_ij| < 0.005 (0.5 % absolute)",
+    "tolerance": "< 0.005 and |z| < 4.5",
+    "reference": "analytical (known generating matrix)",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "row-normalised (non-reversible) T vs true T (10^6 steps)",
+    "pass": true,
+    "measured": "max |\u0394T_ij| = 0.0007",
+    "expected": "true T",
+    "tolerance": "< 0.005",
+    "reference": "analytical",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "stationary distribution vs deeptime and vs true \u03c0",
+    "pass": true,
+    "measured": "max |\u0394\u03c0| vs deeptime 4.2e-08; vs truth 0.0016",
+    "expected": "\u03c0 of the generating chain",
+    "tolerance": "< 1e-6 (deeptime); < 0.005 (truth)",
+    "reference": "deeptime 0.4.5; analytical",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "implied timescales at lags 1-10 vs analytical \u2212\u03c4/ln \u03bb(\u03c4) (constant for a Markov chain)",
+    "pass": true,
+    "measured": "max relative deviation 0.006 over 3 timescales \u00d7 6 lags; vs deeptime 2.2e-07 ps",
+    "expected": "t = [10.61  6.24  4.98] frames at every lag",
+    "tolerance": "< 5 % (statistical); < 1e-5 vs deeptime",
+    "reference": "analytical eigenvalues; deeptime MaximumLikelihoodMSM.timescales()",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "lag plateau report identifies lag 1 as Markovian for a true Markov chain",
+    "pass": true,
+    "measured": "suggested 1 frames",
+    "expected": "1 frame",
+    "tolerance": "exact",
+    "reference": "construction (process is Markov at lag 1)",
+    "note": "heuristic report; definition-level check only"
+  },
+  {
+    "section": "MSM",
+    "check": "PCCA+ memberships vs deeptime.markov.pcca (m = 2 on 4 states; m = 3 on 6 states)",
+    "pass": true,
+    "measured": "max |\u0394\u03c7| = 2.3e-15 (m=2), 4.9e-05 (m=3)",
+    "expected": "deeptime memberships (columns matched)",
+    "tolerance": "< 1e-3",
+    "reference": "deeptime 0.4.5 (Roeblitz & Weber 2013 algorithm)",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "PCCA+ coarse-grained transition matrix vs deeptime",
+    "pass": true,
+    "measured": "max |\u0394T_c| = 1.1e-05",
+    "expected": "deeptime coarse_grained_transition_matrix",
+    "tolerance": "< 1e-3",
+    "reference": "deeptime 0.4.5 (Kube & Weber 2007 projection)",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "MFPT between sets: analytical 2-state (1/p_ij) and deeptime mfpt for sets",
+    "pass": true,
+    "measured": "|\u0394| = 1.8e-15 (analytical), 0.0e+00 (deeptime)",
+    "expected": "10 and 3.333 frames; deeptime",
+    "tolerance": "< 1e-8",
+    "reference": "analytical; deeptime.markov.tools.analysis.mfpt",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "Chapman\u2013Kolmogorov test passes for a Markov chain and fails for a hidden-state process",
+    "pass": true,
+    "measured": "Markov: max |dev| 0.0002 (pass); hidden-state: 0.120 (16 violations, fail)",
+    "expected": "pass / fail",
+    "tolerance": "max |dev| < 0.01 vs > 0.05 (criterion max(0.05, 3 SE))",
+    "reference": "construction: 3 hidden states (fast/slow exit) projected onto 2 observed states",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "k-means (Lloyd) vs scipy.cluster.vq.kmeans2 from the same initial centres",
+    "pass": true,
+    "measured": "max |\u0394centre| = 0.0e+00; inertia 12182.945 vs 12182.945",
+    "expected": "identical centres and objective",
+    "tolerance": "< 1e-8; relative 1e-6",
+    "reference": "SciPy kmeans2",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "regular-space clustering: centres > dmin apart and every frame within dmin of a centre",
+    "pass": true,
+    "measured": "67 centres; min pair 1.507; max frame-centre 1.490",
+    "expected": "> 1.5 and \u2264 1.5",
+    "tolerance": "exact",
+    "reference": "Prinz et al. 2011 definition",
+    "note": ""
+  },
+  {
+    "section": "MSM",
+    "check": "end-to-end 3-well landscape: slow timescales, PCCA+ populations and set/basin overlap",
+    "pass": true,
+    "measured": "t1,t2 = 305, 211 ps (truth 299, 207; max rel 0.021); max |\u0394\u03c0_set| = 0.006; min set/basin overlap 1.000; CK pass",
+    "expected": "generating 3-state chain",
+    "tolerance": "timescales < 10 %; \u03c0 < 0.02; overlap > 0.98",
+    "reference": "analytical (known T, 60 k-means microstates, 3 \u00d7 20 000 frames)",
+    "note": ""
+  },
+  {
+    "section": "Bootstrap (re-segmentation)",
+    "check": "95 % CI coverage of true populations under re-segmentation, two-well (120 systems)",
+    "pass": true,
+    "measured": "0.892 (per state [0.9  0.88]; mean width 0.169; 120 systems with 2 reference states)",
+    "expected": "0.95",
+    "tolerance": "0.88\u20130.99 (binomial SE \u2248 0.02; block bootstrap slightly anti-conservative)",
+    "reference": "known stationary distribution \u03c0 = (0.7, 0.3)",
+    "note": ""
+  },
+  {
+    "section": "Bootstrap (re-segmentation)",
+    "check": "state-count distribution concentrated on the true count for well-separated two-well",
+    "pass": true,
+    "measured": "mean fraction of resamples with 2 states 0.999 (min over systems 0.97)",
+    "expected": "\u2248 1",
+    "tolerance": "> 0.95",
+    "reference": "construction (wells 6\u03c3 apart)",
+    "note": ""
+  },
+  {
+    "section": "Bootstrap (re-segmentation)",
+    "check": "95 % CI coverage of true populations under re-segmentation, three-well (100 systems)",
+    "pass": true,
+    "measured": "0.893 (per state [0.89 0.89 0.9 ]; mean width 0.157; 100 systems with 3 reference states)",
+    "expected": "0.95",
+    "tolerance": "0.88\u20130.99",
+    "reference": "known \u03c0 = [0.444 0.333 0.222]",
+    "note": ""
+  },
+  {
+    "section": "Bootstrap (re-segmentation)",
+    "check": "state-count distribution concentrated on 3 for well-separated three-well",
+    "pass": true,
+    "measured": "mean fraction with 3 states 1.000 (min 0.99)",
+    "expected": "\u2248 1",
+    "tolerance": "> 0.95",
+    "reference": "construction",
+    "note": ""
+  },
+  {
+    "section": "Bootstrap (re-segmentation)",
+    "check": "state-count distribution spreads for shallow wells (centres 2\u03c3 apart)",
+    "pass": true,
+    "measured": "mean fraction with 2 states 0.789 (min 0.48); reference analyses found [0, 13, 27] states (index = count)",
+    "expected": "< 0.9",
+    "tolerance": "mean < 0.9 and min < 0.8",
+    "reference": "construction (barrier of order kT)",
+    "note": "demonstrates sensitivity; the exact spread is system-specific"
+  },
+  {
+    "section": "Timeseries",
+    "check": "detect_equilibration_multi: per-observable t\u2080 vs pymbar.detect_equilibration",
+    "pass": true,
+    "measured": "ours [1100, 3550], pymbar [np.int64(1100), np.int64(3550)]",
+    "expected": "true burn-in 1500, 5000",
+    "tolerance": "\u2264 25 frames (one nskip)",
+    "reference": "pymbar 4 (Chodera 2016)",
+    "note": ""
+  },
+  {
+    "section": "Timeseries",
+    "check": "detect_equilibration_multi adopts the latest t\u2080 (conservative)",
+    "pass": true,
+    "measured": "t\u2080 = 3550 from CV2",
+    "expected": "max over observables = 3550",
+    "tolerance": "exact",
+    "reference": "definition",
+    "note": ""
+  },
+  {
+    "section": "Timeseries",
+    "check": "detect_equilibration_multi(method='joint') vs brute-force max-min N_eff with pymbar g",
+    "pass": true,
+    "measured": "ours 2900, brute force 2900",
+    "expected": "same t\u2080",
+    "tolerance": "\u2264 50 frames (two nskip; g estimators differ by < 5 %)",
+    "reference": "pymbar statistical_inefficiency",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "COLVAR reader vs numpy.loadtxt",
+    "pass": true,
+    "measured": "max|diff| = 0.0e+00, columns by name",
+    "expected": "identical",
+    "tolerance": "exact",
+    "reference": "numpy.loadtxt(comments='#')",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "HILLS reader: well-tempered height rescaling and periodicity",
+    "pass": true,
+    "measured": "deposited heights [1.08, 0.99], period (-3.141592653589793, 3.141592653589793)",
+    "expected": "[1.08, 0.99] (= height*(gamma-1)/gamma), (-pi, pi)",
+    "tolerance": "1e-12",
+    "reference": "PLUMED METAD source: writeGaussian multiplies by biasf/(biasf-1)",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "WHAM PMF vs analytical double well",
+    "pass": true,
+    "measured": "max |dF| = 0.145 kJ/mol, RMS 0.059 over 56 bins (converged in 1921 it.)",
+    "expected": "0",
+    "tolerance": "0.3 kJ/mol over the sampled range (bins with > 500 samples)",
+    "reference": "analytical bin-integrated free energy; Kumar et al. 1992",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "MBAR PMF vs analytical double well",
+    "pass": true,
+    "measured": "max |dF| = 0.147 kJ/mol, RMS 0.059 over 56 bins (converged in 14 it.)",
+    "expected": "0",
+    "tolerance": "0.3 kJ/mol over the sampled range (bins with > 500 samples)",
+    "reference": "analytical bin-integrated free energy; Shirts & Chodera 2008",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "MBAR free energies vs pymbar.MBAR",
+    "pass": true,
+    "measured": "max |df_k| = 1.2e-13 kT (incl. unsampled unbiased state)",
+    "expected": "0",
+    "tolerance": "1e-3 kT",
+    "reference": "pymbar 4 MBAR (adaptive solver, rtol 1e-12)",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "MBAR unbiased weights vs pymbar.MBAR.weights()",
+    "pass": true,
+    "measured": "max relative |dw_n| = 2.5e-14",
+    "expected": "0",
+    "tolerance": "1e-6 (relative to the largest weight)",
+    "reference": "pymbar 4",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "WHAM vs MBAR window free energies",
+    "pass": true,
+    "measured": "max |df_k| = 0.0104 kT",
+    "expected": "0 (histogram discretisation only)",
+    "tolerance": "0.05 kT",
+    "reference": "internal consistency",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "Metadynamics V(s_t, t) from HILLS vs metad.bias column",
+    "pass": true,
+    "measured": "max |dV| = 5.4e-09 kJ/mol over 40000 frames (2000 hills)",
+    "expected": "0",
+    "tolerance": "1e-6 kJ/mol (file precision)",
+    "reference": "synthetic WT-metaD run writing PLUMED-format HILLS/COLVAR",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "Final bias vs plumed sum_hills",
+    "pass": true,
+    "measured": "max |(-gamma/(gamma-1)) V - F_sum_hills| = 5.0e-10 kJ/mol (max |V| = 46.4); plain Gaussian hills would deviate by 0.202",
+    "expected": "0",
+    "tolerance": "1e-6 kJ/mol",
+    "reference": "PLUMED sum_hills (stretched Gaussian hills, DP2CUTOFF 6.25)",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "Tiwary-Parrinello reweighting recovers the Boltzmann distribution",
+    "pass": true,
+    "measured": "max |dF| = 0.235 kJ/mol, RMS 0.087 over 26 bins with F < 8 kJ/mol",
+    "expected": "0",
+    "tolerance": "0.3 kJ/mol",
+    "reference": "analytical bin-integrated free energy of the double well",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "Final-bias reweighting of the (unconverged) WT run",
+    "pass": true,
+    "measured": "max |dF| = 0.511 kJ/mol (RMS 0.263); unweighted histogram deviates by 3.3",
+    "expected": "0 (expected residual ~kT/gamma-level error until the bias has converged)",
+    "tolerance": "1.5 kJ/mol and >5x better than unweighted",
+    "reference": "analytical double well; Branduardi et al. JCTC 2012 discuss the static-bias assumption",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "Final-bias reweighting of an equilibrium sample under the static final bias",
+    "pass": true,
+    "measured": "max |dF| = 0.099 kJ/mol, RMS 0.050 over 26 bins",
+    "expected": "0",
+    "tolerance": "0.3 kJ/mol",
+    "reference": "analytical double well (exp(beta V) reweighting is exact for a static bias)",
+    "note": ""
+  },
+  {
+    "section": "Reweighting",
+    "check": "c(t) untempered limit vs direct grid average",
+    "pass": true,
+    "measured": "0.3179932955 vs 0.3179932955 kJ/mol",
+    "expected": "equal",
+    "tolerance": "1e-10",
+    "reference": "Tiwary & Parrinello 2015 eq. 12 with gamma -> inf",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "DCCM vs explicit <dr_i.dr_j>/sqrt(<dr_i^2><dr_j^2>)",
+    "pass": true,
+    "measured": "max |dC| = 3.3e-16",
+    "expected": "0",
+    "tolerance": "1e-12",
+    "reference": "explicit numpy loop (Ichiye & Karplus 1991)",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "DCCM vs ProDy calcCrossCorr (EDA, all modes)",
+    "pass": true,
+    "measured": "max |dC| = 1.8e-15",
+    "expected": "0",
+    "tolerance": "1e-10",
+    "reference": "ProDy EDA cross-correlation from the full covariance",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "Weighted DCCM equals DCCM of frame-replicated ensemble",
+    "pass": true,
+    "measured": "max |dC| = 7.8e-16",
+    "expected": "0",
+    "tolerance": "1e-12",
+    "reference": "integer weights = frame multiplicity",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "Per-residue RMSD of state means detects displaced residues",
+    "pass": true,
+    "measured": "moved residues: |d - 3.0 A| <= 0.009; max elsewhere 0.091 A",
+    "expected": "3.0 A for residues 5-8, ~0.03 A elsewhere (noise)",
+    "tolerance": "0.1 A / 0.15 A",
+    "reference": "synthetic two-state ensemble with a known 3 A shift",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "Delta RMSF detects residues with increased fluctuation",
+    "pass": true,
+    "measured": "floppy residues: |dRMSF - 1.732| <= 0.019; max elsewhere 0.025 A",
+    "expected": "sqrt(3)*(1.5-0.5) = 1.732 A for residues 15-17, 0 elsewhere",
+    "tolerance": "0.1 A (~4 standard errors for 2000 frames per state)",
+    "reference": "synthetic ensemble with known per-residue isotropic noise",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "Ligand-residue minimum distances vs brute-force numpy (neuraminidase fixture)",
+    "pass": true,
+    "measured": "max |dd| = 3.2e-06 A, 0 contact mismatches over 81 frames x 387 residues",
+    "expected": "0",
+    "tolerance": "1e-4 A (float32 coordinates)",
+    "reference": "explicit pairwise distances",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "Contacts with and without minimum image agree on the fixture",
+    "pass": true,
+    "measured": "0 differing residue-frame entries",
+    "expected": "0",
+    "tolerance": "exact",
+    "reference": "MDAnalysis.lib.distances.distance_array(box=...)",
+    "note": ""
+  },
+  {
+    "section": "Residues",
+    "check": "Contact persistence per state equals the fraction of state frames in contact",
+    "pass": true,
+    "measured": "max |dp| = 5.6e-16; 3 residues >= 50 %",
+    "expected": "0",
+    "tolerance": "1e-12",
+    "reference": "direct boolean mean",
+    "note": ""
+  },
+  {
+    "section": "Dihedrals",
+    "check": "Dihedral of a hand-built geometry (IUPAC sign)",
+    "pass": true,
+    "measured": "70.000000000 deg",
+    "expected": "+70 deg (p3 rotated clockwise by 70 deg looking along p1->p2)",
+    "tolerance": "1e-9 deg",
+    "reference": "IUPAC 1974 torsion-angle convention",
+    "note": ""
+  },
+  {
+    "section": "Dihedrals",
+    "check": "compute_dihedral vs MDAnalysis calc_dihedrals (random geometries)",
+    "pass": true,
+    "measured": "max |d| = 3.8e-07 rad",
+    "expected": "0",
+    "tolerance": "1e-5 rad (MDAnalysis evaluates in float32)",
+    "reference": "MDAnalysis.lib.distances.calc_dihedrals",
+    "note": ""
+  },
+  {
+    "section": "Dihedrals",
+    "check": "chi1/chi2 vs MDAnalysis Janin (neuraminidase, all-atom)",
+    "pass": true,
+    "measured": "max |dchi1| = 5.7e-14, max |dchi2| = 5.7e-14 deg over 206 residues",
+    "expected": "0",
+    "tolerance": "1e-9 deg",
+    "reference": "MDAnalysis.analysis.dihedrals.Janin",
+    "note": ""
+  },
+  {
+    "section": "Dihedrals",
+    "check": "phi/psi of explicit definitions vs MDAnalysis Ramachandran",
+    "pass": true,
+    "measured": "max |d| = 0.0e+00 deg over 385 residues",
+    "expected": "0",
+    "tolerance": "1e-9 deg",
+    "reference": "MDAnalysis.analysis.dihedrals.Ramachandran",
+    "note": ""
+  },
+  {
+    "section": "Mapping",
+    "check": "Chain-aware common-atom mapping on two chains with repeated residue numbers",
+    "pass": true,
+    "measured": "24 common atoms, chain/resid/name pairs consistent: True",
+    "expected": "24 atoms (2 chains x 4 residues x N,CA,C), all pairs consistent",
+    "tolerance": "exact",
+    "reference": "constructed topology",
+    "note": ""
+  },
+  {
+    "section": "Mapping",
+    "check": "Legacy (residue number, atom name) key collapses repeated residue numbers",
+    "pass": true,
+    "measured": "12 atoms",
+    "expected": "12 (one copy per residue number)",
+    "tolerance": "exact",
+    "reference": "documents the previous behaviour the chain-aware key fixes",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "Chan/Welford accumulator (chunk 37, and two-way merge) vs numpy.cov(ddof=0) on correlated data with offset 100",
+    "pass": true,
+    "measured": "max abs diff 2.6e-13",
+    "expected": "0",
+    "tolerance": "< 1e-10",
+    "reference": "Chan, Golub & LeVeque (1979) parallel variance update; numpy.cov",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "Merged moments (equal-replicate) vs compute_cartesian_pca: eigenvalues / eigenvectors / mean",
+    "pass": true,
+    "measured": "rel \u03bb 1.4e-15, 1\u2212|cos| 1.2e-15, mean 0.0e+00",
+    "expected": "identical",
+    "tolerance": "rtol 1e-8",
+    "reference": "conformatlas.pca.compute_cartesian_pca (validated against MDAnalysis/GROMACS in validate.py)",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "Merged moments (frames) vs compute_cartesian_pca: eigenvalues / eigenvectors / mean",
+    "pass": true,
+    "measured": "rel \u03bb 1.3e-15, 1\u2212|cos| 1.3e-15, mean 4.4e-16",
+    "expected": "identical",
+    "tolerance": "rtol 1e-8",
+    "reference": "conformatlas.pca.compute_cartesian_pca (validated against MDAnalysis/GROMACS in validate.py)",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "streaming_pca (equal-replicate) vs in-memory path on demo WT (2 replicates, 100 frames, D=45)",
+    "pass": true,
+    "measured": "rel \u03bb 2.0e-15, 1\u2212|cos| 1.2e-15, rel proj 2.2e-14",
+    "expected": "identical",
+    "tolerance": "rtol 1e-8",
+    "reference": "stream_trajectory_coordinates + compute_cartesian_pca + project_coordinates",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "streaming_pca (frames) vs in-memory path on demo WT (2 replicates, 100 frames, D=45)",
+    "pass": true,
+    "measured": "rel \u03bb 7.3e-15, 1\u2212|cos| 1.6e-15, rel proj 1.8e-14",
+    "expected": "identical",
+    "tolerance": "rtol 1e-8",
+    "reference": "stream_trajectory_coordinates + compute_cartesian_pca + project_coordinates",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "streaming_pca with 2 worker processes, float32 .npy memmap projections vs in-memory (demo WT)",
+    "pass": true,
+    "measured": "rel \u03bb 4.4e-15, rel proj 3.2e-08 (dtype float32)",
+    "expected": "\u03bb identical; projections within float32 rounding",
+    "tolerance": "\u03bb rtol 1e-8; projections rel 1e-4",
+    "reference": "in-memory path; IEEE-754 single precision (\u03b5 \u2248 6e-8)",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "streaming_pca (equal-replicate) vs in-memory path on neuraminidase+ZMR (81 frames, D=1233 > N: dual route)",
+    "pass": true,
+    "measured": "rel \u03bb 1.8e-15, 1\u2212|cos| 1.3e-15, rel proj 2.9e-14",
+    "expected": "identical",
+    "tolerance": "rtol 1e-8",
+    "reference": "stream_trajectory_coordinates + compute_cartesian_pca + project_coordinates",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "streaming_pca (frames) vs in-memory path on neuraminidase+ZMR (81 frames, D=1233 > N: dual route)",
+    "pass": true,
+    "measured": "rel \u03bb 1.8e-15, 1\u2212|cos| 1.3e-15, rel proj 2.9e-14",
+    "expected": "identical",
+    "tolerance": "rtol 1e-8",
+    "reference": "stream_trajectory_coordinates + compute_cartesian_pca + project_coordinates",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "ConformAtlasPCA (AnalysisBase, fit=False) vs MDAnalysis.analysis.pca.PCA (variance \u00d7 (N\u22121)/N) on neuraminidase C\u03b1",
+    "pass": true,
+    "measured": "rel \u03bb 9.4e-09, 1\u2212|cos| 1.6e-14",
+    "expected": "identical up to covariance normalisation",
+    "tolerance": "\u03bb rtol 1e-6; eigenvectors 1e-8",
+    "reference": "MDAnalysis 2.x analysis.pca.PCA (independent implementation)",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "ConformAtlasPCA.run(start=3, stop=78, step=2) with Kabsch fit vs in-memory path on the same frames",
+    "pass": true,
+    "measured": "rel \u03bb 1.9e-15, 1\u2212|cos| 1.1e-15, rel proj 7.1e-15",
+    "expected": "identical",
+    "tolerance": "rtol 1e-8",
+    "reference": "stream_trajectory_coordinates + compute_cartesian_pca",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "AnalysisResults.save/load HDF5 round trip: every array, table, dataclass and scalar equal",
+    "pass": true,
+    "measured": "0 mismatching fields (39 arrays/tables compared)",
+    "expected": "0 mismatches",
+    "tolerance": "exact (bitwise arrays, assert_frame_equal)",
+    "reference": "h5py; pandas.testing.assert_frame_equal",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "load_results_dir reconstructs projections, \u0394G grid, occupancy, states and frame assignments from CSV/NPY",
+    "pass": true,
+    "measured": "all equal",
+    "expected": "equal to in-memory results",
+    "tolerance": "exact / allclose (CSV float repr)",
+    "reference": "AnalysisResults of the same run",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "rebin(results, bins=24, smooth_sigma=0.0) (in-memory and dir-loaded) vs fresh pipeline run",
+    "pass": true,
+    "measured": "max |\u0394\u0394G| 0.0e+00 kJ/mol; states, assignments, basin map, saddles equal",
+    "expected": "identical landscape and states",
+    "tolerance": "exact",
+    "reference": "conformatlas.pipeline.run_analysis with the same bins/sigma",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "rebin(results, bins=40, smooth_sigma=1.5) (in-memory and dir-loaded) vs fresh pipeline run",
+    "pass": true,
+    "measured": "max |\u0394\u0394G| 0.0e+00 kJ/mol; states, assignments, basin map, saddles equal",
+    "expected": "identical landscape and states",
+    "tolerance": "exact",
+    "reference": "conformatlas.pipeline.run_analysis with the same bins/sigma",
+    "note": ""
+  },
+  {
+    "section": "Streaming PCA, results container and API",
+    "check": "api.load_trajectories\u2192pca\u2192landscape\u2192states\u2192kinetics\u2192convergence equals api.analyze (pipeline) on neuraminidase",
+    "pass": true,
+    "measured": "all equal",
+    "expected": "identical eigenvalues, \u0394G grid, states, dwell summary, RMSIP",
+    "tolerance": "exact",
+    "reference": "conformatlas.pipeline.run_analysis",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "every figure written in png, svg and pdf",
+    "pass": true,
+    "measured": "27 png / 27 svg / 27 pdf",
+    "expected": "identical sets, incl. fel_2d_path",
+    "tolerance": "exact",
+    "reference": "file system",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "SVG landscape is vector",
+    "pass": true,
+    "measured": "166 <path>, 0 <image>",
+    "expected": "> 50 paths, 0 images",
+    "tolerance": "exact",
+    "reference": "SVG markup",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "PNG dpi metadata equals --fig-dpi",
+    "pass": true,
+    "measured": 119.9896,
+    "expected": 120,
+    "tolerance": "\u00b11",
+    "reference": "PNG pHYs chunk",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "contour fill colours belong to colormap 'viridis'",
+    "pass": true,
+    "measured": "40 fill colours, 0 outside palette",
+    "expected": "0 outside palette",
+    "tolerance": "exact (8-bit hex)",
+    "reference": "matplotlib.colormaps['viridis'] sampled at 256 levels",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "font_scale 2 doubles SVG text size",
+    "pass": true,
+    "measured": 2.0,
+    "expected": 2.0,
+    "tolerance": "\u00b12 %",
+    "reference": "SVG font-size attributes",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "interactive heatmap has the FEL grid size (bins)",
+    "pass": true,
+    "measured": "(16, 16)",
+    "expected": "(16, 16)",
+    "tolerance": "exact",
+    "reference": "fel/free_energy.npy",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "hover \u0394G values equal fel/free_energy.npy",
+    "pass": true,
+    "measured": "max |\u0394| = 0, NaN pattern identical = True",
+    "expected": "0",
+    "tolerance": "exact",
+    "reference": "fel/free_energy.npy",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "hover probabilities equal fel/probability.npy",
+    "pass": true,
+    "measured": "max |\u0394| = 0",
+    "expected": "0",
+    "tolerance": "1e-12",
+    "reference": "fel/probability.npy",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "hover state labels follow states/basin_map.npy",
+    "pass": true,
+    "measured": "State A: 25/25; State B: 23/23",
+    "expected": "bin counts equal",
+    "tolerance": "exact",
+    "reference": "states/basin_map.npy",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "time-slider end positions equal the last frame of each replicate",
+    "pass": true,
+    "measured": "100 steps, end positions match = True",
+    "expected": "match",
+    "tolerance": "1e-9",
+    "reference": "states/frame_assignments.csv",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "1-D profiles are the marginals of the 2-D histogram (= numpy.histogram on saved edges)",
+    "pass": true,
+    "measured": "max |\u0394P| = 1.4e-17; HTML profile identical = True",
+    "expected": "0",
+    "tolerance": "1e-12",
+    "reference": "numpy.histogram(CV, bins=fel/x_edges.npy); equal-weight frames",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "report has no external http(s) resource references",
+    "pass": true,
+    "measured": "0 resource URLs, 0 http src/href attributes",
+    "expected": "0",
+    "tolerance": "exact",
+    "reference": "regex over src/href/url() attributes (script bodies excluded)",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "viewer embeds n_states + 1 structures with inlined PDB text",
+    "pass": true,
+    "measured": 3,
+    "expected": 3,
+    "tolerance": "exact",
+    "reference": "states/*/representative.pdb, pca/average.pdb",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "viewer B-factor column equals per-residue RMSF",
+    "pass": true,
+    "measured": "max |\u0394| = 0.0042 \u00c5",
+    "expected": "0",
+    "tolerance": "0.005 \u00c5 (%6.2f PDB precision)",
+    "reference": "states/State_*/rmsf_residues.csv",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "NGL library inlined (no <script src>)",
+    "pass": true,
+    "measured": "NGL.Stage present = True",
+    "expected": "present, inline",
+    "tolerance": "exact",
+    "reference": "templates/assets/ngl.js (MIT)",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "population sentences quote statistics/state_populations.csv (mean, CI, width)",
+    "pass": true,
+    "measured": true,
+    "expected": true,
+    "tolerance": "quoted precision",
+    "reference": "statistics/state_populations.csv",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "N_eff sentence quotes convergence/effective_samples.csv",
+    "pass": true,
+    "measured": "Only about 26 of the 200 frames are statistically independent (statistical ineff...",
+    "expected": "N_eff = 25.9",
+    "tolerance": "quoted precision",
+    "reference": "convergence/effective_samples.csv",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "quoted binomial SE = 100\u00b7sqrt(p(1-p)/N_eff)",
+    "pass": true,
+    "measured": 9.0401,
+    "expected": 9.0401,
+    "tolerance": "1e-9",
+    "reference": "binomial standard error (analytical)",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "RMSIP sentence quotes convergence/rmsip.csv with the heuristic wording",
+    "pass": true,
+    "measured": "The RMSIP between the essential subspaces of the first and second halv...",
+    "expected": "0.60 \u2192 moderate",
+    "tolerance": "quoted precision",
+    "reference": "convergence/rmsip.csv; thresholds 0.70 / 0.50",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "cosine-content sentence quotes convergence/cosine_content.csv",
+    "pass": true,
+    "measured": "0.01",
+    "expected": "0.01",
+    "tolerance": "quoted precision",
+    "reference": "convergence/cosine_content.csv",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "summary \u0394G from population ratio = -kT ln(p2/p1) = states/state_free_energies.csv dG_state",
+    "pass": true,
+    "measured": 2.13749,
+    "expected": 2.13749,
+    "tolerance": "1e-9",
+    "reference": "Boltzmann population ratio (analytical) and bootstrap state table",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "PDF variant has no scripts and announces static figures",
+    "pass": true,
+    "measured": "scripts = 0",
+    "expected": "0 scripts + note",
+    "tolerance": "exact",
+    "reference": "render_report_html(pdf_mode=True)",
+    "note": ""
+  },
+  {
+    "section": "Report & figures",
+    "check": "report.pdf written by WeasyPrint",
+    "pass": true,
+    "measured": "%PDF-",
+    "expected": "%PDF-",
+    "tolerance": "exact",
+    "reference": "weasyprint",
+    "note": ""
+  },
+  {
+    "section": "Docs",
+    "check": "every bash/python block of the tutorial runs (gmx trjconv needed for the compare part)",
+    "pass": true,
+    "measured": "6/6 blocks exit 0",
+    "expected": "6/6",
+    "tolerance": "exit code 0",
+    "reference": "docs/tutorial_neuraminidase.md executed from a scratch copy of tests/data",
+    "note": ""
+  },
+  {
+    "section": "Docs",
+    "check": "every numeric value quoted in the tutorial equals the value re-read from its output file",
+    "pass": true,
+    "measured": "69/69 quoted values match",
+    "expected": "69/69",
+    "tolerance": "equal at the quoted rounding",
+    "reference": "output CSV/JSON/NPY files of the tutorial run",
+    "note": ""
+  },
+  {
+    "section": "Docs",
+    "check": "python_api.md examples run and print the quoted output",
+    "pass": true,
+    "measured": "9/11 python blocks exit 0 (the two illustrative snippets reference files that only exist in a real project)",
+    "expected": "run_analysis and calculate_fel examples",
+    "tolerance": "printed output contains the quoted lines",
+    "reference": "docs/python_api.md",
+    "note": ""
+  },
+  {
+    "section": "Docs",
+    "check": "docs/benchmarks.md validation table is the rendering of validation/results.json",
+    "pass": true,
+    "measured": "147 checks listed",
+    "expected": "147 rows",
+    "tolerance": "byte-identical",
+    "reference": "validation/results.json",
+    "note": ""
+  },
+  {
+    "section": "Docs",
+    "check": "every DOI in paper/paper.bib resolves at doi.org",
+    "pass": true,
+    "measured": "31/31 resolve",
+    "expected": "31/31",
+    "tolerance": "HTTP 200/30x",
+    "reference": "doi.org HEAD request",
+    "note": ""
+  },
+  {
+    "section": "Docs",
+    "check": ".zenodo.json agrees with CITATION.cff (title, creators, license, keywords) and CITATION.cff version equals pyproject",
+    "pass": true,
+    "measured": "consistent",
+    "expected": "consistent",
+    "tolerance": "exact",
+    "reference": "CITATION.cff",
+    "note": ""
+  },
+  {
+    "section": "Docs",
+    "check": "Sphinx builds the documentation with -W (warnings are errors)",
+    "pass": true,
+    "measured": "build succeeded",
+    "expected": "exit 0",
+    "tolerance": "exact",
+    "reference": "sphinx -W -b html docs",
+    "note": ""
   }
 ]

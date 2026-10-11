@@ -1,5 +1,5 @@
 # Read the Docs configuration file
-# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+# https://docs.readthedocs.io/en/stable/config-file/v2.html
 
 version: 2
 
@@ -10,10 +10,11 @@ build:
 
 sphinx:
   configuration: docs/conf.py
+  # Warnings are errors, as in CI (python -m sphinx -W -b html docs docs/_build).
+  fail_on_warning: true
 
 python:
   install:
-    - requirements: docs/requirements.txt
     - method: pip
       path: .
       extra_requirements:

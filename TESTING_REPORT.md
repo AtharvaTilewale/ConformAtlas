@@ -1,6 +1,6 @@
 # ConformAtlas Testing & Verification Report
 
-> This report documents the verification of the 0.1.x release. Version 0.2.0 changed the PCA input (frames are superposed before PCA), the basin segmentation and the convergence diagnostics; see `CHANGELOG.md`. The automated suite now has 39 tests.
+> This report documents the verification of the 0.1.x release. Version 1.0.0 changed the PCA input (frames are superposed before PCA), the basin segmentation and the convergence diagnostics and added many analyses; see `CHANGELOG.md`. The current scientific verification is `validation/VALIDATION.md`.
 
 ## 1. Execution Environment
 * **Date & Time:** 2026-09-19

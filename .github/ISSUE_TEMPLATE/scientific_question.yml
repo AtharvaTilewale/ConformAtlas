@@ -1,0 +1,22 @@
+name: Scientific question
+description: Interpretation of a result, choice of options, or a possible methodological issue
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: System, simulation length, number of replicates, options used, and the relevant lines of `summary.json` or the convergence section of the report.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I read the relevant pages (Methods, Interpretation, Convergence, FAQ) in the documentation.
