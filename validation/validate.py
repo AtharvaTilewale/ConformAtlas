@@ -255,7 +255,7 @@ def check_pca(tmp: Path):
             ev = np.array(
                 [
                     float(ln.split()[1])
-                    for ln in (d / "eig.xvg").read_text().splitlines()
+                    for ln in (d / "eig.xvg").read_text(encoding="utf-8").splitlines()
                     if ln and ln[0] not in "#@"
                 ]
             )
@@ -516,7 +516,7 @@ if __name__ == "__main__":
         sub.mkdir(parents=True, exist_ok=True)
         mod.run(record, sub, ROOT, KB)
     OUT.mkdir(exist_ok=True)
-    json.dump(RESULTS, open(OUT / "results.json", "w"), indent=2, default=str)
+    json.dump(RESULTS, open(OUT / "results.json", "w", encoding="utf-8"), indent=2, default=str)
     n_skip = sum(r["note"] == "skipped" for r in RESULTS)
     n_pass = sum(r["pass"] for r in RESULTS) - n_skip
     n_tot = len(RESULTS) - n_skip
@@ -537,7 +537,7 @@ if __name__ == "__main__":
         lines.append(
             f"| {r['section']} | {r['check']} | {flag} | {r['measured']} | {r['expected']} | {r['tolerance']} | {r['reference']} |"
         )
-    (OUT / "VALIDATION.md").write_text("\n".join(lines) + "\n")
+    (OUT / "VALIDATION.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     # docs/benchmarks.md is rendered from results.json: regenerate it from THIS
     # run (inside checks_docs.run it would still reflect the previous report).
     checks_docs.write_benchmarks(ROOT)

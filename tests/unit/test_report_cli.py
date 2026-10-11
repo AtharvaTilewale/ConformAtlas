@@ -104,7 +104,9 @@ def test_quiet_suppresses_progress(monkeypatch, tmp_path):
 
 def test_malformed_yaml_reports_line_and_column(tmp_path):
     bad = tmp_path / "bad.yaml"
-    bad.write_text("topology: top.pdb\ntrajectories: [a.xtc, b.xtc\ntemperature: 300\n")
+    bad.write_text(
+        "topology: top.pdb\ntrajectories: [a.xtc, b.xtc\ntemperature: 300\n", encoding="utf-8"
+    )
     res = CliRunner().invoke(main, ["analyze", "--config", str(bad)])
     assert res.exit_code == 2
     assert "Malformed YAML" in res.output and "line" in res.output and "column" in res.output
@@ -123,7 +125,9 @@ def test_missing_trajectory_file(tmp_path):
 
 def test_missing_file_in_yaml(tmp_path):
     cfg = tmp_path / "c.yaml"
-    cfg.write_text(f"topology: {DEMO / 'topology.pdb'}\ntrajectories: [missing.xtc]\n")
+    cfg.write_text(
+        f"topology: {DEMO / 'topology.pdb'}\ntrajectories: [missing.xtc]\n", encoding="utf-8"
+    )
     res = CliRunner().invoke(main, ["analyze", "--config", str(cfg), "-o", str(tmp_path / "o")])
     assert res.exit_code == 2
     assert "File not found" in res.output and "Traceback" not in res.output
@@ -132,7 +136,7 @@ def test_missing_file_in_yaml(tmp_path):
 def test_unknown_group_lists_available(tmp_path):
     pytest.importorskip("MDAnalysis")
     ndx = tmp_path / "index.ndx"
-    ndx.write_text("[ Peptide_CA ]\n2 7 12 17 22\n")
+    ndx.write_text("[ Peptide_CA ]\n2 7 12 17 22\n", encoding="utf-8")
     res = CliRunner().invoke(main, _base(tmp_path / "o") + ["-n", str(ndx), "-c", "NoSuchGroup"])
     assert res.exit_code == 2, res.output
     assert "Group 'NoSuchGroup' matched no atoms" in res.output

@@ -110,7 +110,7 @@ def test_all_formats_written_and_primary_path(tmp_path):
 def test_svg_is_vector(tmp_path):
     with figure_style(fig_format="svg"):
         p = plot_fel_2d(_grid(), states=_states(), out_path=tmp_path / "fel.png")
-    svg = p.read_text()
+    svg = p.read_text(encoding="utf-8")
     assert svg.lstrip().startswith("<?xml") or "<svg" in svg[:200]
     assert svg.count("<path") > 50
     assert "<image" not in svg  # no embedded raster
@@ -133,7 +133,7 @@ def test_colormap_colours_in_svg(tmp_path):
     palette = {matplotlib.colors.to_hex(cmap(i / 255.0)) for i in range(256)}
     with figure_style(fig_format="svg", colormap=name):
         p = plot_fel_2d(_grid(), out_path=tmp_path / "cm.png", save_unannotated=False)
-    svg = p.read_text()
+    svg = p.read_text(encoding="utf-8")
     fills = set(re.findall(r'fill="(#[0-9a-fA-F]{6})"', svg)) | set(
         re.findall(r"fill:\s*(#[0-9a-fA-F]{6})", svg)
     )
@@ -151,7 +151,7 @@ def test_font_scale_doubles_text_size(tmp_path):
             figure_style(fig_format="svg", font_scale=scale),
         ):
             p = plot_fel_2d(_grid(), out_path=tmp_path / f"f{scale}.png", save_unannotated=False)
-        svg = p.read_text()
+        svg = p.read_text(encoding="utf-8")
         found = [float(v) for v in re.findall(r"font(?:-size)?:[^;\"]*?([0-9.]+)px", svg)]
         sizes[scale] = max(found) if found else None
     assert sizes[1.0] and sizes[2.0]
@@ -166,8 +166,8 @@ def test_path_overlay_draws_lines(tmp_path):
         )
     assert p_path.stat().st_size > p_plain.stat().st_size
     # the LineCollection adds one <path> per segment: 2 replicates x 59 segments
-    n_plain = p_plain.read_text().count("<path")
-    n_path = p_path.read_text().count("<path")
+    n_plain = p_plain.read_text(encoding="utf-8").count("<path")
+    n_path = p_path.read_text(encoding="utf-8").count("<path")
     assert n_path - n_plain >= 2 * 59
 
 

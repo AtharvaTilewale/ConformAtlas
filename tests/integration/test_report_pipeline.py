@@ -65,7 +65,7 @@ def test_full_report_with_interactive_viewer_and_formats(tmp_path):
     assert res.exit_code == 0, res.output
     assert "Step" not in res.output  # quiet
 
-    html = (out / "report.html").read_text()
+    html = (out / "report.html").read_text(encoding="utf-8")
     # interactive landscape + profiles, data equal to the arrays on disk
     from conformatlas.plotting_interactive import decode_plotly_array, extract_plotly_data
 
@@ -80,10 +80,10 @@ def test_full_report_with_interactive_viewer_and_formats(tmp_path):
     assert external_resource_urls(html) == []
     assert "<script src" not in html and "NGL.Stage" in html and "Plotly.newPlot" in html
     # structure viewer with one entry per state + average
-    n_states = len(json.loads((out / "summary.json").read_text())["states"])
+    n_states = len(json.loads((out / "summary.json").read_text(encoding="utf-8"))["states"])
     assert html.count('"id": "struct-') == n_states + 1
     # interpretive text and limits paragraph
-    interp = json.loads((out / "report_interpretation.json").read_text())
+    interp = json.loads((out / "report_interpretation.json").read_text(encoding="utf-8"))
     for s in interp["populations"] + interp["n_eff"] + interp["convergence"]:
         assert s in html or s.replace("'", "&#39;") in html
     assert "does not show" in html and 'class="not-shown"' in html
@@ -92,7 +92,7 @@ def test_full_report_with_interactive_viewer_and_formats(tmp_path):
     figs = out / "figures"
     assert (figs / "fel_2d.svg").exists() and (figs / "fel_2d_path.png").exists()
     assert not list(figs.glob("*.pdf"))
-    assert (figs / "fel_2d.svg").read_text().count("<path") > 50
+    assert (figs / "fel_2d.svg").read_text(encoding="utf-8").count("<path") > 50
     assert "Figure 1b" in html
     if weasyprint_available():
         assert (out / "report.pdf").read_bytes()[:5] == b"%PDF-"
@@ -102,7 +102,7 @@ def test_report_without_interactive(tmp_path):
     out = tmp_path / "wt"
     res = _analyze(out, "--no-interactive", "--quiet")
     assert res.exit_code == 0, res.output
-    html = (out / "report.html").read_text()
+    html = (out / "report.html").read_text(encoding="utf-8")
     assert "Plotly.newPlot" not in html and "--no-interactive" in html
     assert "NGL.Stage" in html  # the viewer does not depend on plotly
     assert external_resource_urls(html) == []
@@ -116,7 +116,7 @@ def test_compare_writes_interactive_comparison(tmp_path):
         main, ["compare", "-c", str(DEMO / "comparison.yaml"), "-o", str(out), "--quiet"]
     )
     assert res.exit_code == 0, res.output
-    html = (out / "comparison_interactive.html").read_text()
+    html = (out / "comparison_interactive.html").read_text(encoding="utf-8")
     from conformatlas.plotting_interactive import extract_plotly_data
 
     (traces,) = extract_plotly_data(html).values()

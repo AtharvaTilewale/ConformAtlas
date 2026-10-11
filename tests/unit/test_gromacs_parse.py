@@ -9,7 +9,8 @@ def test_multiset_xvg(tmp_path):
     p = tmp_path / "proj.xvg"
     p.write_text(
         '# anaeig\n@ s0 legend "vec 1"\n0 0.1\n10 0.2\n20 0.3\n&\n'
-        '@ s1 legend "vec 2"\n0 1.1\n10 1.2\n20 1.3\n&\n'
+        '@ s1 legend "vec 2"\n0 1.1\n10 1.2\n20 1.3\n&\n',
+        encoding="utf-8",
     )
     t, m = _read_anaeig_projection(p)
     np.testing.assert_allclose(t, [0, 10, 20])
@@ -19,7 +20,7 @@ def test_multiset_xvg(tmp_path):
 
 def test_single_set_multicolumn(tmp_path):
     p = tmp_path / "proj.xvg"
-    p.write_text("0 0.1 1.1 2.1\n10 0.2 1.2 2.2\n")
+    p.write_text("0 0.1 1.1 2.1\n10 0.2 1.2 2.2\n", encoding="utf-8")
     t, m = _read_anaeig_projection(p)
     assert m.shape == (2, 3)
     np.testing.assert_allclose(m[1], [0.2, 1.2, 2.2])

@@ -261,7 +261,7 @@ def test_error_helpers(tmp_path):
     )
     assert selection_error_group(ValueError("other")) is None
     ndx = tmp_path / "i.ndx"
-    ndx.write_text("[ C-alpha ]\n1 2 3\n[ ZMR ]\n4 5\n")
+    ndx.write_text("[ C-alpha ]\n1 2 3\n[ ZMR ]\n4 5\n", encoding="utf-8")
     names, source = available_groups(None, ndx)
     assert names[:2] == ["C-alpha", "ZMR"] and "Backbone" in names and "i.ndx" in source
     ug = UnknownGroupError("Foo", names, source)

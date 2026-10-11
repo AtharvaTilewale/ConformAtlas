@@ -88,7 +88,7 @@ def test_new_output_families_exist(full_run):
         assert " " not in p.name, f"output file name contains a space: {p}"
     assert (out / "residues" / "dccm.npy").exists()
     assert (out / "residues" / "ligand_contacts_per_state.csv").exists()
-    meta = json.loads((out / "run_metadata.json").read_text())
+    meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
     assert meta["conformatlas_version"] == "1.0.0"
     env = meta["environment"]  # provenance.collect_environment record
     assert env.get("python") or env.get("python_version")

@@ -397,7 +397,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
                 np.array(
                     [
                         float(ln.split()[1])
-                        for ln in (d / "g.xvg").read_text().splitlines()
+                        for ln in (d / "g.xvg").read_text(encoding="utf-8").splitlines()
                         if ln and ln[0] not in "#@"
                     ]
                 )
@@ -507,7 +507,11 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
         if (
             ok
             and "Ptot = 0"
-            in (open(d / "shamlog.log").read() if (d / "shamlog.log").exists() else "")
+            in (
+                open(d / "shamlog.log", encoding="utf-8").read()
+                if (d / "shamlog.log").exists()
+                else ""
+            )
             or not (d / "gibbs.xpm").exists()
         ):
             record(
@@ -526,7 +530,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
             arr = np.array(
                 [
                     [float(v) for v in ln.split()]
-                    for ln in open(d / "proj2d.xvg")
+                    for ln in open(d / "proj2d.xvg", encoding="utf-8")
                     if ln[0] not in "#@"
                 ]
             )
@@ -852,7 +856,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
 
     o = outs["python"]
     # representative structure equals the trajectory frame it claims to be
-    meta = json.load(open(o / "states" / "State_A" / "metadata.json"))
+    meta = json.load(open(o / "states" / "State_A" / "metadata.json", encoding="utf-8"))
     rep_u = mda.Universe(str(o / "states" / "State_A" / "representative.pdb"))
     rep_name = str(meta.get("replicate", ""))
     tp = demo / ("rep1.xtc" if rep_name.endswith("1") else "rep2.xtc")
@@ -929,7 +933,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
         "projection identity",
     )
     # summary consistency: populations in summary.json equal basins.csv
-    summ = json.load(open(o / "summary.json"))
+    summ = json.load(open(o / "summary.json", encoding="utf-8"))
     bas = pd.read_csv(o / "states" / "basins.csv")
     pops_json = (
         sorted(float(s["population_percent"]) for s in summ["states"]) if "states" in summ else None

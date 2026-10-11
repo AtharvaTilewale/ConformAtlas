@@ -568,5 +568,5 @@ if __name__ == "__main__":
 
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else None
     if out:
-        out.write_text(json.dumps(RESULTS, indent=2, default=str))
+        out.write_text(json.dumps(RESULTS, indent=2, default=str), encoding="utf-8")
     sys.exit(0 if n_pass == len(RESULTS) else 1)

@@ -8,12 +8,13 @@ from conformatlas.config import build_analysis_config, generate_example_config
 def test_yaml_values_with_cli_override(tmp_path):
     topo = tmp_path / "top.pdb"
     traj = tmp_path / "run.xtc"
-    topo.write_text("")
+    topo.write_text("", encoding="utf-8")
     traj.write_bytes(b"")
     cfg = tmp_path / "analyze.yaml"
     cfg.write_text(
         "topology: top.pdb\ntrajectories: [run.xtc]\ntemperature: 310\nbegin_ps: 4000\n"
-        "end_ps: 16000\nfel_pcs: [1, 3]\nbins: auto\nequilibration: auto\n"
+        "end_ps: 16000\nfel_pcs: [1, 3]\nbins: auto\nequilibration: auto\n",
+        encoding="utf-8",
     )
     config = build_analysis_config({"structure": None, "trajectory": (), "bins": "32"}, cfg)
     assert config.temperature == 310
@@ -26,7 +27,7 @@ def test_yaml_values_with_cli_override(tmp_path):
 
 def test_unknown_key_rejected(tmp_path):
     cfg = tmp_path / "bad.yaml"
-    cfg.write_text("topology: a.pdb\ntrajectories: [b.xtc]\nnot_a_key: 1\n")
+    cfg.write_text("topology: a.pdb\ntrajectories: [b.xtc]\nnot_a_key: 1\n", encoding="utf-8")
     with pytest.raises(ValueError, match="Unknown key"):
         build_analysis_config({}, cfg)
 

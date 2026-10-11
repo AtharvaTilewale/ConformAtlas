@@ -149,11 +149,11 @@ def simulate_metadynamics(
         un, vn = potential(xn), bias(xn)
         if unif[i] < np.exp(-(un + vn - ux - vx) / kT):
             x, ux, vx = xn, un, vn
-    with open(hills_path, "w") as fh:
+    with open(hills_path, "w", encoding="utf-8") as fh:
         fh.write("#! FIELDS time x sigma_x height biasf\n#! SET multivariate false\n")
         for r in hills:
             fh.write("%14.6f %16.10f %14.9f %16.10f %14.6f\n" % r)
-    with open(colvar_path, "w") as fh:
+    with open(colvar_path, "w", encoding="utf-8") as fh:
         fh.write("#! FIELDS time x metad.bias\n")
         for r in col:
             fh.write("%14.6f %16.10f %16.10f\n" % r)
@@ -212,7 +212,7 @@ def check_plumed_readers(record, tmp: Path):
     rng = np.random.default_rng(0)
     data = rng.normal(size=(50, 4))
     p = tmp / "COLVAR_test"
-    with open(p, "w") as fh:
+    with open(p, "w", encoding="utf-8") as fh:
         fh.write("#! FIELDS time d1 d2 metad.bias\n#! SET min_d1 -pi\n#! SET max_d1 pi\n")
         for row in data:
             fh.write(" ".join(f"{v:.12g}" for v in row) + "\n")
@@ -235,7 +235,7 @@ def check_plumed_readers(record, tmp: Path):
         "numpy.loadtxt(comments='#')",
     )
     h = tmp / "HILLS_test"
-    with open(h, "w") as fh:
+    with open(h, "w", encoding="utf-8") as fh:
         fh.write("#! FIELDS time phi sigma_phi height biasf\n#! SET multivariate false\n")
         fh.write("#! SET min_phi -pi\n#! SET max_phi pi\n")
         fh.write("1.0 0.5 0.3 1.2 10.0\n2.0 -3.0 0.3 1.1 10.0\n")
@@ -888,5 +888,5 @@ if __name__ == "__main__":
     import json
 
     out = ROOT / "validation" / "results_enhanced.json"
-    out.write_text(json.dumps(results, indent=2, default=str))
+    out.write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")
     sys.exit(1 if n_fail else 0)

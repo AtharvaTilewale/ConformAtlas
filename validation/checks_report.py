@@ -96,7 +96,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
         "exact",
         "file system",
     )
-    svg = (figs / "fel_2d.svg").read_text()
+    svg = (figs / "fel_2d.svg").read_text(encoding="utf-8")
     n_path = svg.count("<path")
     record(
         SECTION,
@@ -144,7 +144,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
             figure_style(fig_format="svg", font_scale=scale),
         ):
             p = plot_fel_2d(results.fel, out_path=tmp / f"fs{scale}.png", save_unannotated=False)
-        txt = p.read_text()
+        txt = p.read_text(encoding="utf-8")
         sizes[scale] = max(float(v) for v in re.findall(r"font(?:-size)?:[^;\"]*?([0-9.]+)px", txt))
     ratio = sizes[2.0] / sizes[1.0]
     record(
@@ -158,7 +158,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
     )
 
     # ------------------------------------------------------------ interactive HTML
-    html = (out / "report.html").read_text()
+    html = (out / "report.html").read_text(encoding="utf-8")
     fe = np.load(out / "fel" / "free_energy.npy")
     prob = np.load(out / "fel" / "probability.npy")
     basin = np.load(out / "states" / "basin_map.npy")

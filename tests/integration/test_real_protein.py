@@ -66,7 +66,7 @@ def test_full_feature_run_with_index_ligand_window_and_bootstrap(tmp_path):
             str(out),
         ]
     )
-    meta = json.loads((out / "run_metadata.json").read_text())
+    meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
     proj = pd.read_csv(out / "pca" / "projections.csv")
     # 81 frames at 250 ps -> frames with 2000 <= t <= 18000 ps: 65
     assert len(proj) == 65
@@ -178,7 +178,7 @@ def test_tica_and_auto_bins(tmp_path):
             str(out),
         ]
     )
-    meta = json.loads((out / "run_metadata.json").read_text())
+    meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
     assert meta["pca_type"] == "tica" and meta["tica_lag_frames"] == 4
     assert meta["bins_mode"].startswith("auto") and int(meta["bins"]) >= 16
     assert (out / "pca" / "eigenvalues.csv").exists()

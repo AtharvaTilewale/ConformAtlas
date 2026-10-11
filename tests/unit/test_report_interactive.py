@@ -145,7 +145,7 @@ def test_html_roundtrip_and_js_modes(setup, tmp_path):
     _, fel, basin, states, fa = setup
     fig = build_landscape_figure(fel, states=states, frame_assignments=fa, basin_map=basin)
     p = write_html(fig, tmp_path / "x.html", "t", plotly_js_mode="inline")
-    html = p.read_text()
+    html = p.read_text(encoding="utf-8")
     assert '<script src="https://cdn.plot.ly' not in html and "Plotly.newPlot" in html
     data = extract_plotly_data(html)
     assert len(data) == 1

@@ -44,7 +44,7 @@ def test_cli_init_config(tmp_path):
     res = runner.invoke(main, ["init-config", "--type", "compare", "-o", str(out_yaml)])
     assert res.exit_code == 0
     assert out_yaml.exists()
-    content = out_yaml.read_text()
+    content = out_yaml.read_text(encoding="utf-8")
     assert "WT_vs_Mutant" in content
     assert "temperature:" in content
 

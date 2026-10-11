@@ -22,6 +22,10 @@ def test_extract_code_blocks_languages_and_order():
     assert blocks[0][1] == "echo a\n" and blocks[1][1] == "print(1)\n"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="executes bash code blocks; `bash` on Windows runners is a WSL launcher without a distribution",
+)
 def test_run_code_blocks_reports_exit_codes(tmp_path):
     blocks = [("bash", "echo hi\n"), ("python", "import sys; sys.exit(3)\n"), ("text", "skip")]
     res = checks_docs.run_code_blocks(blocks, tmp_path, ROOT)
@@ -38,11 +42,11 @@ def test_bib_dois_parses_braces_and_quotes():
     reason="the manuscript (paper/) is kept out of the public repository",
 )
 def test_paper_bib_entries_all_have_dois_and_are_cited():
-    bib = (ROOT / "paper" / "paper.bib").read_text()
+    bib = (ROOT / "paper" / "paper.bib").read_text(encoding="utf-8")
     keys = re.findall(r"^@\w+\{([^,]+),", bib, re.M)
     dois = checks_docs.bib_dois(bib)
     assert len(keys) == len(dois), "every bib entry must carry a DOI"
-    paper = (ROOT / "paper" / "paper.md").read_text()
+    paper = (ROOT / "paper" / "paper.md").read_text(encoding="utf-8")
     uncited = [k for k in keys if f"@{k}" not in paper]
     assert not uncited, f"bib entries not cited in paper.md: {uncited}"
     cited = set(re.findall(r"@([A-Za-z]+\d{4}[a-z]?)", paper))
@@ -50,8 +54,8 @@ def test_paper_bib_entries_all_have_dois_and_are_cited():
 
 
 def test_benchmark_table_matches_results_json():
-    results = json.load(open(ROOT / "validation" / "results.json"))
-    page = (ROOT / "docs" / "benchmarks.md").read_text()
+    results = json.load(open(ROOT / "validation" / "results.json", encoding="utf-8"))
+    page = (ROOT / "docs" / "benchmarks.md").read_text(encoding="utf-8")
     table = checks_docs.render_benchmark_tables(results, checks_docs._bench_header(ROOT))
     assert table in page
     # one data row per check, grouped under one heading per section
@@ -61,9 +65,9 @@ def test_benchmark_table_matches_results_json():
 
 def test_zenodo_consistent_with_citation_cff():
     assert checks_docs.zenodo_vs_citation(ROOT) == []
-    zen = json.load(open(ROOT / ".zenodo.json"))
+    zen = json.load(open(ROOT / ".zenodo.json", encoding="utf-8"))
     assert "version" not in zen  # taken from the GitHub release tag
-    cff = yaml.safe_load(open(ROOT / "CITATION.cff"))
+    cff = yaml.safe_load(open(ROOT / "CITATION.cff", encoding="utf-8"))
     assert (
         zen["creators"][0]["name"]
         == "Tilewale, Atharva"
@@ -72,13 +76,13 @@ def test_zenodo_consistent_with_citation_cff():
 
 
 def test_conda_recipe_dependencies_match_pyproject():
-    pyproject = (ROOT / "pyproject.toml").read_text()
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     deps = re.search(r"^dependencies = \[(.*?)^\]", pyproject, re.M | re.S).group(1)
     names = {
         re.match(r'\s*"([A-Za-z0-9_-]+)', line).group(1).lower()
         for line in deps.strip().splitlines()
     }
-    recipe = (ROOT / "conda-recipe" / "meta.yaml").read_text()
+    recipe = (ROOT / "conda-recipe" / "meta.yaml").read_text(encoding="utf-8")
     run_block = recipe.split("  run:")[1].split("  run_constrained:")[0]
     recipe_names = {
         re.match(r"\s*-\s*([A-Za-z0-9_-]+)", line).group(1).lower()
@@ -92,7 +96,7 @@ def test_conda_recipe_dependencies_match_pyproject():
 
 def test_tutorial_figures_exist_and_are_referenced():
     docs = ROOT / "docs"
-    tutorial = (docs / "tutorial_neuraminidase.md").read_text()
+    tutorial = (docs / "tutorial_neuraminidase.md").read_text(encoding="utf-8")
     refs = re.findall(r"\]\((_static/tutorial/[^)]+)\)", tutorial)
     assert len(refs) >= 10
     for ref in refs:
@@ -102,13 +106,13 @@ def test_tutorial_figures_exist_and_are_referenced():
 
 
 def test_index_toctree_lists_new_pages():
-    index = (ROOT / "docs" / "index.rst").read_text()
+    index = (ROOT / "docs" / "index.rst").read_text(encoding="utf-8")
     for page in ("tutorial_neuraminidase", "faq", "benchmarks", "python_api", "contributing"):
         assert re.search(rf"^\s+{page}\s*$", index, re.M), page
 
 
 def test_readthedocs_config_points_at_sphinx_conf():
-    cfg = yaml.safe_load(open(ROOT / ".readthedocs.yaml"))
+    cfg = yaml.safe_load(open(ROOT / ".readthedocs.yaml", encoding="utf-8"))
     assert cfg["version"] == 2
     assert cfg["sphinx"]["configuration"] == "docs/conf.py"
     assert cfg["sphinx"]["fail_on_warning"] is True
@@ -117,7 +121,7 @@ def test_readthedocs_config_points_at_sphinx_conf():
 
 
 def test_ci_has_codecov_upload_and_docs_job():
-    ci = yaml.safe_load(open(ROOT / ".github" / "workflows" / "ci.yml"))
+    ci = yaml.safe_load(open(ROOT / ".github" / "workflows" / "ci.yml", encoding="utf-8"))
     steps = ci["jobs"]["test"]["steps"]
     assert any("codecov/codecov-action" in (s.get("uses") or "") for s in steps)
     assert any("--cov-report=xml" in (s.get("run") or "") for s in steps)
@@ -135,13 +139,13 @@ def test_ci_has_codecov_upload_and_docs_job():
     ],
 )
 def test_issue_templates_are_valid_yaml(path):
-    data = yaml.safe_load(open(ROOT / path))
+    data = yaml.safe_load(open(ROOT / path, encoding="utf-8"))
     assert isinstance(data, dict)
     if "body" in data:
         assert data["name"] and data["body"]
 
 
 def test_code_of_conduct_is_contributor_covenant_2_1():
-    text = (ROOT / "CODE_OF_CONDUCT.md").read_text()
+    text = (ROOT / "CODE_OF_CONDUCT.md").read_text(encoding="utf-8")
     assert "Contributor Covenant" in text and "version 2.1" in text
     assert "https://www.contributor-covenant.org/version/2/1/code_of_conduct.html" in text

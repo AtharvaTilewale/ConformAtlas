@@ -25,9 +25,9 @@ def test_representative_provenance_and_metadata(tmp_path):
 
     # Empty dummy topologies / trajectories for metadata test
     dummy_top = tmp_path / "top.pdb"
-    dummy_top.write_text("HEADER DUMMY\n")
+    dummy_top.write_text("HEADER DUMMY\n", encoding="utf-8")
     dummy_traj = tmp_path / "traj.xtc"
-    dummy_traj.write_text("DUMMY")
+    dummy_traj.write_text("DUMMY", encoding="utf-8")
 
     _ = extract_representative_structures(
         [state_a],
@@ -42,7 +42,7 @@ def test_representative_provenance_and_metadata(tmp_path):
     meta_path = state_dir / "metadata.json"
     assert meta_path.exists()
 
-    with meta_path.open() as f:
+    with meta_path.open(encoding="utf-8") as f:
         meta = json.load(f)
 
     assert meta["state"] == "State A"

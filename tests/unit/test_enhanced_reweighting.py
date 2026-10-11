@@ -53,7 +53,8 @@ def test_read_plumed_file_fields_and_constants(tmp_path):
     p = tmp_path / "COLVAR"
     p.write_text(
         "#! FIELDS time d1 d2\n#! SET min_d1 -pi\n#! SET max_d1 pi\n"
-        "0.0 1.0 2.0\n# a comment\n1.0 1.5 2.5\n2.0 2.0 3.0\n"
+        "0.0 1.0 2.0\n# a comment\n1.0 1.5 2.5\n2.0 2.0 3.0\n",
+        encoding="utf-8",
     )
     tab = read_plumed_file(p)
     assert tab.fields == ["time", "d1", "d2"]
@@ -69,7 +70,7 @@ def test_read_plumed_file_fields_and_constants(tmp_path):
 
 def test_read_plumed_file_requires_fields_header(tmp_path):
     p = tmp_path / "bad"
-    p.write_text("0 1 2\n")
+    p.write_text("0 1 2\n", encoding="utf-8")
     with pytest.raises(ValueError):
         read_plumed_file(p)
 
@@ -79,7 +80,8 @@ def test_read_hills_well_tempered_rescaling_and_periodic(tmp_path):
     p.write_text(
         "#! FIELDS time phi sigma_phi height biasf\n#! SET multivariate false\n"
         "#! SET min_phi -pi\n#! SET max_phi pi\n"
-        "1.0 0.5 0.3 1.2 10.0\n2.0 -3.0 0.3 1.1 10.0\n"
+        "1.0 0.5 0.3 1.2 10.0\n2.0 -3.0 0.3 1.1 10.0\n",
+        encoding="utf-8",
     )
     h = read_hills(p)
     assert h.cv_names == ["phi"]
@@ -93,13 +95,15 @@ def test_read_hills_well_tempered_rescaling_and_periodic(tmp_path):
 def test_read_hills_standard_metad_and_multivariate_rejected(tmp_path):
     p = tmp_path / "HILLS"
     p.write_text(
-        "#! FIELDS time d sigma_d height biasf\n#! SET multivariate false\n1 0.5 0.1 1.0 -1\n"
+        "#! FIELDS time d sigma_d height biasf\n#! SET multivariate false\n1 0.5 0.1 1.0 -1\n",
+        encoding="utf-8",
     )
     h = read_hills(p)
     assert h.bias_factor is None
     np.testing.assert_allclose(h.deposited_height, [1.0])
     p.write_text(
-        "#! FIELDS time d sigma_d height biasf\n#! SET multivariate true\n1 0.5 0.1 1.0 -1\n"
+        "#! FIELDS time d sigma_d height biasf\n#! SET multivariate true\n1 0.5 0.1 1.0 -1\n",
+        encoding="utf-8",
     )
     with pytest.raises(ValueError, match="multivariate"):
         read_hills(p)
@@ -307,7 +311,7 @@ def test_umbrella_from_colvars_and_outputs(tmp_path, umbrella_samples):
     paths = []
     for k in range(len(centers)):
         p = tmp_path / f"COLVAR_{k}"
-        with open(p, "w") as fh:
+        with open(p, "w", encoding="utf-8") as fh:
             fh.write("#! FIELDS time d\n")
             for i, v in enumerate(samples[k][:2000]):
                 fh.write(f"{i * 0.5:.3f} {v:.8f}\n")
