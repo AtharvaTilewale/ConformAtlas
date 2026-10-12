@@ -5,6 +5,11 @@ version: 1.0.1
 date-released: 2026-10-12
 url: "https://github.com/AtharvaTilewale/ConformAtlas"
 repository-code: "https://github.com/AtharvaTilewale/ConformAtlas"
+doi: 10.5281/zenodo.22847857
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22847857
+    description: "Concept DOI: covers every release and resolves to the latest"
 authors:
   - family-names: "Tilewale"
     given-names: "Atharva"

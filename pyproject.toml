@@ -86,6 +86,7 @@ conformatlas = "conformatlas.cli:main"
 Homepage = "https://github.com/AtharvaTilewale/ConformAtlas"
 Documentation = "https://conformatlas.readthedocs.io"
 Repository = "https://github.com/AtharvaTilewale/ConformAtlas"
+DOI = "https://doi.org/10.5281/zenodo.22847857"
 
 [tool.setuptools.packages.find]
 where = ["src"]

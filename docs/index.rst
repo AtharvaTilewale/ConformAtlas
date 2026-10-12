@@ -59,6 +59,14 @@ ConformAtlas Documentation
 
    contributing
 
+Citing ConformAtlas
+===================
+
+Please cite the Zenodo archive, `doi:10.5281/zenodo.22847857 <https://doi.org/10.5281/zenodo.22847857>`_.
+This concept DOI covers every release and resolves to the latest one; each
+release also has its own version DOI, listed on the Zenodo record, for citing
+the exact version you used. A machine-readable citation is in ``CITATION.cff``.
+
 Indices and Tables
 ==================
 

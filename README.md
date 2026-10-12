@@ -8,6 +8,7 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg" alt="Python 3.10 | 3.11 | 3.12"></a>
   <a href="https://github.com/AtharvaTilewale/ConformAtlas/actions/workflows/ci.yml"><img src="https://github.com/AtharvaTilewale/ConformAtlas/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://conformatlas.readthedocs.io/en/latest/"><img src="https://readthedocs.org/projects/conformatlas/badge/?version=latest" alt="Documentation"></a>
+  <a href="https://doi.org/10.5281/zenodo.22847857"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22847857.svg" alt="DOI 10.5281/zenodo.22847857"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
 
@@ -149,11 +150,12 @@ Full documentation: **[conformatlas.readthedocs.io](https://conformatlas.readthe
   title   = {ConformAtlas: mapping conformational landscapes from molecular simulations},
   year    = {2026},
   version = {1.0.1},
+  doi     = {10.5281/zenodo.22847857},
   url     = {https://github.com/AtharvaTilewale/ConformAtlas}
 }
 ```
 
-A machine-readable citation is in [CITATION.cff](CITATION.cff).
+The DOI [10.5281/zenodo.22847857](https://doi.org/10.5281/zenodo.22847857) is the Zenodo concept DOI: it covers every release and resolves to the latest one. Each release also has its own version DOI, listed on the Zenodo record, for citing the exact version you used. A machine-readable citation is in [CITATION.cff](CITATION.cff).
 
 ## Contributing
 
