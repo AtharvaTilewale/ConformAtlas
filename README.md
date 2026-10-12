@@ -149,7 +149,7 @@ Full documentation: **[conformatlas.readthedocs.io](https://conformatlas.readthe
   author  = {Tilewale, Atharva and Patel, Dhaval},
   title   = {ConformAtlas: mapping conformational landscapes from molecular simulations},
   year    = {2026},
-  version = {1.0.1},
+  version = {1.0.2},
   doi     = {10.5281/zenodo.22847857},
   url     = {https://github.com/AtharvaTilewale/ConformAtlas}
 }

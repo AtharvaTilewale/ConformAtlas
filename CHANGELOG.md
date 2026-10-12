@@ -5,10 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.2] - 2026-10-12
 
 ### Fixed
 - **Streaming PCA engine on macOS.** With `--n-workers` greater than 1 the worker processes were forked on every platform. On macOS a forked worker could crash with a segmentation fault (the garbage collector closed an MDAnalysis XDR reader inherited from the parent), so `--engine streaming --n-workers N` aborted intermittently. Workers are now forked on Linux only and started with `spawn` on macOS and Windows, and unreachable objects are collected before the pool starts. The default `--n-workers 1` was not affected.
+
+### Added
+- The Zenodo concept DOI 10.5281/zenodo.22847857 (covers every release, resolves to the latest) in `CITATION.cff`, the README (badge and BibTeX) and the documentation landing page, and as a project link on PyPI.
+- The conda-forge recipe in the v1 `recipe.yaml` format under `conda-recipe/`, as submitted to conda-forge.
 
 ## [1.0.1] - 2026-10-12
 

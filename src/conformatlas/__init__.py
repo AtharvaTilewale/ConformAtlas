@@ -1,6 +1,6 @@
 """ConformAtlas: mapping conformational landscapes from molecular simulations."""
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 __author__ = "Atharva Tilewale"
 
 from conformatlas import api  # noqa: E402,F401  (imports pipeline lazily)
