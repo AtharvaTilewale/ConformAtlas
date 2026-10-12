@@ -18,6 +18,7 @@ import pandas as pd
 import pytest
 from click.testing import CliRunner
 
+import conformatlas
 from conformatlas.cli import main
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,7 +90,7 @@ def test_new_output_families_exist(full_run):
     assert (out / "residues" / "dccm.npy").exists()
     assert (out / "residues" / "ligand_contacts_per_state.csv").exists()
     meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
-    assert meta["conformatlas_version"] == "1.0.0"
+    assert meta["conformatlas_version"] == conformatlas.__version__
     env = meta["environment"]  # provenance.collect_environment record
     assert env.get("python") or env.get("python_version")
     assert any("numpy" in str(k).lower() for k in json.dumps(env).split('"'))

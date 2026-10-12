@@ -1,7 +1,7 @@
 # Command-line reference
 
 Every option below is taken from `conformatlas <command> --help` of version
-1.0.0. Options marked *YAML* can also be given in the configuration file read
+1.0.1. Options marked *YAML* can also be given in the configuration file read
 by `--config` (key names in parentheses where they differ from the flag;
 `conformatlas init-config --type analyze` writes a template with every key).
 Command-line flags override the file.

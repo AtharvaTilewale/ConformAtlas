@@ -51,7 +51,7 @@ Example output:
 ```text
 ConformAtlas System Diagnostics
 ========================================
-ConformAtlas Version: 1.0.0
+ConformAtlas Version: 1.0.1
 Python Version:     3.11.16 (/home/user/projects/ConformAtlas/.venv/bin/python3.11)
 
 Checking GROMACS installation:

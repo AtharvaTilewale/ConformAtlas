@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use ConformAtlas in your research, please cite it as below."
 title: "ConformAtlas: mapping conformational landscapes from molecular simulations"
-version: 1.0.0
-date-released: 2026-10-11
+version: 1.0.1
+date-released: 2026-10-12
 url: "https://github.com/AtharvaTilewale/ConformAtlas"
 repository-code: "https://github.com/AtharvaTilewale/ConformAtlas"
 authors:

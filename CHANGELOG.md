@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.1] - 2026-10-12
 
 ### Fixed
 - **Console output no longer depends on the platform code page.** With stdout or stderr redirected (CI logs, `> file`, pipes) Python encodes with the locale code page, which on Windows (cp1252) cannot represent `ΔG`, `Å`, `✔` or `✘`: `conformatlas doctor`, `example`, `analyze --help` and the progress output of `analyze` aborted with `UnicodeEncodeError`. Redirected streams are now switched to UTF-8 before anything is printed, and a terminal keeps its encoding but replaces unencodable characters instead of failing. Remaining text-mode file reads and writes name their encoding explicitly. Found by the Windows build of the conda-forge recipe.
