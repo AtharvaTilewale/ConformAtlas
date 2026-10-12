@@ -340,8 +340,8 @@ True [26.  12.3]
 PCAResults
 ```
 
-Worker processes use `fork` on Linux (`CONFORMATLAS_MP_START=spawn|forkserver`
-overrides it) and fall back to serial execution with a logged warning when
+Worker processes use `fork` on Linux and `spawn` on macOS and Windows
+(`CONFORMATLAS_MP_START=spawn|forkserver|fork` overrides it) and fall back to serial execution with a logged warning when
 processes cannot be started. Progress bars (`conformatlas.progress`) are
 silent off a terminal and with `CONFORMATLAS_NO_PROGRESS=1`.
 

@@ -44,9 +44,11 @@ Units follow the MDAnalysis backend: Å for coordinates, ps for time.
 
 from __future__ import annotations
 
+import gc
 import logging
 import multiprocessing as mp
 import os
+import sys
 from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
@@ -466,10 +468,20 @@ def _mp_context():
     ``fork`` (Linux default) starts instantly and does not re-import the main
     module, so it also works from ``python -c`` and interactive sessions; the
     workers open their own MDAnalysis readers, so no file handles are shared.
-    Override with ``CONFORMATLAS_MP_START=spawn|forkserver|fork``.
+    It is used on Linux only: forking a process that has loaded system
+    frameworks and compiled readers is unsafe on macOS (CPython made ``spawn``
+    the macOS default for that reason; a forked worker crashed with a
+    segmentation fault while the garbage collector closed an inherited XDR
+    reader) and Windows has no ``fork``. Elsewhere the platform default,
+    ``spawn``, is used. Override with ``CONFORMATLAS_MP_START=spawn|forkserver|fork``.
     """
     wanted = os.environ.get("CONFORMATLAS_MP_START", "").strip()
-    order = [wanted] if wanted else ["fork", "spawn"]
+    if wanted:
+        order = [wanted]
+    elif sys.platform.startswith("linux"):
+        order = ["fork", "spawn"]
+    else:
+        order = ["spawn"]
     for name in order:
         try:
             return mp.get_context(name)
@@ -483,6 +495,10 @@ def _pool_map(func, jobs: list[dict], n_workers: int) -> list:
     (with a warning) when the platform refuses to start worker processes."""
     if n_workers <= 1 or len(jobs) <= 1:
         return [func(j) for j in jobs]
+    # Finalise unreachable objects (e.g. closed-over MDAnalysis readers) in this
+    # process: a forked child would otherwise inherit them and run their
+    # finalisers on copies of the parent's file state.
+    gc.collect()
     try:
         with ProcessPoolExecutor(max_workers=n_workers, mp_context=_mp_context()) as pool:
             return list(pool.map(func, jobs))

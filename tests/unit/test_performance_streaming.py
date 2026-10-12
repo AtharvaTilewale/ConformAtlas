@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import multiprocessing as mp
+import operator
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -247,3 +250,41 @@ def test_mda_analysis_class_matches_in_memory():
     sign = np.sign(np.sum(res.results.eigenvectors * vec, axis=0))
     np.testing.assert_allclose(res.results.projections * sign, proj, rtol=1e-8, atol=1e-8)
     assert res.results.n_frames == len(c)
+
+
+# --------------------------------------------------------------------------- worker pool start method
+def test_start_method_is_spawn_off_linux(monkeypatch):
+    """fork crashed a worker on macOS; only Linux may fork by default."""
+    from conformatlas import streaming
+
+    monkeypatch.delenv("CONFORMATLAS_MP_START", raising=False)
+    monkeypatch.setattr(sys, "platform", "darwin")
+    assert streaming._mp_context().get_start_method() == "spawn"
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert streaming._mp_context().get_start_method() == "spawn"
+
+
+@pytest.mark.skipif("fork" not in mp.get_all_start_methods(), reason="fork is not available")
+def test_start_method_is_fork_on_linux(monkeypatch):
+    from conformatlas import streaming
+
+    monkeypatch.delenv("CONFORMATLAS_MP_START", raising=False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert streaming._mp_context().get_start_method() == "fork"
+
+
+def test_start_method_override(monkeypatch):
+    from conformatlas import streaming
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setenv("CONFORMATLAS_MP_START", "spawn")
+    assert streaming._mp_context().get_start_method() == "spawn"
+
+
+def test_pool_map_works_with_spawned_workers(monkeypatch):
+    """The pool must produce the serial result when its workers are spawned."""
+    from conformatlas import streaming
+
+    monkeypatch.setenv("CONFORMATLAS_MP_START", "spawn")
+    jobs = [{"x": 1}, {"x": 2}, {"x": 3}]
+    assert streaming._pool_map(operator.itemgetter("x"), jobs, 2) == [1, 2, 3]
