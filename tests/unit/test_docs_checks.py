@@ -82,8 +82,8 @@ def test_conda_recipe_dependencies_match_pyproject():
         re.match(r'\s*"([A-Za-z0-9_-]+)', line).group(1).lower()
         for line in deps.strip().splitlines()
     }
-    recipe = (ROOT / "conda-recipe" / "meta.yaml").read_text(encoding="utf-8")
-    run_block = recipe.split("  run:")[1].split("  run_constrained:")[0]
+    recipe = (ROOT / "conda-recipe" / "recipe.yaml").read_text(encoding="utf-8")
+    run_block = recipe.split("  run:")[1].split("  run_constraints:")[0]
     recipe_names = {
         re.match(r"\s*-\s*([A-Za-z0-9_-]+)", line).group(1).lower()
         for line in run_block.strip().splitlines()

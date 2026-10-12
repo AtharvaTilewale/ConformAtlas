@@ -1,47 +1,45 @@
 # conda-forge recipe
 
-`meta.yaml` follows the conda-forge pattern for a pure-Python (`noarch: python`)
-package built from the PyPI source distribution. State of the recipe for 1.0.0:
+`recipe.yaml` is the recipe submitted to conda-forge (v1 format, built with
+rattler-build; the older `meta.yaml` format is deprecated for new recipes). It
+builds a pure-Python `noarch: python` package from the PyPI source distribution.
 
-- `sha256` is the hash of the published `conformatlas-1.0.0.tar.gz` on PyPI
-  (`4cd9a903…1101f6`).
-- `conda smithy recipe-lint` reports no problems, and `conda build` against the
-  conda-forge channel builds the package and passes the recipe tests
-  (`pip check`, `conformatlas --version/--help/doctor`, and an end-to-end
-  `example` + `analyze` run on the package's own synthetic dataset). The sdist
-  ships no test suite, so the recipe does not run `pytest`.
+- `source.sha256` is the hash of the published `conformatlas-<version>.tar.gz`
+  on PyPI. It changes with every release.
 - Run dependencies are the core requirements from `pyproject.toml`, including
   MDAnalysis. WeasyPrint, Plotly, h5py and rich are optional and appear only
-  under `run_constrained` (a version constraint, not an install).
+  under `run_constraints` (a version constraint, not an install).
 - `license_file` lists the project licence and the licence of the vendored NGL
   viewer (`ngl.js`, MIT).
+- The sdist ships no test suite, so the recipe tests are `pip check` and the
+  import of the main modules on the oldest and the newest Python available on
+  conda-forge, plus a smoke test of the installed CLI (`--version`, `--help`,
+  `doctor`, then `example` and `analyze` on the package's own synthetic dataset).
 
-## Submitting (first time)
+## Submission status
 
-1. Add every maintainer's GitHub username under `extra: recipe-maintainers` in
-   `meta.yaml` (each person must agree to maintain the feedstock).
-2. Fork https://github.com/conda-forge/staged-recipes, create a branch, copy
-   `meta.yaml` and `conda_build_config.yaml` to `recipes/conformatlas/`, and open
-   a pull request using the template checklist.
-3. When CI is green, comment `@conda-forge/help-python, ready for review!` and
-   address the reviewer's comments.
-4. After the merge, conda-forge creates `conda-forge/conformatlas-feedstock`
-   and invites the maintainers (accept the invitation). The package is built and
-   uploaded to the `conda-forge` channel automatically; it is installable with
-   `conda install -c conda-forge conformatlas` after the channel index refreshes.
+Submitted as https://github.com/conda-forge/staged-recipes/pull/35139. After the
+merge, the feedstock `conda-forge/conformatlas-feedstock` is created and the
+maintainers listed under `extra: recipe-maintainers` are invited to it.
 
-## Later releases
+## Releasing a new version
 
-After each PyPI release, the conda-forge bot opens a pull request in the
-feedstock that updates `version` and `sha256`; check that the dependency list
-still matches `pyproject.toml`, wait for CI, and merge. Rebuilding without a new
-version only requires incrementing `build: number`.
+1. Publish the new version on PyPI (a GitHub release triggers `publish.yml`).
+2. After the merge of the first submission, the conda-forge bot opens a pull
+   request in the feedstock that updates `version` and `sha256`. Check that the
+   dependency list still matches `pyproject.toml`, wait for CI and merge.
+3. Keep `recipe.yaml` in this directory in step with the feedstock; the test
+   `test_conda_recipe_dependencies_match_pyproject` checks the dependency list
+   against `pyproject.toml`.
+
+Rebuilding without a new version only requires incrementing `build: number`.
 
 ## Local checks
 
 ```bash
-conda create -n condabuild -c conda-forge conda-build conda-smithy
+conda create -n condabuild -c conda-forge rattler-build conda-smithy
 conda activate condabuild
-conda smithy recipe-lint conda-recipe        # needs the layout recipes/conformatlas/
-conda build conda-recipe -c conda-forge --override-channels
+rattler-build build --recipe conda-recipe/recipe.yaml -m conda-recipe/variants.yaml -c conda-forge
+# lint: copy recipe.yaml to a folder recipes/conformatlas/, then
+conda smithy recipe-lint recipes/conformatlas
 ```

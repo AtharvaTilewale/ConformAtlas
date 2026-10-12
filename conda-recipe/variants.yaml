@@ -1,0 +1,3 @@
+# Local builds only: conda-forge supplies python_min through its global pinning.
+python_min:
+  - "3.10"
