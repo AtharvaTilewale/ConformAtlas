@@ -4,11 +4,34 @@
 * **Python**: Version 3.10, 3.11, or 3.12.
 * **MDAnalysis**: 2.2 or newer, installed automatically by `pip` together with numpy, scipy, pandas, matplotlib, scikit-image, click, jinja2 and PyYAML.
 * **GROMACS**: (Optional) GROMACS 2020 or newer (`gmx` or `gmx_mpi` accessible in PATH) for the `--pca-backend gromacs` route.
-* **Package Manager**: Standard `pip`.
+* **Package Manager**: `pip` or `conda` (conda-forge).
 
 ---
 
 ## 2. Standard Installation
+
+### conda (conda-forge)
+
+```bash
+conda create -n conformatlas -c conda-forge conformatlas
+conda activate conformatlas
+```
+
+The conda package contains the core dependencies. The optional features
+listed below are separate conda-forge packages:
+
+```bash
+conda install -c conda-forge plotly h5py rich weasyprint
+```
+
+| Optional feature | conda-forge package |
+|---|---|
+| `--pdf` | `weasyprint` |
+| interactive report figures | `plotly` |
+| `--save-hdf5` | `h5py` |
+| terminal progress bars | `rich` |
+
+### pip
 
 Install directly into your active Python environment:
 

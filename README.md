@@ -9,6 +9,7 @@
   <a href="https://github.com/AtharvaTilewale/ConformAtlas/actions/workflows/ci.yml"><img src="https://github.com/AtharvaTilewale/ConformAtlas/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://conformatlas.readthedocs.io/en/latest/"><img src="https://readthedocs.org/projects/conformatlas/badge/?version=latest" alt="Documentation"></a>
   <a href="https://doi.org/10.5281/zenodo.22847857"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22847857.svg" alt="DOI 10.5281/zenodo.22847857"></a>
+  <a href="https://anaconda.org/conda-forge/conformatlas"><img src="https://img.shields.io/conda/vn/conda-forge/conformatlas.svg" alt="conda-forge version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
 
@@ -50,6 +51,14 @@
 ```bash
 pip install conformatlas            # core (includes MDAnalysis)
 pip install "conformatlas[all]"     # + interactive figures, HDF5, progress bars, PDF report
+```
+
+or with conda ([conda-forge](https://anaconda.org/conda-forge/conformatlas)):
+
+```bash
+conda create -n conformatlas -c conda-forge conformatlas
+conda activate conformatlas
+conda install -c conda-forge plotly h5py rich weasyprint   # optional: the same extras as [all]
 ```
 
 From source:
