@@ -5,11 +5,93 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.sparse.linalg import ArpackError, LinearOperator, eigsh
 
 from conformatlas.gromacs import GromacsRunner
 from conformatlas.models import PCAResults
 
 logger = logging.getLogger("conformatlas.pca")
+
+#: Leading-eigenpair (Lanczos) solver is used when the smaller dimension of the
+#: problem (min(frames, coordinates)) is at least this large and the requested
+#: number of components is at most ``TRUNCATED_MAX_FRACTION`` of it. Below that
+#: the dense LAPACK routes are as fast and are kept unchanged.
+TRUNCATED_MIN_DIM = 1000
+TRUNCATED_MAX_FRACTION = 0.1
+
+
+def use_truncated_solver(dim: int, n_components: int) -> bool:
+    """Whether a leading-eigenpair solver is preferable to a full decomposition."""
+    return dim >= TRUNCATED_MIN_DIM and n_components <= TRUNCATED_MAX_FRACTION * dim
+
+
+def _canonical_signs(vecs: np.ndarray) -> np.ndarray:
+    """Flip each column so its largest-magnitude component is positive (deterministic)."""
+    idx = np.argmax(np.abs(vecs), axis=0)
+    signs = np.sign(vecs[idx, np.arange(vecs.shape[1])])
+    signs[signs == 0] = 1.0
+    return vecs * signs
+
+
+def leading_eigenpairs(
+    operator: LinearOperator | np.ndarray, n_components: int
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Leading ``n_components`` eigenpairs of a symmetric positive semi-definite operator.
+
+    Uses the implicitly restarted Lanczos method (ARPACK) at machine tolerance with
+    a fixed starting vector, so the result is deterministic. Returns descending
+    eigenvalues and the matching eigenvectors, or ``None`` when the solver does not
+    converge or the requested eigenvalues are numerically zero (the caller then
+    falls back to a dense decomposition).
+    """
+    size = operator.shape[0]
+    k = int(n_components)
+    if k < 1 or k >= size:
+        return None
+    v0 = np.random.default_rng(0).standard_normal(size)
+    ncv = min(size, max(4 * k, 40))
+    try:
+        w, u = eigsh(operator, k=k, which="LA", v0=v0, ncv=ncv, tol=0)
+    except ArpackError as exc:  # pragma: no cover - exercised only on hard spectra
+        logger.debug("ARPACK did not converge (%s); using the dense solver", exc)
+        return None
+    order = np.argsort(w)[::-1]
+    w, u = w[order], u[:, order]
+    if not np.all(np.isfinite(w)) or w[-1] <= 1e-10 * max(w[0], np.finfo(float).tiny):
+        return None
+    return w, u
+
+
+def leading_eigenpairs_of_scaled_data(
+    data: np.ndarray, n_components: int
+) -> tuple[np.ndarray, np.ndarray, float] | None:
+    """Leading eigenpairs of ``data.T @ data`` without decomposing the full matrix.
+
+    ``data`` is the (frames, coordinates) matrix, already centred and scaled by the
+    square root of the frame weights, so ``data.T @ data`` is the covariance. The
+    Lanczos iteration runs on whichever of the Gram matrix (frames x frames) and the
+    covariance (coordinates x coordinates) is smaller and only needs matrix-vector
+    products, so neither matrix is ever formed. The total variance is the squared
+    Frobenius norm, which equals the trace of the covariance, so explained-variance
+    percentages stay exact. Returns ``(eigenvalues, eigenvectors (D, k), total
+    variance)`` or ``None`` if the solver cannot be used.
+    """
+    n, d = data.shape
+    total = float(np.einsum("ij,ij->", data, data))
+    if n < d:
+        op = LinearOperator((n, n), matvec=lambda u: data @ (data.T @ u), dtype=np.float64)
+    else:
+        op = LinearOperator((d, d), matvec=lambda v: data.T @ (data @ v), dtype=np.float64)
+    res = leading_eigenpairs(op, n_components)
+    if res is None:
+        return None
+    w, u = res
+    if n < d:
+        vecs = data.T @ u
+        vecs /= np.linalg.norm(vecs, axis=0)
+    else:
+        vecs = u
+    return w, _canonical_signs(vecs), total
 
 
 def compute_cartesian_pca(
@@ -68,11 +150,34 @@ def compute_cartesian_pca(
         for k in replicate_keys:
             mean_struct += np.mean(flattened_reps[k], axis=0) / n_reps
     else:  # 'frames'
-        all_frames = np.vstack(list(flattened_reps.values()))
-        mean_struct = np.mean(all_frames, axis=0)
+        mean_struct = sum(f.sum(axis=0) for f in flattened_reps.values()) / total_frames
 
     def _weight(n_k: int) -> float:
         return 1.0 / (n_reps * n_k) if weighting == "equal-replicate" else 1.0 / total_frames
+
+    k_comp = min(n_components, total_frames, n_dims)
+    leading: tuple[np.ndarray, np.ndarray, float] | None = None
+    if use_truncated_solver(min(total_frames, n_dims), k_comp):
+        # Leading-eigenpair route: build the sqrt(w)-scaled centred data matrix once
+        # and run Lanczos on its Gram (or covariance) operator.
+        data = np.empty((total_frames, n_dims), dtype=np.float64)
+        row = 0
+        for k in replicate_keys:
+            n_k = flattened_reps[k].shape[0]
+            if n_k == 0:
+                continue
+            np.subtract(flattened_reps[k], mean_struct, out=data[row : row + n_k])
+            data[row : row + n_k] *= np.sqrt(_weight(n_k))
+            row += n_k
+        leading = leading_eigenpairs_of_scaled_data(data[:row], k_comp)
+        del data
+
+    if leading is not None:
+        evals, evecs, total_variance = leading
+        explained_var = (
+            100.0 * evals / total_variance if total_variance > 0 else np.zeros_like(evals)
+        )
+        return evals, evecs, explained_var, np.cumsum(explained_var), mean_struct
 
     if n_dims > total_frames:
         # Dual (SVD) route: with fewer frames than coordinates the covariance has

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Faster, lighter PCA for large selections.** When the smaller of (frames, coordinates) is at least 1,000 and only the leading components are requested (the default is 10), the in-memory and streaming engines now compute those components with a Lanczos eigensolver (ARPACK, machine tolerance) instead of a full decomposition, and take the total variance from the trace, so explained-variance percentages are unchanged. On synthetic data with 8,976 coordinates (all heavy atoms of a 387-residue protein) 8,004 frames went from 113 s and 7.3 GB to 1.3 s and 1.6 GB, and 20,000 frames from 48.5 s to 3.4 s. On the 2,001-frame neuraminidase trajectory with all protein heavy atoms, every output file agrees with 1.0.2 to 2·10⁻¹² after allowing for arbitrary eigenvector signs. Smaller problems, requests for many components and rank-deficient spectra use the previous dense routes. Eigenvector signs from the new route are fixed (largest component positive), so a principal axis can be mirrored relative to 1.0.2; populations, free energies and barriers are unaffected.
+- The streaming engine's covariance merge uses one reusable scratch matrix instead of several `D × D` temporaries.
+
 ## [1.0.2] - 2026-10-12
 
 ### Fixed

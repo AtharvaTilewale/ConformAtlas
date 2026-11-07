@@ -458,6 +458,66 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
         "conformatlas.pipeline.run_analysis",
     )
 
+    # ------------------------------------------------------------------ truncated solver
+    # Leading-eigenpair (Lanczos) route vs the full dense eigendecomposition, and vs the
+    # eigen-equation C v = lambda v evaluated on an explicitly formed covariance
+    import conformatlas.pca as pca_mod
+
+    rng = np.random.default_rng(23)
+    signal_scales = np.geomspace(5.0, 0.3, 30)
+
+    def _ensemble(n_frames, n_dims):
+        sig = (rng.normal(size=(n_frames, 30)) * signal_scales) @ rng.normal(size=(30, n_dims))
+        return sig / np.sqrt(n_dims) + 0.05 * rng.normal(size=(n_frames, n_dims))
+
+    for n_frames, n_dims, label in (
+        (1200, 3000, "frames < coordinates"),
+        (2400, 1500, "frames > coordinates"),
+    ):
+        x = _ensemble(n_frames, n_dims)
+        reps = {
+            "a": x[: n_frames // 3].reshape(-1, n_dims // 3, 3),
+            "b": x[n_frames // 3 :].reshape(-1, n_dims // 3, 3),
+        }
+        for weighting in ("equal-replicate", "frames"):
+            fast = compute_cartesian_pca(reps, weighting=weighting, n_components=10)
+            saved = pca_mod.TRUNCATED_MIN_DIM
+            pca_mod.TRUNCATED_MIN_DIM = 10**9  # force the dense route
+            try:
+                dense = compute_cartesian_pca(reps, weighting=weighting, n_components=10)
+            finally:
+                pca_mod.TRUNCATED_MIN_DIM = saved
+            e_ev = _max_rel(fast[0], dense[0])
+            e_vec = _vec_cos_err(fast[1], dense[1])
+            e_ex = float(np.max(np.abs(fast[2] - dense[2])))
+            record(
+                SECTION,
+                f"Leading-eigenpair (Lanczos) PCA vs full dense eigendecomposition ({weighting}, {label}, D={n_dims}): eigenvalues / eigenvectors / explained %",
+                e_ev < 1e-9 and e_vec < 1e-9 and e_ex < 1e-9,
+                f"rel λ {e_ev:.1e}, 1−|cos| {e_vec:.1e}, explained % {e_ex:.1e}",
+                "identical",
+                "rel λ 1e-9, 1−|cos| 1e-9, explained 1e-9 %",
+                "numpy.linalg.eigh / svd of the same weighted covariance",
+            )
+    # eigen-equation residual on an explicitly formed covariance (frames weighting)
+    x = _ensemble(1500, 2400)
+    ev, vec, expl, _, mean = compute_cartesian_pca(
+        {"r": x.reshape(1500, -1, 3)}, weighting="frames", n_components=10
+    )
+    cov = (x - mean).T @ (x - mean) / len(x)
+    resid = float(np.max(np.linalg.norm(cov @ vec - vec * ev, axis=0) / ev))
+    ortho = float(np.max(np.abs(vec.T @ vec - np.eye(10))))
+    tr_err = float(np.max(np.abs(expl - 100.0 * ev / np.trace(cov))))
+    record(
+        SECTION,
+        "Leading-eigenpair PCA satisfies C v = λ v, orthonormality and trace-normalised explained variance (frames weighting, D=2400)",
+        resid < 1e-9 and ortho < 1e-10 and tr_err < 1e-9,
+        f"residual {resid:.1e}, orthonormality {ortho:.1e}, explained % vs trace {tr_err:.1e}",
+        "0",
+        "residual 1e-9, orthonormality 1e-10",
+        "definition of the eigenproblem (explicitly formed covariance)",
+    )
+
 
 def _walk_arrays(obj):
     if isinstance(obj, (np.ndarray, pd.DataFrame)):
