@@ -362,9 +362,18 @@ def is_reversible(T: np.ndarray, pi: np.ndarray | None = None, tol: float = 1e-8
 
 
 def eigen_decomposition(
-    T: np.ndarray, k: int | None = None, reversible: bool | None = None
+    T: np.ndarray,
+    k: int | None = None,
+    reversible: bool | None = None,
+    order: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Eigenvalues (descending), right and left eigenvectors of ``T``.
+    """Eigenvalues, right and left eigenvectors of ``T``.
+
+    ``order`` sets the ranking: ``"value"`` (descending real value), ``"magnitude"``
+    (descending ``|lambda|``, ties broken in favour of the positive eigenvalue; the
+    convention of deeptime and PyEMMA for implied timescales) or ``None`` (default:
+    by value for a reversible ``T``, by magnitude otherwise). PCCA+ needs the
+    eigenvalues closest to one and uses the default.
 
     For a reversible ``T`` the symmetric similarity transform ``D^1/2 T D^-1/2``
     (``D = diag(pi)``) is diagonalised, so the spectrum is real by
@@ -384,14 +393,14 @@ def eigen_decomposition(
         S = (sq[:, None] * T) / sq[None, :]
         S = 0.5 * (S + S.T)
         vals, V = np.linalg.eigh(S)
-        order = np.argsort(-vals)
-        vals, V = vals[order], V[:, order]
+        idx0 = np.argsort(-vals)
+        vals, V = vals[idx0], V[:, idx0]
         R = V / sq[:, None]
         L = V * sq[:, None]
     else:
         vals, R = np.linalg.eig(T)
-        order = np.argsort(-np.abs(vals))
-        vals, R = vals[order], R[:, order]
+        idx0 = np.argsort(-np.abs(vals))
+        vals, R = vals[idx0], R[:, idx0]
         if np.max(np.abs(np.imag(vals))) > 1e-8:
             warnings.warn(
                 "non-reversible transition matrix has complex eigenvalues; real parts are reported",
@@ -400,6 +409,15 @@ def eigen_decomposition(
             )
         vals, R = np.real(vals), np.real(R)
         L = np.linalg.inv(R).T
+    if order is not None:
+        if order not in ("value", "magnitude"):
+            raise ValueError("order must be 'value', 'magnitude' or None")
+        idx = (
+            np.argsort(-vals, kind="stable")
+            if order == "value"
+            else np.lexsort((-vals, -np.abs(vals)))
+        )
+        vals, R, L = vals[idx], R[:, idx], L[:, idx]
     # normalise: first right eigenvector = 1, L^T R = I
     scale = R[0, 0] if abs(R[0, 0]) > 1e-12 else 1.0
     R = R / scale
@@ -414,14 +432,29 @@ def eigen_decomposition(
     return vals[:k], R[:, :k], L[:, :k]
 
 
-def implied_timescales(eigenvalues: np.ndarray, lag: int, dt_ps: float = 1.0) -> np.ndarray:
-    """``t_i = -lag * dt / ln |lambda_i|`` for the non-unit eigenvalues (NaN for lambda <= 0)."""
+def implied_timescales(
+    eigenvalues: np.ndarray, lag: int, dt_ps: float = 1.0, magnitude: bool = False
+) -> np.ndarray:
+    """Implied timescales of the non-unit eigenvalues (the first entry is skipped).
+
+    ``magnitude=False``: ``t_i = -lag * dt / ln(lambda_i)`` for ``0 < lambda_i < 1``,
+    NaN for ``lambda_i <= 0``. ``magnitude=True``: ``t_i = -lag * dt / ln|lambda_i|``
+    (deeptime / PyEMMA convention), so a negative eigenvalue also gets a timescale;
+    such a timescale has no relaxation interpretation and is flagged by the callers.
+    """
     lam = np.asarray(eigenvalues, dtype=np.float64)[1:]
+    a = np.abs(lam) if magnitude else lam
     out = np.full(lam.shape, np.nan)
-    ok = (lam > 0) & (lam < 1)
-    out[ok] = -lag * dt_ps / np.log(lam[ok])
-    out[lam >= 1] = np.inf
+    ok = (a > 0) & (a < 1)
+    out[ok] = -lag * dt_ps / np.log(a[ok])
+    out[a >= 1] = np.inf
     return out
+
+
+def negative_slow_eigenvalues(eigenvalues: np.ndarray, n: int) -> np.ndarray:
+    """Negative values among the ``n`` eigenvalues after the stationary one."""
+    lam = np.asarray(eigenvalues, dtype=np.float64)[1 : 1 + int(n)]
+    return lam[lam < 0]
 
 
 @dataclass
@@ -479,8 +512,9 @@ def estimate_msm(
     else:
         T = transition_matrix_nonreversible(Ca)
         pi = stationary_distribution(T)
-    vals, R, L = eigen_decomposition(T, k=n_eigen, reversible=reversible)
-    ts = implied_timescales(vals, lag, dt_ps)
+    vals, R, L = eigen_decomposition(T, k=n_eigen, reversible=reversible, order="magnitude")
+    ts = implied_timescales(vals, lag, dt_ps, magnitude=True)
+    info["negative_eigenvalues"] = [float(v) for v in vals[1:] if v < 0]
     return MSMEstimate(
         lag=int(lag),
         dt_ps=float(dt_ps),
@@ -529,6 +563,9 @@ def implied_timescales_scan(
         }
         for i in range(n_timescales):
             row[f"ts_{i + 1}"] = float(ts[i]) if i < len(ts) else np.nan
+        row["n_negative_eigenvalues_reported"] = int(
+            len(negative_slow_eigenvalues(est.eigenvalues, n_timescales))
+        )
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -960,6 +997,17 @@ def build_msm(
             f"{n_micro - msm.n_active} of {n_micro} microstates are outside the largest connected set "
             f"at lag {lag} ({100 * (1 - msm.active_fraction_of_counts):.2f} % of counts dropped)."
         )
+    neg = negative_slow_eigenvalues(msm.eigenvalues, n_timescales)
+    if len(neg):
+        note = (
+            f"{len(neg)} of the {n_timescales} slowest implied timescales at lag {lag} come from "
+            f"negative eigenvalues ({', '.join(f'{v:.3f}' for v in neg)}). A negative eigenvalue "
+            "has no relaxation-process interpretation; it usually means the lag is shorter than "
+            "the Markovian regime or the count statistics are noisy. Its timescale is reported "
+            "as -lag/ln|lambda| (the deeptime/PyEMMA convention)."
+        )
+        notes.append(note)
+        logger.warning(note)
     m = int(min(n_metastable, msm.n_active))
     chi = pcca_plus(msm.transition_matrix, m)
     crisp = crisp_assignment(chi)
@@ -1064,6 +1112,7 @@ def save_msm(result: MSMResult, output_dir: str | Path) -> Path:
             "index": np.arange(len(est.eigenvalues)),
             "eigenvalue": est.eigenvalues,
             "timescale_ps": np.concatenate([[np.inf], est.timescales_ps]),
+            "negative_eigenvalue": est.eigenvalues < 0,
         }
     ).to_csv(out / "eigenvalues.csv", index=False)
     summary = {

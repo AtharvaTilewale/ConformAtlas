@@ -591,6 +591,16 @@
   },
   {
     "section": "MSM",
+    "check": "implied timescales ranked by |\u03bb| match deeptime on a reversible chain with eigenvalues 1, 0.5, \u22120.3, 0.1",
+    "pass": true,
+    "measured": "max relative difference 6.6e-16; order [ 1.     0.498 -0.303  0.1  ]",
+    "expected": "\u22120.3 ranked before 0.1; timescales identical to deeptime",
+    "tolerance": "< 1e-6",
+    "reference": "deeptime 0.4.5 MaximumLikelihoodMSM.timescales() (ranks by |\u03bb|)",
+    "note": ""
+  },
+  {
+    "section": "MSM",
     "check": "lag plateau report identifies lag 1 as Markovian for a true Markov chain",
     "pass": true,
     "measured": "suggested 1 frames",

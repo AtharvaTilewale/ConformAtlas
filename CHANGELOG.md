@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **MSM implied timescales are ranked by |λ|.** `estimate_msm` (and everything built on it: the implied-timescale scan, `build_msm`, `msm/eigenvalues.csv`, the report) now orders eigenvalues by magnitude and computes timescales as −τ/ln|λ|, the convention of deeptime and PyEMMA. Previously eigenvalues were ranked by signed value and negative ones had no timescale, so a large negative eigenvalue silently dropped out of the list and later timescales were shifted (on the adenylate kinase benchmark the 5th timescale differed from deeptime by 2 %). Positive spectra give identical results. PCCA+ still uses the eigenvalues closest to one.
+- When a negative eigenvalue is among the slowest reported timescales, the MSM notes (printed, and saved in `run_metadata.json`) say so, the implied-timescale table gains `n_negative_eigenvalues_reported`, and `msm/eigenvalues.csv` a `negative_eigenvalue` column. A negative eigenvalue has no relaxation interpretation; it usually means the lag is shorter than the Markovian regime.
+
 ## [1.0.2] - 2026-10-12
 
 ### Fixed
