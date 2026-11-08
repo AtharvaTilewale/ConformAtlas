@@ -41,7 +41,7 @@
 | **States and kinetics** | Watershed segmentation with barrier-based merging, saddle-point barriers, transition matrix, dwell times, mean first-passage times; optional Markov state model (microstates, reversible estimator, implied-timescale scan, Chapman–Kolmogorov test, PCCA+) |
 | **Convergence** | Statistical inefficiency and effective sample size, equilibration detection, first/second-half subspace overlap, cosine content, population stability per replicate |
 | **Structures** | Representative and average structures per state, RMSF profiles, per-residue mode contributions, NMWiz mode files, dynamic cross-correlation maps, ligand–residue contacts |
-| **Comparisons** | Any number of systems projected into a shared PCA space: ΔΔG maps with uncertainty, population differences with bootstrap confidence intervals and p-values, landscape overlap metrics |
+| **Comparisons** | Any number of systems projected into a shared PCA space: ΔΔG maps with uncertainty; population differences with Welch's test and interval across replicates, plus a replicate-level bootstrap; warnings when replicates disagree; landscape overlap metrics |
 | **Enhanced sampling** | `conformatlas reweight` turns PLUMED metadynamics or umbrella-sampling output into per-frame weights (final bias, Tiwary–Parrinello, WHAM, MBAR) for a reweighted landscape |
 | **Scale** | Streaming two-pass PCA engine with memory independent of trajectory length, multi-replicate aware, HDF5 results container, re-analysis of saved results without re-reading trajectories |
 | **Reporting** | Self-contained HTML report with interactive landscape and 3-D structure viewer, publication-ready PNG/SVG/PDF figures, optional PDF report |

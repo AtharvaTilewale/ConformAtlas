@@ -223,8 +223,9 @@ Axis labels follow the collective variables in use (PC, dPC, IC, RMSD/Rg, or the
 
 ```text
 comparison/
-├── state_population_comparison.csv  # Per-state populations per system, replicate SD, bootstrap CI,
-│                                    # difference to the reference with CI, bootstrap p, Welch t/p
+├── state_population_comparison.csv  # Per-state populations per system, replicate SD/min/max/count,
+│                                    # heterogeneity ratio, bootstrap CI and level; difference to the
+│                                    # reference with bootstrap CI/p and Welch t/p, 95 % CI and df
 ├── state_free_energy_comparison.csv # State minima per system and ΔΔG vs reference with CI
 ├── fel_diff_<SYS>_vs_<REF>.csv/.npy # ΔΔG map on the shared grid (+ bootstrap SD column)
 ├── fel_overlap.csv                  # Bhattacharyya, Hellinger, JS divergence, sampled-bin Jaccard

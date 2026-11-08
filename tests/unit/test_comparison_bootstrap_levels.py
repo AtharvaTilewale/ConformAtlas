@@ -142,6 +142,10 @@ def test_replicate_level_includes_between_replicate_spread():
     width_r = tr["B_minus_A_CI95_High"][0] - tr["B_minus_A_CI95_Low"][0]
     assert width_f < 2.0 and width_r > 30.0
     assert tr["B_minus_A_CI95_Low"][0] <= 0 <= tr["B_minus_A_CI95_High"][0]
+    # replicate populations ~(0, 100, 0) vs (0, 100, 100): the t interval is about
+    # [-97, 164] pp, so its upper end is clipped to the possible maximum of 100
+    assert -100.0 < tr["B_minus_A_Welch_CI95_Low"][0] < -90.0
+    assert tr["B_minus_A_Welch_CI95_High"][0] == 100.0
     assert tf["A_Bootstrap_Level"][0] == "frame" and tr["A_Bootstrap_Level"][0] == "replicate"
     # heterogeneity: replicates differ by ~100 points while each barely fluctuates
     assert tr["A_Replicate_Heterogeneity_Ratio"][0] > 50.0

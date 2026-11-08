@@ -148,6 +148,7 @@ Compare systems in a shared PCA coordinate space.
 | `-c, --config PATH` | required | YAML configuration file for the comparison (`conformatlas init-config --type compare`). |
 | `-o, --output PATH` | from YAML | Override output directory. |
 | `--bootstrap-mode [fixed\|resegment]` | `fixed` | `resegment` re-runs the watershed on every pooled-landscape resample (YAML key `bootstrap_mode`); writes `comparison/state_count_distribution.csv` and `comparison/state_populations_resegmented.csv`. |
+| `--bootstrap-level [replicate\|frame]` | `replicate` | `replicate` resamples replicates with replacement and then blocks of frames inside each, so intervals include the spread between simulations; `frame` is the 1.0.x within-replicate block bootstrap (YAML key `bootstrap_level`). |
 | `--interactive / --no-interactive` | when plotly is installed | Write `comparison_interactive.html` (side-by-side Plotly landscapes, linked axes, shared colour scale). |
 | `--fig-format`, `--colormap`, `--font-scale`, `--fig-dpi`, `--plotly-js`, `-q` | as above | Figure and report control, same semantics as `analyze`. |
 

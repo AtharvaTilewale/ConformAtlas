@@ -316,9 +316,11 @@ def population_difference_table(
                 row[f"{name}_minus_{reference}_Welch_p"] = float(t.pvalue)
                 row[f"{name}_minus_{reference}_Welch_df"] = f"{len(b)} vs {len(a)} replicates"
                 wd, wlo, whi, wdf = welch_interval(b, a)
+                # a population difference lies in [-100, 100] percentage points; with
+                # very few replicates the t interval can exceed that range
                 row[f"{name}_minus_{reference}_Welch_Diff_Percent"] = wd
-                row[f"{name}_minus_{reference}_Welch_CI95_Low"] = wlo
-                row[f"{name}_minus_{reference}_Welch_CI95_High"] = whi
+                row[f"{name}_minus_{reference}_Welch_CI95_Low"] = max(wlo, -100.0)
+                row[f"{name}_minus_{reference}_Welch_CI95_High"] = min(whi, 100.0)
                 row[f"{name}_minus_{reference}_Welch_dof"] = wdf
             else:
                 row[f"{name}_minus_{reference}_Welch_t"] = np.nan
