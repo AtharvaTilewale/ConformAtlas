@@ -66,6 +66,21 @@ correlated tests). Declared before running: the bootstrap resamples frames *with
 sample different regions its intervals miss the between-replicate variance and the gate will fail; such a failure
 is a real limitation and is reported as one.
 
+### T4-R — re-test of the null after the `compare` fix (gate; added 2026-11-08, before the re-run)
+T4 failed with the 1.0.2 code (bootstrap false-positive rate 1.00). The fix on branch `dev` makes the default
+bootstrap hierarchical (`bootstrap_level: replicate`: replicates are resampled with replacement, then blocks of frames
+inside each drawn replicate), adds a Welch 95 % interval on per-replicate populations as the primary test, and warns
+when replicates disagree. T4-R repeats T4 exactly — same 10 splits, same trajectories, same YAML, all other settings
+default — with the `dev` code. Measured over all (split, state) pairs:
+* **bootstrap false-positive rate** (95 % replicate-level bootstrap CI of the difference excludes 0). **Gate ≤ 0.15**,
+  unchanged from T4.
+* Welch-CI false-positive rate and Welch p < 0.05 rate (reported, not gated), median bootstrap CI half-width.
+
+Expected limitation, declared before running: with 2 and 3 replicates per group a replicate-level bootstrap has very
+few distinct resamples and underestimates the between-replicate variance by the factor (k − 1)/k, so it can still be
+too narrow; if T4-R fails, the failure is reported as such. The original T4 result stays in the report unchanged.
+T5 is re-run with the same code for information (`t5_force_field_dev.json`).
+
 ### T5 — force-field comparison (informational, no gate)
 `conformatlas compare` on 5 ff99SB*-ILDN vs 3 ff15ipq replicates (default settings, Cα): population differences with
 CIs and Welch p, RMSIP between the two force fields' essential subspaces, landscape overlap. Reported as a
@@ -113,4 +128,5 @@ ConformAtlas implied timescales over lags vs the authors' saved implied-timescal
 
 ## Reporting rules
 As for ADK: every gate is reported with its measured value; tools that fail to run are listed; trajectories are not
-stored in the repository; nothing is pushed (local branches only, at the user's request).
+stored in the repository; nothing is pushed (local branches only, at the user's request). Update 2026-11-08: the
+user allowed pushing to branches other than `main`; this work is consolidated on `dev`.
