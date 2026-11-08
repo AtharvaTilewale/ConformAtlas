@@ -171,6 +171,30 @@ def check_msm(record, KB):
         "< 5 % (statistical); < 1e-5 vs deeptime",
         "analytical eigenvalues; deeptime MaximumLikelihoodMSM.timescales()",
     )
+    # --- implied timescales ranked by |lambda| on a chain with a strongly negative eigenvalue
+    hb = 0.5 * np.array([[1, 1, 1, 1], [1, 1, -1, -1], [1, -1, 1, -1], [1, -1, -1, 1]], float).T
+    t_neg = hb @ np.diag([1.0, 0.5, -0.3, 0.1]) @ hb.T  # reversible, eigenvalues 1, 0.5, -0.3, 0.1
+    rng_n = np.random.default_rng(7)
+    cum = np.cumsum(t_neg, axis=1)
+    dneg = np.zeros(200_000, dtype=int)
+    u = rng_n.random(len(dneg))
+    for i in range(1, len(dneg)):
+        dneg[i] = min(int(np.searchsorted(cum[dneg[i - 1]], u[i])), 3)
+    est_n = M.estimate_msm([dneg], 1, reversible=True)
+    dm_n = MaximumLikelihoodMSM(reversible=True).fit_fetch(
+        TransitionCountEstimator(lagtime=1, count_mode="sliding").fit_fetch(dneg)
+    )
+    rel_n = float(np.max(np.abs(est_n.timescales_ps - dm_n.timescales()) / dm_n.timescales()))
+    ranked_ok = bool(est_n.eigenvalues[2] < 0 < est_n.eigenvalues[3])
+    record(
+        "MSM",
+        "implied timescales ranked by |λ| match deeptime on a reversible chain with eigenvalues 1, 0.5, −0.3, 0.1",
+        rel_n < 1e-6 and ranked_ok and len(est_n.estimator_info["negative_eigenvalues"]) == 1,
+        f"max relative difference {rel_n:.1e}; order {np.array2string(est_n.eigenvalues, precision=3)}",
+        "−0.3 ranked before 0.1; timescales identical to deeptime",
+        "< 1e-6",
+        f"deeptime {dt_version} MaximumLikelihoodMSM.timescales() (ranks by |λ|)",
+    )
     rep = M.suggest_markov_lag(its, rel_tol=0.1)
     record(
         "MSM",
