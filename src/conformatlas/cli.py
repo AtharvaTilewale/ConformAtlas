@@ -429,7 +429,7 @@ def main(ctx, structure, trajectory, temperature, output, quiet):
     "lig_group",
     type=str,
     default=None,
-    help="Ligand residue/group name (e.g. ZMR, ATP): added to the analysis group and given its own RMSD.",
+    help="Ligand residue/group name (e.g. AP5, ATP): added to the analysis group and given its own RMSD.",
 )
 @click.option(
     "--pca-type",
@@ -1411,13 +1411,33 @@ def init_config(config_type, out_file):
     show_default=True,
     help="Output directory to generate example files.",
 )
-def example(output_dir):
-    """Generate a lightweight example dataset and comparison YAML configuration."""
+@click.option(
+    "--replicates",
+    "n_replicates",
+    type=click.IntRange(min=1),
+    default=2,
+    show_default=True,
+    help="Trajectories per system (WT and MUT).",
+)
+@click.option(
+    "--frames",
+    "n_frames",
+    type=click.IntRange(min=2),
+    default=100,
+    show_default=True,
+    help="Frames per trajectory (10 ps apart).",
+)
+def example(output_dir, n_replicates, n_frames):
+    """Generate a synthetic WT/MUT example dataset and comparison YAML configuration.
+
+    The populations are known exactly (WT 65 % State A, MUT 30 % State A), so the
+    comparison has a true difference of -35 percentage points.
+    """
     from conformatlas.examples_gen import generate_mini_example_dataset
 
     p = Path(output_dir)
     try:
-        generate_mini_example_dataset(p)
+        generate_mini_example_dataset(p, n_replicates=n_replicates, n_frames=n_frames)
     except ConformAtlasError as e:
         fail(str(e), e.exit_code)
     click.echo(f"{GREEN}✔ Example dataset created in: {p.resolve()}{NC}")

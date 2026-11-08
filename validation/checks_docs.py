@@ -3,7 +3,7 @@
 ``run(record, tmp, ROOT, KB)`` verifies that the documentation is consistent with
 the software it describes:
 
-1. every ``bash`` and ``python`` code block of ``docs/tutorial_neuraminidase.md``
+1. every ``bash`` and ``python`` code block of ``docs/tutorial_adk.md``
    and the runnable ``python`` blocks of ``docs/python_api.md`` execute without
    error, in order, from a scratch copy of the repository data;
 2. every numeric value quoted in the tutorial equals (at the quoted rounding) the
@@ -93,14 +93,21 @@ def run_code_blocks(
 
 
 def tutorial_workdir(tmp: Path, ROOT: Path) -> Path:
-    """Scratch directory laid out like the repository root (tests/data copied)."""
+    """Scratch directory laid out like the repository root (examples/adk copied)."""
     work = tmp / "docs_tutorial"
     if work.exists():
         shutil.rmtree(work)
+    (work / "examples").mkdir(parents=True)
+    shutil.copytree(
+        ROOT / "examples" / "adk",
+        work / "examples" / "adk",
+        ignore=shutil.ignore_patterns(".*offsets*", "__pycache__"),
+    )
+    # python_api.md uses the small regression fixture
     (work / "tests" / "data").mkdir(parents=True)
     shutil.copytree(
-        ROOT / "tests" / "data" / "h1n1_ca",
-        work / "tests" / "data" / "h1n1_ca",
+        ROOT / "tests" / "data" / "adk_ca",
+        work / "tests" / "data" / "adk_ca",
         ignore=shutil.ignore_patterns(".*offsets*"),
     )
     return work
@@ -117,326 +124,411 @@ def _csv(path: Path):
     return pd.read_csv(path)
 
 
-def tutorial_number_sources(work: Path) -> list[tuple[str, str, float, int]]:
-    """``[(label, quoted_text, recomputed_value, decimals)]``.
+def _m(x: float, nd: int) -> str:
+    """Number as printed in tutorial prose: Unicode minus sign."""
+    return f"{x:.{nd}f}".replace("-", "−")
 
-    ``quoted_text`` must appear verbatim in the tutorial and must equal
-    ``recomputed_value`` rounded to ``decimals``.
-    """
+
+def _superpose(x, ref):
     import numpy as np
 
-    A = work / "tutorial" / "analysis"
-    C = work / "tutorial" / "comparison"
-    KB = 0.008314462618
+    xc, rc = x - x.mean(0), ref - ref.mean(0)
+    u, _, vt = np.linalg.svd(xc.T @ rc)
+    d = np.sign(np.linalg.det(u @ vt))
+    return xc @ (u @ np.diag([1.0, 1.0, d]) @ vt) + ref.mean(0)
+
+
+def tutorial_number_sources(
+    work: Path,
+) -> tuple[list[tuple[str, str, float, int]], list[tuple[str, str, bool]]]:
+    """Numbers and claims of docs/tutorial_adk.md with their sources.
+
+    ``rows``: ``(label, quoted_text, recomputed_value, decimals)``; ``quoted_text``
+    must appear verbatim in the tutorial and contain ``recomputed_value`` at that
+    rounding. ``claims``: ``(label, quoted_text, holds)``; the statement must appear
+    verbatim and be true for the run. Values are re-read from the output files of the
+    tutorial run in ``work`` and from the shipped example data.
+    """
+    import MDAnalysis as mda
+    import numpy as np
+
+    from conformatlas.fel import choose_bins
+
+    X = work / "examples" / "adk"
+    A = work / "tutorial" / "adk"
+    G = work / "tutorial" / "adk_angles"
+    E = work / "tutorial" / "adk_equilibrated"
+    C = work / "tutorial" / "wt_mut" / "results" / "comparison"
     rows: list[tuple[str, str, float, int]] = []
+    claims: list[tuple[str, str, bool]] = []
 
-    ev = _csv(A / "pca" / "explained_variance.csv")
-    for k in range(3):
-        rows.append((f"eigenvalue PC{k + 1}", f"{ev.Eigenvalue[k]:.1f}", ev.Eigenvalue[k], 1))
-        rows.append(
-            (
-                f"variance PC{k + 1}",
-                f"{ev.ExplainedVariance_Percent[k]:.1f}",
-                ev.ExplainedVariance_Percent[k],
-                1,
-            )
-        )
-        rows.append(
-            (
-                f"cumulative PC{k + 1}",
-                f"{ev.CumulativeVariance_Percent[k]:.1f}",
-                ev.CumulativeVariance_Percent[k],
-                1,
-            )
-        )
-
-    fe = np.load(A / "fel" / "free_energy.npy")
-    rows.append(("occupied bins", f"{int(np.isfinite(fe).sum())} of the 144 bins", 27, 0))
-    rows.append(("max dG", f"{np.nanmax(fe):.2f} kJ/mol", np.nanmax(fe), 2))
-    prob = np.load(A / "fel" / "probability.npy")
-    counts = prob / prob[np.isfinite(fe)].sum() * 81
-    rows.append(
-        ("frames in most populated bin", f"holds {int(round(np.nanmax(counts)))} frames", 9, 0)
-    )
-    assert abs(KB * 300 * np.log(np.nanmax(counts)) - np.nanmax(fe)) < 1e-6
-    sd = np.load(A / "fel" / "free_energy_bootstrap_sd.npy")
-    rows.append(("bootstrap SD min", f"between {np.nanmin(sd):.2f} and", np.nanmin(sd), 2))
-    rows.append(("bootstrap SD max", f"and {np.nanmax(sd):.2f} kJ/mol", np.nanmax(sd), 2))
-
-    basins = _csv(A / "states" / "basins.csv").set_index("State")
-    for st in ("State A", "State B"):
-        b = basins.loc[st]
-        rows.append((f"{st} population", f"{b.Population_Percent:.1f}", b.Population_Percent, 1))
-        rows.append((f"{st} min PC1", f"{b.Min_PC1:.2f}".replace("-", "−"), b.Min_PC1, 2))
-        rows.append((f"{st} min PC2", f"{b.Min_PC2:.2f}".replace("-", "−"), b.Min_PC2, 2))
-        rows.append(
-            (
-                f"{st} min dG",
-                f"{abs(b.Min_FreeEnergy_kJ_mol):.2f}",
-                abs(b.Min_FreeEnergy_kJ_mol),
-                2,
-            )
-        )
-        rows.append(
-            (
-                f"{st} representative",
-                f"frame {int(b.Representative_Frame)}, {int(b.Representative_Time_ps)} ps",
-                b.Representative_Frame,
-                0,
-            )
-        )
-    summary = json.load(open(A / "summary.json", encoding="utf-8"))
-    un = summary["unassigned_population_percent"]
-    rows.append(("unassigned", f"{un:.1f} % of the frames", un, 1))
-
-    sfe = _csv(A / "states" / "state_free_energies.csv").set_index("state")
-    for st in ("State A", "State B"):
-        r = sfe.loc[st]
-        rows.append(
-            (
-                f"{st} bootstrap CI",
-                f"[{100 * r.population_ci95_low:.1f}, {100 * r.population_ci95_high:.1f}]",
-                100 * r.population_ci95_low,
-                1,
-            )
-        )
-    rb = sfe.loc["State B"]
-    rows.append(("dG B vs A", f"{rb.dG_state_kJ_mol:.2f}", rb.dG_state_kJ_mol, 2))
+    # ---- data and crystal structures
+    cryst = json.load(open(X / "crystal" / "crystal_angles.json", encoding="utf-8"))
+    c1, c4 = cryst["1AKE"], cryst["4AKE"]
     rows.append(
         (
-            "dG B vs A CI",
-            f"[{rb.dG_state_ci95_low:.2f}, {rb.dG_state_ci95_high:.2f}]".replace("-", "−"),
-            rb.dG_state_ci95_low,
-            2,
-        )
-    )
-    assert len(_csv(A / "states" / "barriers.csv")) == 0, "barriers.csv is expected to be empty"
-    pops = _csv(A / "statistics" / "state_populations.csv")
-    rows.append(
-        (
-            "blocks",
-            f"{int(pops.Num_Blocks[0])} independent blocks of {int(pops.Block_Frames[0])} frames",
-            pops.Num_Blocks[0],
-            0,
-        )
-    )
-    ens = _csv(A / "states" / "state_ensemble_summary.csv").set_index("state")
-    rows.append(
-        (
-            "frames per state",
-            f"{int(ens.loc['State A'].frames)} frames in State A and {int(ens.loc['State B'].frames)} in State B",
-            ens.loc["State A"].frames,
-            0,
-        )
-    )
-    rows.append(
-        (
-            "state RMSD",
-            f"{ens.loc['State A'].RMSD_to_reference_mean:.2f} Å and {ens.loc['State B'].RMSD_to_reference_mean:.2f} Å",
-            ens.loc["State A"].RMSD_to_reference_mean,
-            2,
-        )
-    )
-
-    tm = _csv(A / "kinetics" / "transition_matrix.csv").set_index("from_state")
-    rows.append(
-        (
-            "P(A->A)",
-            f"P(A→A) = {tm.loc['State A', 'to_State A']:.3f}",
-            tm.loc["State A", "to_State A"],
-            3,
-        )
-    )
-    rows.append(
-        (
-            "P(A->B)",
-            f"P(A→B) = {tm.loc['State A', 'to_State B']:.3f}",
-            tm.loc["State A", "to_State B"],
-            3,
-        )
-    )
-    mfpt = _csv(A / "kinetics" / "mfpt_markov_ps.csv").set_index("from_state")
-    rows.append(
-        (
-            "MFPT A->B",
-            f"A→B is {mfpt.loc['State A', 'to_State B']:.0f} ps",
-            mfpt.loc["State A", "to_State B"],
-            0,
-        )
-    )
-    dw = _csv(A / "kinetics" / "dwell_summary.csv").set_index("state")
-    rows.append(
-        (
-            "dwell A",
-            f"{dw.loc['State A'].max_dwell_ps / 1000:.1f} ns in A",
-            dw.loc["State A"].max_dwell_ps / 1000,
+            "1AKE angles",
+            f"{c1['theta_NMP']:.1f}° / {c1['theta_LID']:.1f}° (closed 1AKE)",
+            c1["theta_NMP"],
             1,
         )
     )
     rows.append(
         (
-            "dwell B",
-            f"{dw.loc['State B'].max_dwell_ps / 1000:.1f} ns in B",
-            dw.loc["State B"].max_dwell_ps / 1000,
+            "4AKE angles",
+            f"{c4['theta_NMP']:.1f}° / {c4['theta_LID']:.1f}°\n(open 4AKE)",
+            c4["theta_NMP"],
             1,
         )
     )
+    proj = _csv(A / "pca" / "projections.csv")
+    rows.append(("frames", f"{len(proj):,} frames 240 ps apart", len(proj), 0))
 
-    ds = _csv(A / "descriptors" / "summary.csv").iloc[0]
-    rows.append(
-        (
-            "RMSD mean",
-            f"| Cα RMSD | {ds.RMSD_mean:.2f} | {ds.RMSD_sd:.2f} | {ds.RMSD_max:.2f} |",
-            ds.RMSD_mean,
-            2,
-        )
-    )
-    rows.append(
-        (
-            "Rg mean",
-            f"| Radius of gyration | {ds.Rg_mean:.2f} | {ds.Rg_sd:.2f} | — |",
-            ds.Rg_mean,
-            2,
-        )
-    )
-    rows.append(
-        (
-            "ligand RMSD",
-            f"| Zanamivir RMSD after protein fit | {ds.Ligand_RMSD_mean:.2f} | {ds.Ligand_RMSD_sd:.2f} | {ds.Ligand_RMSD_max:.2f} |",
-            ds.Ligand_RMSD_mean,
-            2,
-        )
-    )
-    rmsf = _csv(A / "descriptors" / "rmsf_residues.csv").set_index("residue_number")
-    rows.append(("RMSF Ser1", f"Ser1\n{rmsf.loc[1].RMSF:.2f} Å", rmsf.loc[1].RMSF, 2))
-    rows.append(("RMSF Asp387", f"Asp387 {rmsf.loc[387].RMSF:.2f} Å", rmsf.loc[387].RMSF, 2))
-    rows.append(("RMSF Pro256", f"Pro256 ({rmsf.loc[256].RMSF:.2f} Å)", rmsf.loc[256].RMSF, 2))
-    mc = _csv(A / "pca" / "mode_contributions_residues.csv").set_index("residue_number")
-    rows.append(("mode ZMR", f"(ZMR, {mc.loc[390].PC1:.3f})", mc.loc[390].PC1, 3))
-    rows.append(("mode Pro256", f"Pro256\n({mc.loc[256].PC1:.3f})", mc.loc[256].PC1, 3))
-    rows.append(("mode Asp387", f"Asp387 ({mc.loc[387].PC1:.3f})", mc.loc[387].PC1, 3))
-    rows.append(("mode Ser1 PC2", f"Ser1\n({mc.loc[1].PC2:.2f})", mc.loc[1].PC2, 2))
-
-    rmsip = _csv(A / "convergence" / "rmsip.csv")
-    rows.append(("RMSIP", f"RMSIP** (`rmsip.csv`): {rmsip.Value[0]:.2f}", rmsip.Value[0], 2))
-    cc = _csv(A / "convergence" / "cosine_content.csv")
-    rows.append(
-        ("cosine", f"(`cosine_content.csv`): {cc.Cosine_Content[0]:.2f}", cc.Cosine_Content[0], 2)
-    )
-    po = _csv(A / "convergence" / "progressive_overlap.csv")
-    rows.append(
-        (
-            "progressive",
-            f"by {po.Subspace_RMSIP[0]:.2f}, {po.Subspace_RMSIP[1]:.2f} and {po.Subspace_RMSIP[2]:.2f}",
-            po.Subspace_RMSIP[0],
-            2,
-        )
-    )
-    eff = _csv(A / "convergence" / "effective_samples.csv").iloc[0]
-    rows.append(("g PC1", f"g(PC1) = {eff.g_PC1:.1f} frames", eff.g_PC1, 1))
-    rows.append(("g PC2", f"g(PC2) = {eff.g_PC2:.1f} frames", eff.g_PC2, 1))
-    rows.append(("N_eff", f"N_eff = {eff.N_eff:.1f} effective frames", eff.N_eff, 1))
-    rows.append(
-        ("tau PC1 ns", f"correlation time of about {eff.g_PC1 * 0.25:.1f} ns", eff.g_PC1 * 0.25, 1)
-    )
+    # ---- console summary of the main run
     eq = _csv(A / "convergence" / "equilibration.csv").iloc[0]
+    n_tot = len(proj)
     rows.append(
         (
-            "t0",
-            f"t₀ at {int(eq.t0_ps)} ps (frame {int(eq.t0_index)})",
+            "equilibration note",
+            f"discarding the first {int(eq.t0_index)} frames ({100 * eq.t0_index / n_tot:.0f}%, t0 = {eq.t0_ps:.0f} ps)",
             eq.t0_ps,
             0,
         )
     )
+    ev = _csv(A / "pca" / "explained_variance.csv")
     rows.append(
         (
-            "N_eff equilibration",
-            f"from {eq.N_eff_full:.1f} to {eq.N_eff_production:.1f}",
-            eq.N_eff_full,
+            "top-2 variance",
+            f"Leading two modes explain {ev.CumulativeVariance_Percent[1]:.1f}%",
+            ev.CumulativeVariance_Percent[1],
             1,
         )
     )
-    ps = _csv(A / "convergence" / "population_stability.csv")
-    assert ps["State B"].iloc[1] == 0.0, "State B expected absent at 50 %"
+    pops = _csv(A / "statistics" / "state_populations.csv").iloc[0]
+    summ = json.load(open(A / "summary.json", encoding="utf-8"))
+    un = float(summ["unassigned_population_percent"])
+    rows.append(
+        (
+            "state A console",
+            f"State A: {pops.Mean_Population_Percent:.1f}% (Unassigned / Minor: {un:.1f}%)",
+            un,
+            1,
+        )
+    )
+    rows.append(
+        (
+            "state A CI console",
+            f"population {pops.Mean_Population_Percent:.1f}% [{pops.Bootstrap_CI_95_Lower:.1f}, {pops.Bootstrap_CI_95_Upper:.1f}]",
+            pops.Bootstrap_CI_95_Lower,
+            1,
+        )
+    )
+    rmsip = _csv(A / "convergence" / "rmsip.csv")
+    cos = _csv(A / "convergence" / "cosine_content.csv")
+    rows.append(
+        (
+            "RMSIP console",
+            f"Half-vs-half RMSIP: {rmsip.Value[0]:.2f} | PC1 cosine content: {cos.Cosine_Content[0]:.2f}",
+            rmsip.Value[0],
+            2,
+        )
+    )
+    msm = json.load(open(A / "msm" / "msm_summary.json", encoding="utf-8"))
+    rows.append(("MSM active", f"{msm['n_active']} active; lag 10 frames", msm["n_active"], 0))
+    ckd = float(msm["ck_test"]["max_abs_deviation"])
+    rows.append(("CK console", f"passed (max |deviation| {ckd:.3f})", ckd, 3))
+    fd = choose_bins(proj.PC1.to_numpy(), proj.PC2.to_numpy())
+    rows.append(("FD bins", f"chooses {fd}\nbins per axis", fd, 0))
 
-    # ---- comparison
-    cev = _csv(C / "pca" / "explained_variance.csv")
+    # ---- modes, RMSF, DCCM
+    for k in range(3):
+        rows.append(
+            (
+                f"variance PC{k + 1}",
+                f"{ev.ExplainedVariance_Percent[k]:.1f} %",
+                ev.ExplainedVariance_Percent[k],
+                1,
+            )
+        )
     rows.append(
         (
-            "shared variance",
-            f"carry {cev.ExplainedVariance_Percent[0]:.1f} % and {cev.ExplainedVariance_Percent[1]:.1f} %",
-            cev.ExplainedVariance_Percent[0],
+            "PC variances sentence",
+            f"PC1, PC2 and PC3 carry {ev.ExplainedVariance_Percent[0]:.1f} %, {ev.ExplainedVariance_Percent[1]:.1f} % and {ev.ExplainedVariance_Percent[2]:.1f} %",
+            ev.ExplainedVariance_Percent[2],
             1,
         )
     )
-    pc = _csv(C / "comparison" / "state_population_comparison.csv").set_index("State")
-    for st in ("State A", "State B", "State C"):
-        r = pc.loc[st]
-        diff = r["late_minus_early_Percent"]
-        sign = "+" if diff > 0 else "−"
+    mc = _csv(A / "pca" / "mode_contributions_residues.csv")
+    lid = mc.residue_number.between(122, 159)
+    nmp = mc.residue_number.between(30, 59)
+    rows.append(("residues", f"{int(lid.sum())} and {int(nmp.sum())} of the 214", len(mc), 0))
+    sl = 100 * mc.loc[lid, "PC1"].sum() / mc.PC1.sum()
+    sn = 100 * mc.loc[nmp, "PC1"].sum() / mc.PC1.sum()
+    rows.append(("PC1 shares", f"carry {sl:.1f} % and {sn:.1f} % of PC1", sl, 1))
+    top = mc.loc[mc.PC1.idxmax()]
+    rows.append(
+        (
+            "top PC1 residue",
+            f"largest PC1 weight is on {top.residue_name.title()}{int(top.residue_number)}",
+            top.residue_number,
+            0,
+        )
+    )
+    rm = _csv(A / "descriptors" / "rmsf_residues.csv")
+    rl = rm.RMSF[rm.residue_number.between(122, 159)].mean()
+    rn = rm.RMSF[rm.residue_number.between(30, 59)].mean()
+    rc_ = rm.RMSF[~(rm.residue_number.between(122, 159) | rm.residue_number.between(30, 59))].mean()
+    rows.append(("RMSF LID", f"averages {rl:.2f} Å in the LID", rl, 2))
+    rows.append(("RMSF NMP", f"{rn:.2f} Å in the NMP domain", rn, 2))
+    rows.append(("RMSF CORE", f"{rc_:.2f} Å in the CORE", rc_, 2))
+    mx = rm.loc[rm.RMSF.idxmax()]
+    rows.append(
+        (
+            "RMSF max",
+            f"maximum of {mx.RMSF:.2f} Å at {mx.residue_name.title()}{int(mx.residue_number)}",
+            mx.RMSF,
+            2,
+        )
+    )
+    dc = np.load(A / "residues" / "dccm.npy")
+    r = np.arange(1, dc.shape[0] + 1)
+    L = (r >= 122) & (r <= 159)
+    N = (r >= 30) & (r <= 59)
+    rows.append(
+        (
+            "DCCM LID-NMP",
+            f"LID and NMP residues is {_m(dc[np.ix_(L, N)].mean(), 2)}",
+            dc[np.ix_(L, N)].mean(),
+            2,
+        )
+    )
+    rows.append(
+        (
+            "DCCM LID-LID",
+            f"correlate with each other at {dc[np.ix_(L, L)].mean():.2f}",
+            dc[np.ix_(L, L)].mean(),
+            2,
+        )
+    )
+
+    # ---- projection of the crystal structures (independent of the tutorial block)
+    ref = mda.Universe(str(X / "adk_ca.pdb")).atoms.positions.astype(float)
+    mean = np.load(A / "pca" / "mean_coordinates.npy").ravel()
+    vecs = np.load(A / "pca" / "eigenvectors.npy")
+    for name in ("1ake", "4ake"):
+        x = mda.Universe(str(X / "crystal" / f"{name}_A_ca.pdb")).atoms.positions.astype(float)
+        pc = (_superpose(x, ref).ravel() - mean) @ vecs[:, :2]
+        rows.append(
+            (
+                f"{name} projection",
+                f"{name.upper()}: PC1 = {pc[0]:.1f} Å, PC2 = {pc[1]:.1f} Å",
+                pc[0],
+                1,
+            )
+        )
+    rows.append(("first frame PC1", f"(PC1 = {_m(proj.PC1[0], 1)} Å", proj.PC1[0], 1))
+
+    # ---- landscape and state
+    st = summ["states"][0]
+    rows.append(
+        (
+            "state A pop",
+            f"holding {st['population_percent']:.1f} % of the frames",
+            st["population_percent"],
+            1,
+        )
+    )
+    rows.append(
+        (
+            "state A CI",
+            f"[{pops.Bootstrap_CI_95_Lower:.1f}, {pops.Bootstrap_CI_95_Upper:.1f}] %",
+            pops.Bootstrap_CI_95_Upper,
+            1,
+        )
+    )
+    rows.append(
+        (
+            "state A min",
+            f"PC1 = {_m(st['min_pc1'], 1)} Å, PC2 = {_m(st['min_pc2'], 1)} Å",
+            st["min_pc1"],
+            1,
+        )
+    )
+    rows.append(("unassigned", f"The remaining {un:.1f} % are", un, 1))
+
+    # ---- domain-angle landscape
+    fe = np.load(G / "fel" / "free_energy.npy")
+    xe, ye = np.load(G / "fel" / "x_edges.npy"), np.load(G / "fel" / "y_edges.npy")
+    for name, a in cryst.items():
+        i, j = np.searchsorted(xe, a["theta_NMP"]) - 1, np.searchsorted(ye, a["theta_LID"]) - 1
+        inside = 0 <= i < fe.shape[1] and 0 <= j < fe.shape[0]
+        g = fe[j, i] if inside else np.nan
+        if np.isfinite(g):
+            rows.append(
+                (
+                    f"{name} bin",
+                    f"{name}: θNMP {a['theta_NMP']:.1f}°, θLID {a['theta_LID']:.1f}°, ΔG of its bin {g:.1f} kJ/mol",
+                    g,
+                    1,
+                )
+            )
+            rows.append(
+                (f"{name} bin prose", f"whose bin\nlies {g:.1f} kJ/mol above the minimum", g, 1)
+            )
+        else:
+            rows.append(
+                (
+                    f"{name} outside",
+                    f"{name}: θNMP {a['theta_NMP']:.1f}°, θLID {a['theta_LID']:.1f}°, outside the sampled region",
+                    a["theta_LID"],
+                    1,
+                )
+            )
+    ga = json.load(open(G / "summary.json", encoding="utf-8"))["states"][0]
+    rows.append(
+        (
+            "angle minimum",
+            f"θNMP = {ga['min_pc1']:.1f}°, θLID = {ga['min_pc2']:.1f}°",
+            ga["min_pc1"],
+            1,
+        )
+    )
+    dev = max(abs(ga["min_pc1"] - c4["theta_NMP"]), abs(ga["min_pc2"] - c4["theta_LID"]))
+    claims.append(
+        ("angle minimum within 3° of 4AKE", "within 3° of the open crystal structure", dev < 3.0)
+    )
+    ang = np.loadtxt(X / "domain_angles.dat")
+    t_ns = ang[:, 0] / 1000.0
+    rows.append(("frame0 LID", f"(θLID {ang[0, 2]:.1f}°)", ang[0, 2], 1))
+    below = t_ns[ang[:, 2] < 120.0]
+    claims.append(
+        (
+            "θLID < 120° only before 2 ns",
+            "below 120° only during the\nfirst 2 ns",
+            bool(below.max() < 2.0),
+        )
+    )
+    rows.append(("LID min", f"(minimum {ang[:, 2].min():.1f}°)", ang[:, 2].min(), 1))
+    rows.append(
+        (
+            "LID after 20 ns",
+            f"stays above {ang[t_ns > 20, 2].min():.1f}° after 20 ns",
+            ang[t_ns > 20, 2].min(),
+            1,
+        )
+    )
+
+    # ---- convergence and equilibration
+    rows.append(("RMSIP prose", f"overlap with RMSIP {rmsip.Value[0]:.2f}", rmsip.Value[0], 2))
+    rows.append(
+        (
+            "cosine prose",
+            f"PC1 has a cosine content of {cos.Cosine_Content[0]:.2f}",
+            cos.Cosine_Content[0],
+            2,
+        )
+    )
+    eff = _csv(A / "convergence" / "effective_samples.csv").iloc[0]
+    dt_ns = float(np.median(np.diff(proj.time_ps))) / 1000.0
+    rows.append(
+        (
+            "g PC1",
+            f"statistical inefficiency of {eff.g_PC1:.1f} frames ({eff.g_PC1 * dt_ns:.1f} ns)",
+            eff.g_PC1,
+            1,
+        )
+    )
+    rows.append(("N_eff", f"about {eff.N_eff:.0f} independent samples", eff.N_eff, 0))
+    rows.append(("RMSD t0", f"which is at {eq.t0_ps / 1000:.0f} ns", eq.t0_ps / 1000, 0))
+    eqe = _csv(E / "convergence" / "equilibration.csv")
+    a_, b_ = eqe.iloc[0], eqe.iloc[1]
+    rows.append(
+        (
+            "eq discards",
+            f"discards {int(a_.frames_discarded):,} frames on the RMSD and a further {int(b_.frames_discarded)} on the CVs",
+            b_.frames_discarded,
+            0,
+        )
+    )
+    rows.append(("eq start", f"production\nstarts at {b_.t0_ps / 1000:.0f} ns", b_.t0_ps / 1000, 0))
+
+    # ---- MSM
+    its = _csv(A / "msm" / "implied_timescales.csv")
+    rows.append(
+        (
+            "ITS ends",
+            f"The slowest one is {its.ts_1.iloc[0] / 1000:.1f} ns at a\nlag of {its.lag_ps.iloc[0] / 1000:.2f} ns and {its.ts_1.iloc[-1] / 1000:.1f} ns at a lag of {its.lag_ps.iloc[-1] / 1000:.0f} ns",
+            its.ts_1.iloc[-1] / 1000,
+            1,
+        )
+    )
+    claims.append(("no ITS plateau", "`plateau_found: false`", not msm["plateau_found"]))
+    rows.append(("CK prose", f"(maximum deviation {ckd:.3f}, `msm/ck_test.csv`)", ckd, 3))
+    cs = (
+        _csv(A / "msm" / "coarse_stationary.csv").set_index("metastable_set").stationary_probability
+    )
+    ma = _csv(A / "msm" / "metastable_assignments.csv")
+    med = ma.loc[ma.metastable_set == "MS1", "time_ps"].median() / 1000
+    rows.append(
+        ("MS1", f"stationary probability {cs['MS1']:.3f}, median time {med:.0f} ns", cs["MS1"], 3)
+    )
+    rows.append(("MS2", f"(MS2, {cs['MS2']:.3f})", cs["MS2"], 3))
+
+    # ---- comparison with a known answer
+    pc_ = _csv(C / "state_population_comparison.csv").set_index("State")
+    for stt in ("State A", "State B"):
+        q = pc_.loc[stt]
+        d = q.MUT_minus_WT_Percent
         line = (
-            f"| {st} | {r.early_Population_Percent:.1f} | {r.late_Population_Percent:.1f} | "
-            f"{sign}{abs(diff):.1f} | [{r.late_minus_early_CI95_Low:.1f}, {r.late_minus_early_CI95_High:.1f}] | "
-            f"{r.late_minus_early_Bootstrap_p:.3f} | {r.late_minus_early_Welch_t:.2f} | {r.late_minus_early_Welch_p:.2f} |"
-        ).replace("-", "−")
-        rows.append((f"comparison row {st}", line, diff, 1))
-    ov = _csv(C / "comparison" / "fel_overlap.csv").iloc[0]
-    rows.append(
-        (
-            "Bhattacharyya",
-            f"Bhattacharyya coefficient {ov.Bhattacharyya_Coefficient:.3f}",
-            ov.Bhattacharyya_Coefficient,
-            3,
+            f"| {stt} | {q.WT_Population_Percent:.1f} | {q.MUT_Population_Percent:.1f} | "
+            f"{'+' if d > 0 else '−'}{abs(d):.1f} | [{_m(q.MUT_minus_WT_CI95_Low, 1)}, {_m(q.MUT_minus_WT_CI95_High, 1)}] | "
+            f"[{_m(q.MUT_minus_WT_Welch_CI95_Low, 1)}, {_m(q.MUT_minus_WT_Welch_CI95_High, 1)}] | {q.MUT_minus_WT_Welch_p:.4f} |"
         )
-    )
-    rows.append(
-        ("Hellinger", f"Hellinger distance\n{ov.Hellinger_Distance:.3f}", ov.Hellinger_Distance, 3)
-    )
+        rows.append((f"comparison row {stt}", line, abs(d), 1))
+    b = pc_.loc["State B"]
     rows.append(
         (
-            "JS",
-            f"Jensen–Shannon divergence {ov.JS_Divergence_bits:.3f} bits",
-            ov.JS_Divergence_bits,
-            3,
-        )
-    )
-    rows.append(("Jaccard", f"(Jaccard {ov.Sampled_Bin_Jaccard:.3f})", ov.Sampled_Bin_Jaccard, 3))
-    rows.append(
-        (
-            "Jaccard percent",
-            f"only {100 * ov.Sampled_Bin_Jaccard:.1f} % of the\nsampled bins",
-            100 * ov.Sampled_Bin_Jaccard,
+            "WT bent",
+            f"bent state {b.WT_Population_Percent:.1f} % of the time (true 65 %) and MUT\n  {b.MUT_Population_Percent:.1f} %",
+            b.MUT_Population_Percent,
             1,
         )
     )
-    sub = _csv(C / "comparison" / "subspace_overlap.csv")
-    rows.append(("subspace RMSIP", f"RMSIP of {sub['late'][0]:.3f} between", sub["late"][0], 3))
-    sfe_c = (
-        _csv(C / "comparison" / "state_free_energy_comparison.csv")
-        .set_index("State")
-        .loc["State A"]
-    )
     rows.append(
         (
-            "ddG state A",
-            f"is {sfe_c.late_minus_early_ddG_kJmol:.2f} kJ/mol less favourable",
-            sfe_c.late_minus_early_ddG_kJmol,
-            2,
+            "difference",
+            f"The estimate is {_m(b.MUT_minus_WT_Percent, 1)} points against a true −35",
+            b.MUT_minus_WT_Percent,
+            1,
         )
     )
     rows.append(
         (
-            "ddG state A CI",
-            f"95 % CI [{sfe_c.late_minus_early_ddG_CI95_Low:.1f}, {sfe_c.late_minus_early_ddG_CI95_High:.2f}]",
-            sfe_c.late_minus_early_ddG_CI95_High,
+            "Welch p dof",
+            f"p = {b.MUT_minus_WT_Welch_p:.4f} on {b.MUT_minus_WT_Welch_dof:.1f}\n  degrees of freedom",
+            b.MUT_minus_WT_Welch_dof,
+            1,
+        )
+    )
+    rows.append(
+        (
+            "het ratios",
+            f"ratios are {b.WT_Replicate_Heterogeneity_Ratio:.2f} (WT) and {b.MUT_Replicate_Heterogeneity_Ratio:.2f} (MUT)",
+            b.WT_Replicate_Heterogeneity_Ratio,
             2,
         )
     )
-    dd = _csv(C / "comparison" / "fel_diff_late_vs_early.csv").dropna()
-    rows.append(("ddG bins", f"({len(dd)} bins here)", len(dd), 0))
-    assert len(dd) == 2
-    assert (dd.ddG_kJmol.abs() < 2 * dd.ddG_bootstrap_SD_kJmol).all(), "both ΔΔG bins hatched"
-    return rows
+    truth_in = all(
+        lo <= -35.0 <= hi
+        for lo, hi in (
+            (b.MUT_minus_WT_CI95_Low, b.MUT_minus_WT_CI95_High),
+            (b.MUT_minus_WT_Welch_CI95_Low, b.MUT_minus_WT_Welch_CI95_High),
+        )
+    )
+    claims.append(
+        ("both intervals contain -35", "Both intervals\n  contain the true value", truth_in)
+    )
+    return rows, claims
 
 
 # ----------------------------------------------------------------------------
@@ -588,35 +680,41 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
 
     # 1. tutorial commands --------------------------------------------------
     work = tutorial_workdir(tmp, ROOT)
-    tutorial = (docs / "tutorial_neuraminidase.md").read_text(encoding="utf-8")
+    tutorial = (docs / "tutorial_adk.md").read_text(encoding="utf-8")
     blocks = extract_code_blocks(tutorial)
-    gmx = _which_gmx()
     runs = run_code_blocks(blocks, work, ROOT)
     failed = [(i, lang, tail) for i, lang, rc, tail in runs if rc != 0]
     record(
         "Docs",
-        "every bash/python block of the tutorial runs (gmx trjconv needed for the compare part)",
+        "every bash/python block of the tutorial runs",
         not failed,
-        f"{len(runs) - len(failed)}/{len(runs)} blocks exit 0" + ("" if gmx else "; no gmx found"),
+        f"{len(runs) - len(failed)}/{len(runs)} blocks exit 0",
         f"{len(runs)}/{len(runs)}",
         "exit code 0",
-        "docs/tutorial_neuraminidase.md executed from a scratch copy of tests/data",
+        "docs/tutorial_adk.md executed from a scratch copy of examples/adk",
         note="" if not failed else failed[0][2][-300:],
     )
 
     # 2. numbers quoted in the tutorial --------------------------------------
     if not failed:
-        rows = tutorial_number_sources(work)
+        rows, claims = tutorial_number_sources(work)
         bad = []
         for label, quoted, value, nd in rows:
             # `quoted` is rendered from the output file with the rounding used in the
             # text, so its verbatim presence is the equality check; additionally make
             # sure the rendered value really is part of the quoted string.
-            rendered = f"{float(value):.{nd}f}".replace("-", "−")
-            if rendered.replace("−", "-") not in quoted.replace("−", "-"):
-                bad.append(f"{label}: internal error, {rendered} not in '{quoted}'")
+            plain = quoted.replace("−", "-")
+            candidates = {f"{float(value):.{nd}f}", f"{float(value):,.{nd}f}"}
+            if not any(c in plain or c.lstrip("-") in plain for c in candidates):
+                bad.append(f"{label}: internal error, {value} not in '{quoted}'")
             elif quoted not in tutorial:
                 bad.append(f"{label}: '{quoted}' not found in tutorial")
+        for label, quoted, holds in claims:
+            if quoted not in tutorial:
+                bad.append(f"{label}: '{quoted}' not found in tutorial")
+            elif not holds:
+                bad.append(f"{label}: the statement '{quoted}' is false for this run")
+        rows = rows + [(c[0], c[1], 0.0, 0) for c in claims]
         record(
             "Docs",
             "every numeric value quoted in the tutorial equals the value re-read from its output file",
@@ -637,7 +735,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
         # blocks that need files which only exist in a real project are documentation only
         api_ok = [r for r in api_runs if r[2] == 0]
         api_text = (docs / "python_api.md").read_text(encoding="utf-8")
-        expected_lines = ["[25.9 12.1]", "State A 46.9 0.63", "(40, 40) -0.0 True"]
+        expected_lines = ["[46.9 15. ]", "State A 91.4 -0.0", "(40, 40) -0.0 True"]
         outputs = "\n".join(r[3] for r in api_runs)
         record(
             "Docs",

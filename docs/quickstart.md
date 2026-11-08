@@ -107,18 +107,18 @@ or on the command line:
 
 ```bash
 conformatlas analyze -s md.gro -f md_noPBC.xtc -n index.ndx \
-    --cov-group C-alpha --lsq-group C-alpha --lig ZMR \
+    --cov-group C-alpha --lsq-group C-alpha --lig ATP \
     -T 300 -b 5000 --equilibration auto --bootstrap 200 \
     --n-representatives 3 --representative medoid -o results/complex
 ```
 
 Alternative landscapes: `--pca-type dihedral`, `--pca-type tica --tica-lag 50`, `--fel-pcs 1,3`, `--cv rmsd-rg`, or `--cv file --cv-file COLVAR --cv-cols 1,2` (one file per trajectory). Biased simulations: `--weights-file` with one weight per frame.
 
-A real-protein regression dataset (influenza neuraminidase Cα + zanamivir, 81 frames) ships in `tests/data/h1n1_ca/` and runs in a few seconds:
+A real protein ships with the repository: the Cα atoms of a published 1 µs simulation of apo adenylate kinase (4,187 frames, `examples/adk/`, CC BY 4.0). The whole analysis takes about 15 s; the [tutorial](tutorial_adk.md) walks through it:
 
 ```bash
-conformatlas analyze -s tests/data/h1n1_ca/neuraminidase_ca.pdb -f tests/data/h1n1_ca/neuraminidase_ca.xtc \
-    -n tests/data/h1n1_ca/index.ndx --cov-group C-alpha --lsq-group C-alpha --lig ZMR -T 300 -o na_test
+conformatlas analyze -s examples/adk/adk_ca.pdb -f examples/adk/adk_ca.xtc -n examples/adk/index.ndx \
+    -l C-alpha -c C-alpha -T 300 --bins 30 --bootstrap 200 --msm -o adk_test
 ```
 
 ---

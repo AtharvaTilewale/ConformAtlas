@@ -39,7 +39,7 @@ coordinates.
 
 Numerical equivalence with the in-memory path is validated in
 ``validation/checks_performance.py`` (eigenvalues, eigenvectors and projections
-agree to rtol 1e-8 on the bundled demo and the neuraminidase fixture for both
+agree to rtol 1e-8 on the bundled demo and the ADK fixture for both
 weightings). Frames are quantised to float32 before accumulation, exactly as the
 in-memory path stores them, so both paths see identical input numbers.
 

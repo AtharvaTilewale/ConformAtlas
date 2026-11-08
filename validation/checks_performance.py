@@ -105,7 +105,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
         )
 
     # ------------------------------------------------------------------ 3
-    # Streaming PCA on real trajectories vs in-memory path (demo: covariance route; H1N1: dual SVD route)
+    # Streaming PCA on real trajectories vs in-memory path (demo: covariance route; ADK fixture: dual SVD route)
     from conformatlas.ndx import parse_ndx
     from conformatlas.streaming import streaming_pca
     from conformatlas.trajectory import (
@@ -125,15 +125,15 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
             None,
             None,
         ),
-        "neuraminidase+ZMR (81 frames, D=1233 > N: dual route)": (
-            ROOT / "tests/data/h1n1_ca/neuraminidase_ca.pdb",
-            [ROOT / "tests/data/h1n1_ca/neuraminidase_ca.xtc"],
+        "ADK Cα + Ap5A fixture (105 frames, D=813 > N: dual route)": (
+            ROOT / "tests/data/adk_ca/adk_ap5_ca.pdb",
+            [ROOT / "tests/data/adk_ca/adk_ap5_ca.xtc"],
             "C-alpha",
-            ROOT / "tests/data/h1n1_ca/index.ndx",
-            "ZMR",
+            ROOT / "tests/data/adk_ca/index.ndx",
+            "AP5",
         ),
     }
-    h1n1_cache = {}
+    adk_cache = {}
     for name, (top, trajs, group, ndx, lig) in datasets.items():
         ndxg = parse_ndx(ndx) if ndx else None
         idx = resolve_selection_indices(top, group, ndxg, extra_group=lig)
@@ -173,8 +173,8 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
                 "rtol 1e-8",
                 "stream_trajectory_coordinates + compute_cartesian_pca + project_coordinates",
             )
-            if "neuraminidase" in name and weighting == "frames":
-                h1n1_cache = dict(
+            if "ADK" in name and weighting == "frames":
+                adk_cache = dict(
                     top=top,
                     trajs=trajs,
                     idx=idx,
@@ -223,7 +223,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
 
     from conformatlas.mda_analysis import ConformAtlasPCA
 
-    u = mda.Universe(str(h1n1_cache["top"]), str(h1n1_cache["trajs"][0]))
+    u = mda.Universe(str(adk_cache["top"]), str(adk_cache["trajs"][0]))
     ca = u.select_atoms("name CA")
     ours = ConformAtlasPCA(ca, fit=False, n_components=10).run()
     theirs = mdapca.PCA(u, select="name CA", align=False, mean=None).run()
@@ -232,7 +232,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
     e2 = _vec_cos_err(ours.results.eigenvectors, theirs.results.p_components[:, :10])
     record(
         SECTION,
-        "ConformAtlasPCA (AnalysisBase, fit=False) vs MDAnalysis.analysis.pca.PCA (variance × (N−1)/N) on neuraminidase Cα",
+        "ConformAtlasPCA (AnalysisBase, fit=False) vs MDAnalysis.analysis.pca.PCA (variance × (N−1)/N) on the ADK fixture Cα",
         e1 < 1e-6 and e2 < 1e-8,
         f"rel λ {e1:.1e}, 1−|cos| {e2:.1e}",
         "identical up to covariance normalisation",
@@ -247,8 +247,8 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
         start=3, stop=78, step=2
     )
     c, _ = stream_trajectory_coordinates(
-        h1n1_cache["top"],
-        h1n1_cache["trajs"][0],
+        adk_cache["top"],
+        adk_cache["trajs"][0],
         atom_indices=ca.indices,
         fit_atom_indices=ca.indices,
         reference_fit_coords=ref0,
@@ -413,15 +413,15 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
         )
 
     # ------------------------------------------------------------------ 6
-    # High-level API equals the pipeline on the neuraminidase fixture
+    # High-level API equals the pipeline on the ADK fixture
     from conformatlas import api
 
-    D = ROOT / "tests/data/h1n1_ca"
+    D = ROOT / "tests/data/adk_ca"
     ens = api.load_trajectories(
-        D / "neuraminidase_ca.pdb",
-        [D / "neuraminidase_ca.xtc"],
+        D / "adk_ap5_ca.pdb",
+        [D / "adk_ap5_ca.xtc"],
         group="C-alpha",
-        lig_group="ZMR",
+        lig_group="AP5",
         index_file=D / "index.ndx",
     )
     pcs = api.pca(ens, n_components=10)
@@ -430,12 +430,12 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
     kin = api.kinetics(st)
     conv = api.convergence(ens, pcs, st)
     full = api.analyze(
-        D / "neuraminidase_ca.pdb",
-        [D / "neuraminidase_ca.xtc"],
+        D / "adk_ap5_ca.pdb",
+        [D / "adk_ap5_ca.xtc"],
         output_dir=tmp / "perf_api",
         cov_group="C-alpha",
         lsq_group="C-alpha",
-        lig_group="ZMR",
+        lig_group="AP5",
         index_file=D / "index.ndx",
         bins=12,
         n_bootstrap=10,
@@ -450,7 +450,7 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
     )
     record(
         SECTION,
-        "api.load_trajectories→pca→landscape→states→kinetics→convergence equals api.analyze (pipeline) on neuraminidase",
+        "api.load_trajectories→pca→landscape→states→kinetics→convergence equals api.analyze (pipeline) on the ADK fixture",
         ok,
         "all equal" if ok else "mismatch",
         "identical eigenvalues, ΔG grid, states, dwell summary, RMSIP",

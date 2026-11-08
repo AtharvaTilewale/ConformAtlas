@@ -16,7 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When a negative eigenvalue is among the slowest reported timescales, the MSM notes (printed, and saved in `run_metadata.json`) say so, the implied-timescale table gains `n_negative_eigenvalues_reported`, and `msm/eigenvalues.csv` a `negative_eigenvalue` column. A negative eigenvalue has no relaxation interpretation; it usually means the lag is shorter than the Markovian regime.
 
 ### Added
+- **Adenylate kinase tutorial and example data.** `docs/tutorial_adk.md` replaces the neuraminidase tutorial. It runs every analysis on the Cα atoms of a published 1 µs equilibrium simulation of apo adenylate kinase (Seyler & Beckstein, figshare, doi:10.6084/m9.figshare.5108170, CC BY 4.0; 4,187 frames in `examples/adk/`, with domain angles and the 1AKE/4AKE crystal structures). It checks the open basin against the open crystal structure and includes a comparison with a known answer. `examples/adk/make_adk_data.py` rebuilds every file from the original download. The trajectories keep the simulation box of every frame, and each PDB topology holds exactly the coordinates of trajectory frame 0. The executed notebook `examples/notebooks/adk_walkthrough.ipynb` replaces the neuraminidase notebook.
+- `conformatlas example --replicates N --frames M`: larger synthetic WT/MUT sets with exactly known populations (WT 65 %, MUT 30 % State A). The defaults reproduce the previous demo byte for byte.
 - `state_population_comparison.csv`: per-system replicate count, per-replicate minimum and maximum population, the bootstrap level used, and a replicate-heterogeneity ratio (between-replicate SD over within-replicate bootstrap SE). `compare` warns, in the log and under `warnings` in `comparison_summary.json`, when replicates disagree (ratio > 2), when a system has a single replicate, or when the frame-level bootstrap is used although replicates are available.
+
+### Removed
+- The influenza neuraminidase–zanamivir tutorial, notebook, figures and the `tests/data/h1n1_ca` fixture. Tests and validation use `tests/data/adk_ca` instead (every 40th ADK frame, Cα plus an Ap5A ligand with **synthetic** coordinates placed from 1AKE, and the heavy atoms of 4AKE). The side-chain dihedral check now always runs, on 4AKE, instead of being skipped when a local all-atom file was missing.
+
+### Fixed
+- 3D free-energy surfaces no longer draw unsampled bins as a flat plateau at the colour-scale ceiling; only sampled bins are drawn, cropped to the sampled region.
+- Importing the plotting modules no longer replaces a notebook backend (matplotlib-inline, ipympl) with Agg, so figures still display in Jupyter after ConformAtlas has been imported. The CLI and scripts still use Agg.
+- A time window or stride that leaves a single frame now stops with a clear message instead of "need at least one array to concatenate".
+- Validation: the comparison with `gmx gyrate` now passes the Cα group as a GROMACS selection (`name CA`). Current GROMACS rejects the group name `C-alpha` at its selection prompt, and the fallback to all atoms compared masses that GROMACS guesses from atom names (the Ap5A phosphorus atoms `PA`, `PB` become protactinium and lead) with the element-based masses of MDAnalysis.
 
 ## [1.0.2] - 2026-10-12
 

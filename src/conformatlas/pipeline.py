@@ -576,6 +576,13 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
         for rep_id in rep_ids:
             t = times_dict[rep_id]
             echo(f"  • {rep_id}: {len(t)} frames kept ({t[0]:.0f}-{t[-1]:.0f} ps)")
+        n_kept = sum(len(t) for t in times_dict.values())
+        if n_kept < 2:
+            raise ValueError(
+                f"Only {n_kept} frame in total falls in the time window "
+                f"[{config.begin_ps}, {config.end_ps}] ps with stride {config.stride}; "
+                "at least 2 frames are needed. Widen -b/-e or reduce --stride."
+            )
 
     # -------------------------------------------------------- equilibration
     # Stage A: fit-group RMSD (or Rg without superposition), (default observable).

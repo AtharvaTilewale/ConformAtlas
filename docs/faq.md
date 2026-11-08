@@ -94,7 +94,7 @@ groups of identical simulations different in 20 of 20 comparisons
 When the two disagree, or `compare` warns that replicates disagree
 (`*_Replicate_Heterogeneity_Ratio` > 2), the simulations have not converged to a
 common distribution. More or longer replicates are needed before the size of the
-difference can be trusted. The [tutorial](tutorial_neuraminidase.md) shows this case.
+difference can be trusted. The [tutorial](tutorial_adk.md) shows a comparison where the answer is known.
 
 ## N_eff is tiny although I have thousands of frames
 

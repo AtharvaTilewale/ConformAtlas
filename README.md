@@ -26,9 +26,9 @@
 **ConformAtlas** turns molecular dynamics trajectories into a quantitative map of conformational space: principal components, a free-energy landscape with error bars, the metastable states on it, the barriers and rates between them, and a verdict on whether the sampling supports those numbers. It runs as a single command (`conformatlas analyze`) and as a Python library, reads anything [MDAnalysis](https://www.mdanalysis.org/) can open, and ships with a [validation suite](docs/benchmarks.md) that checks every numerical component against analytical results or an independent implementation.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/AtharvaTilewale/ConformAtlas/main/docs/assets/readme-landscape.png" alt="Free-energy landscape of influenza neuraminidase bound to zanamivir" width="860" />
+  <img src="https://raw.githubusercontent.com/AtharvaTilewale/ConformAtlas/main/docs/assets/readme-landscape.png" alt="Free-energy landscape of apo adenylate kinase from a 1 µs simulation" width="860" />
   <br>
-  <sub>Influenza A/H1N1 neuraminidase bound to zanamivir, 2001 frames at 300 K: free-energy landscape on the first two Cα principal components with three watershed states (48 / 41 / 11 %). Unmodified <code>figures/fel_2d_3d.png</code> from a single <code>conformatlas analyze</code> run; see the <a href="docs/tutorial_neuraminidase.md">tutorial</a>.</sub>
+  <sub>Apo <i>E. coli</i> adenylate kinase, 1 µs at 300 K (Seyler &amp; Beckstein, CC BY 4.0), 4,187 frames: free-energy landscape on the first two Cα principal components. The open state holds 99.0 % of the frames; the isolated bins on the left are the single closed-to-open transition. Unmodified <code>figures/fel_2d_3d.png</code> from one <code>conformatlas analyze</code> run; see the <a href="docs/tutorial_adk.md">tutorial</a>.</sub>
 </p>
 
 ## Features
@@ -84,7 +84,7 @@ conformatlas analyze -s topology.gro -f rep1.xtc -f rep2.xtc -f rep3.xtc -T 300 
 
 ```bash
 conformatlas analyze -s md.gro -f md_noPBC.xtc -n index.ndx \
-    --cov-group C-alpha --lig ZMR -T 300 \
+    --cov-group C-alpha --lig ATP -T 300 \
     --equilibration auto --bootstrap 200 --msm \
     -o results/complex
 ```
@@ -148,7 +148,7 @@ Full documentation: **[conformatlas.readthedocs.io](https://conformatlas.readthe
 |---|---|---|
 | [Installation](docs/installation.md) | [Command line](docs/cli.md) | [Methods](docs/methods.md) |
 | [Quickstart](docs/quickstart.md) | [Python API](docs/python_api.md) | [Interpreting results](docs/interpretation.md) |
-| [Tutorial: neuraminidase–zanamivir](docs/tutorial_neuraminidase.md) | [Output files](docs/outputs.md) | [Convergence diagnostics](docs/convergence.md) |
+| [Tutorial: adenylate kinase](docs/tutorial_adk.md) | [Output files](docs/outputs.md) | [Convergence diagnostics](docs/convergence.md) |
 | [FAQ](docs/faq.md) | [Comparing systems](docs/comparison.md) | [Validation and benchmarks](docs/benchmarks.md) |
 
 ## Citation

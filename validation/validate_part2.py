@@ -273,7 +273,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
 
     from conformatlas.features import stream_backbone_dihedrals
 
-    fx = ROOT / "tests" / "data" / "h1n1_ca"
+    fx = ROOT / "tests" / "data" / "adk_ca"
     demo = ROOT / "examples" / "demo_dataset" / "WT"
     u = mda.Universe(str(demo / "topology.pdb"), str(demo / "rep1.xtc"))
     try:
@@ -321,7 +321,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
     from conformatlas.descriptors import radius_of_gyration, rmsd_series, rmsf_per_atom
     from conformatlas.trajectory import load_reference_coordinates, stream_trajectory_coordinates
 
-    topo, traj = fx / "neuraminidase_ca.pdb", fx / "neuraminidase_ca.xtc"
+    topo, traj = fx / "adk_ap5_ca.pdb", fx / "adk_ap5_ca.xtc"
     u = mda.Universe(str(topo), str(traj))
     ca = u.select_atoms("name CA")
     idx = ca.indices.tolist()
@@ -371,9 +371,13 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
     if gmx:
         d = tmp / "gyr"
         d.mkdir(exist_ok=True)
+        # Cα only, as a GROMACS selection: the group name "C-alpha" is a syntax error for
+        # the selection parser of current GROMACS, and the fallback (all atoms) brings in
+        # ligand masses that GROMACS guesses from atom names (PA, PB -> Pa, Pb) while
+        # MDAnalysis uses the element column
         r = subprocess.run(
             [gmx, "gyrate", "-s", str(topo), "-f", str(traj), "-o", "g.xvg"],
-            input="C-alpha\n",
+            input="name CA\n",
             text=True,
             capture_output=True,
             cwd=d,

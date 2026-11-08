@@ -45,7 +45,7 @@ PCA / free-energy-landscape analysis of one system (single or multi-replicate).
 | `-n, --index FILE` | — | GROMACS index file; group names given to `-l/-c/-g` are looked up here first. *YAML* `index_file` |
 | `-l, --lsq-group TEXT` | `Backbone` | Least-squares fit group. |
 | `-c, --cov-group TEXT` | `Backbone` | Analysis (covariance) group. |
-| `-g, --lig TEXT` | — | Ligand residue/group name (e.g. `ZMR`, `ATP`): added to the analysis group and given its own RMSD. *YAML* `lig_group` |
+| `-g, --lig TEXT` | — | Ligand residue/group name (e.g. `AP5`, `ATP`): added to the analysis group and given its own RMSD. *YAML* `lig_group` |
 | `--fit / --no-fit` | `--fit` | Superpose frames on `--lsq-group` before PCA. `--no-fit` only for pre-fitted trajectories. |
 | `--mass-weighted-fit` | off | Mass-weight the superposition. |
 | `--from DIRECTORY` | — | Re-analyse an existing output directory (rebin, re-segment, bootstrap, kinetics, MSM) without reading trajectories. The PCA tables of the source directory are reused; steps that need coordinates (descriptors, state-ensemble structures, mode structures, subspace-overlap diagnostics, residue analyses) are not recomputed. *YAML* `from_results` |

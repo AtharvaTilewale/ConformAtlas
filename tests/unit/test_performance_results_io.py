@@ -15,7 +15,7 @@ HAS_MDA = importlib.util.find_spec("MDAnalysis") is not None
 HAS_H5PY = importlib.util.find_spec("h5py") is not None
 ROOT = Path(__file__).resolve().parents[2]
 DEMO = ROOT / "examples" / "demo_dataset" / "WT"
-H1N1 = ROOT / "tests" / "data" / "h1n1_ca"
+ADK = ROOT / "tests" / "data" / "adk_ca"
 
 pytestmark = pytest.mark.skipif(not HAS_MDA, reason="MDAnalysis is required")
 
@@ -173,12 +173,12 @@ def test_api_building_blocks_match_pipeline(tmp_path):
     from conformatlas import api
 
     top, traj, ndx = (
-        H1N1 / "neuraminidase_ca.pdb",
-        H1N1 / "neuraminidase_ca.xtc",
-        H1N1 / "index.ndx",
+        ADK / "adk_ap5_ca.pdb",
+        ADK / "adk_ap5_ca.xtc",
+        ADK / "index.ndx",
     )
-    ens = api.load_trajectories(top, [traj], group="C-alpha", lig_group="ZMR", index_file=ndx)
-    assert ens.n_frames == 81 and ens.ligand_mask.sum() == 24 and ens.dt_ps == 250.0
+    ens = api.load_trajectories(top, [traj], group="C-alpha", lig_group="AP5", index_file=ndx)
+    assert ens.n_frames == 105 and ens.ligand_mask.sum() == 57 and ens.dt_ps == 9600.0
     pcs = api.pca(ens, n_components=10)
     land = api.landscape(pcs, temperature=300, bins=12)
     st = api.states(land)
@@ -190,7 +190,7 @@ def test_api_building_blocks_match_pipeline(tmp_path):
         output_dir=tmp_path / "run",
         cov_group="C-alpha",
         lsq_group="C-alpha",
-        lig_group="ZMR",
+        lig_group="AP5",
         index_file=ndx,
         bins=12,
         n_bootstrap=5,

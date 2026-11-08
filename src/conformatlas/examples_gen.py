@@ -17,8 +17,14 @@ except ImportError:
 logger = logging.getLogger("conformatlas.examples")
 
 
-def generate_mini_example_dataset(base_dir: str | Path):
+def generate_mini_example_dataset(base_dir: str | Path, n_replicates: int = 2, n_frames: int = 100):
     """Generate lightweight PDB topology and mini XTC trajectories for WT and MUT.
+
+    ``n_replicates`` trajectories of ``n_frames`` frames (10 ps apart) are written per
+    system. The stationary populations are exact by construction: WT 65 % State A,
+    MUT 30 % State A, so a comparison has a known true difference of -35 percentage
+    points. Replicate ``k`` uses seed ``100 + k`` (WT) and ``200 + k`` (MUT); the
+    defaults reproduce the 1.0.x demo exactly.
 
     Raises :class:`~conformatlas.errors.MissingDependencyError` before writing
     anything when MDAnalysis (needed to write the XTC trajectories) is missing.
@@ -30,6 +36,8 @@ def generate_mini_example_dataset(base_dir: str | Path):
             "writing the example XTC trajectories",
             optional=False,
         )
+    if n_replicates < 1 or n_frames < 2:
+        raise ValueError("n_replicates must be >= 1 and n_frames >= 2")
     base_dir = Path(base_dir)
     wt_dir = base_dir / "WT"
     mut_dir = base_dir / "MUT"
@@ -88,7 +96,6 @@ def generate_mini_example_dataset(base_dir: str | Path):
     u = mda.Universe(str(wt_topo))
     base_pos = u.atoms.positions.copy().astype(np.float64)
     n_atoms = len(base_pos)
-    n_frames = 100
 
     hinge_atom = 11  # CA of residue 3 (0-based index)
     moving = np.arange(n_atoms) >= 10  # residues 3-5 move relative to residues 1-2
@@ -146,11 +153,14 @@ def generate_mini_example_dataset(base_dir: str | Path):
                     state = "B" if state == "A" else "A"
 
     # WT: mostly State A (65%); MUT: mostly State B (70%)
-    for rep_idx, rep_name in enumerate(["rep1.xtc", "rep2.xtc"]):
+    rep_names = [f"rep{k + 1}.xtc" for k in range(n_replicates)]
+    for rep_idx, rep_name in enumerate(rep_names):
         _write_replicate(wt_dir / rep_name, p_state_a=0.65, seed=100 + rep_idx)
         _write_replicate(mut_dir / rep_name, p_state_a=0.30, seed=200 + rep_idx)
 
     # Create comparison.yaml
+    wt_list = "\n".join(f"      - {wt_dir.resolve()}/{r}" for r in rep_names)
+    mut_list = "\n".join(f"      - {mut_dir.resolve()}/{r}" for r in rep_names)
     yaml_text = f"""# Example Comparison Configuration
 project: WT_vs_MUT_Example
 temperature: 300.0
@@ -172,20 +182,18 @@ systems:
   - name: WT
     topology: {wt_topo.resolve()}
     trajectories:
-      - {wt_dir.resolve()}/rep1.xtc
-      - {wt_dir.resolve()}/rep2.xtc
+{wt_list}
 
   - name: MUT
     topology: {mut_topo.resolve()}
     trajectories:
-      - {mut_dir.resolve()}/rep1.xtc
-      - {mut_dir.resolve()}/rep2.xtc
+{mut_list}
 """
     (base_dir / "comparison.yaml").write_text(yaml_text, encoding="utf-8")
 
-    readme_text = """# ConformAtlas Example Project
+    readme_text = f"""# ConformAtlas Example Project
 
-This directory contains a miniature 5-residue polyalanine dataset with 2 replicates (100 frames each) for WT and MUT.
+This directory contains a miniature 5-residue polyalanine dataset with {n_replicates} replicates ({n_frames} frames each) for WT and MUT.
 
 The peptide switches between a bent (State A) and a twisted (State B) conformation
 (WT about 65 % A, MUT about 30 % A) and every frame carries a random rigid-body rotation

@@ -520,7 +520,7 @@ def resolve_selection_indices(
             sel = u.atoms[:0]
         if len(sel) == 0 and " " not in name.strip():
             # A bare token that is not a selection keyword: treat as residue name
-            # (ligands such as LIG, ATP, ZMR) or segment / molecule name.
+            # (ligands such as LIG, ATP, AP5) or segment / molecule name.
             sel = u.select_atoms(f"resname {name}")
             if len(sel) == 0:
                 sel = u.select_atoms(f"segid {name}")

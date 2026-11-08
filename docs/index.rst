@@ -24,7 +24,7 @@ ConformAtlas Documentation
    installation
    quickstart
    cli
-   tutorial_neuraminidase
+   tutorial_adk
    faq
 
 .. toctree::

@@ -1,6 +1,6 @@
 """MSM and re-segmentation bootstrap on the outputs of a real `conformatlas analyze` run.
 
-The real neuraminidase fixture (81 frames) is far too short for a meaningful
+The ADK fixture (105 frames, one opening transition) is far too short for a meaningful
 MSM; this test only verifies that the MSM layer consumes the pipeline's
 projections / frame assignments, handles 'Unassigned' frames, writes the msm/
 tree and that the re-segmentation bootstrap runs on the saved landscape.
@@ -19,7 +19,7 @@ from conformatlas import plotting_msm as PM
 from conformatlas.cli import main
 
 HAS_MDA = importlib.util.find_spec("MDAnalysis") is not None
-DATA = Path(__file__).resolve().parents[1] / "data" / "h1n1_ca"
+DATA = Path(__file__).resolve().parents[1] / "data" / "adk_ca"
 
 
 @pytest.mark.integration
@@ -31,9 +31,9 @@ def test_msm_on_real_pipeline_projections(tmp_path):
         [
             "analyze",
             "-s",
-            str(DATA / "neuraminidase_ca.pdb"),
+            str(DATA / "adk_ap5_ca.pdb"),
             "-f",
-            str(DATA / "neuraminidase_ca.xtc"),
+            str(DATA / "adk_ap5_ca.xtc"),
             "-n",
             str(DATA / "index.ndx"),
             "-l",
@@ -53,7 +53,7 @@ def test_msm_on_real_pipeline_projections(tmp_path):
     assert r.exit_code == 0, r.output
     proj = pd.read_csv(out / "pca" / "projections.csv")
     assign = pd.read_csv(out / "states" / "frame_assignments.csv")
-    assert len(proj) == len(assign) == 81
+    assert len(proj) == len(assign) == 105
     res = M.build_msm(
         proj,
         ["PC1", "PC2", "PC3"],
@@ -63,7 +63,7 @@ def test_msm_on_real_pipeline_projections(tmp_path):
         n_metastable=2,
         basin_states=assign["state"].to_numpy(),
     )
-    assert res.dt_ps == pytest.approx(250.0)
+    assert res.dt_ps == pytest.approx(9600.0)
     assert res.msm.n_active >= 2
     assert res.basin_overlap is not None
     msm_dir = M.save_msm(res, out)

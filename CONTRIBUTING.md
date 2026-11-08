@@ -62,9 +62,9 @@ pytest --cov=conformatlas --cov-report=term-missing
 ```
 
 Unit tests live in `tests/unit/test_<module>.py`, integration tests in
-`tests/integration/`. Tests on real data use the 190 kB neuraminidase fixture
-`tests/data/h1n1_ca/` (Cα + ligand heavy atoms, 81 frames); do not add large binary
-files to the repository.
+`tests/integration/`. Tests on real data use the 280 kB adenylate kinase fixture
+`tests/data/adk_ca/` (Cα + synthetic Ap5A ligand, 105 frames; built by
+`examples/adk/make_adk_data.py`); do not add large binary files to the repository.
 
 ### Documentation
 
@@ -74,7 +74,7 @@ python -m sphinx -W -b html docs docs/_build/html
 
 `-W` turns warnings into errors and is what CI runs. Pages are Markdown (MyST) under
 `docs/`; add new pages to the toctree in `docs/index.rst`. Numbers quoted in
-`docs/tutorial_neuraminidase.md` are re-derived from the tutorial's output files by
+`docs/tutorial_adk.md` are re-derived from the tutorial's output files by
 `validation/checks_docs.py`; if you change a default that changes those numbers,
 re-run the tutorial and update the text.
 

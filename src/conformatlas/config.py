@@ -201,7 +201,7 @@ stride: 1
 index_file: null              # index.ndx
 lsq_group: Backbone           # fit group
 cov_group: Backbone           # analysis group
-lig_group: null               # e.g. ZMR / ATP: added to the analysis group, own RMSD reported
+lig_group: null               # e.g. AP5 / ATP: added to the analysis group, own RMSD reported
 fit: true                     # superpose on lsq_group before PCA (false only for pre-fitted trajectories)
 mass_weighted_fit: false
 
@@ -246,7 +246,7 @@ msm_ck_k: 5                   # Chapman-Kolmogorov multiples of the lag
 
 # Residue-level analyses
 residue_analysis: false       # DCCM, per-residue state differences, ligand contacts (residues/)
-ligand_selection: null        # MDAnalysis selection, e.g. "resname ZMR"; null = from lig_group
+ligand_selection: null        # MDAnalysis selection, e.g. "resname AP5"; null = from lig_group
 contact_cutoff: 4.5           # Å, heavy atoms
 dihedral_set: backbone        # backbone | backbone+chi | chi | nucleic (pca_type: dihedral)
 

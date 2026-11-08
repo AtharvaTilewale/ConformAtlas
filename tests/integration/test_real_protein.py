@@ -1,5 +1,9 @@
-"""End-to-end runs on a real protein: influenza A/H1N1 neuraminidase with zanamivir
-(Cα atoms + ligand heavy atoms, 81 frames at 250 ps spacing, 20 ns)."""
+"""End-to-end runs on a real protein: E. coli adenylate kinase (tests/data/adk_ca).
+
+214 Cα atoms from a published 1 µs equilibrium MD run (every 40th frame: 105 frames,
+9.6 ns apart) plus 57 heavy atoms of Ap5A whose coordinates are synthetic (placed from
+the crystal structure 1AKE by superposition on the CORE domain, 0.3 Å noise); see
+examples/adk/make_adk_data.py."""
 
 import importlib.util
 import json
@@ -14,9 +18,9 @@ from click.testing import CliRunner
 from conformatlas.cli import main
 
 HAS_MDA = importlib.util.find_spec("MDAnalysis") is not None
-DATA = Path(__file__).resolve().parents[1] / "data" / "h1n1_ca"
-TOPO = DATA / "neuraminidase_ca.pdb"
-TRAJ = DATA / "neuraminidase_ca.xtc"
+DATA = Path(__file__).resolve().parents[1] / "data" / "adk_ca"
+TOPO = DATA / "adk_ap5_ca.pdb"
+TRAJ = DATA / "adk_ap5_ca.xtc"
 NDX = DATA / "index.ndx"
 
 pytestmark = [
@@ -47,13 +51,13 @@ def test_full_feature_run_with_index_ligand_window_and_bootstrap(tmp_path):
             "--lsq-group",
             "C-alpha",
             "--lig",
-            "ZMR",
+            "AP5",
             "-T",
             "300",
             "-b",
-            "2000",
+            "96000",
             "-e",
-            "18000",
+            "864000",
             "--bins",
             "12",
             "--bootstrap",
@@ -68,23 +72,26 @@ def test_full_feature_run_with_index_ligand_window_and_bootstrap(tmp_path):
     )
     meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
     proj = pd.read_csv(out / "pca" / "projections.csv")
-    # 81 frames at 250 ps -> frames with 2000 <= t <= 18000 ps: 65
-    assert len(proj) == 65
-    assert proj["time_ps"].min() >= 2000 and proj["time_ps"].max() <= 18000
-    assert meta["time_window_ps"] == [2000.0, 18000.0] or tuple(meta["time_window_ps"]) == (
-        2000.0,
-        18000.0,
+    # 105 frames at 9600 ps -> frames with 96000 <= t <= 864000 ps: indices 10..90
+    assert len(proj) == 81
+    assert proj["time_ps"].min() >= 96000 and proj["time_ps"].max() <= 864000
+    assert meta["time_window_ps"] == [96000.0, 864000.0] or tuple(meta["time_window_ps"]) == (
+        96000.0,
+        864000.0,
     )
-    assert meta["lig_group"] == "ZMR"
+    assert meta["lig_group"] == "AP5"
 
-    # descriptors incl. ligand RMSD, RMSF per residue (387 residues)
+    # descriptors incl. ligand RMSD, RMSF per residue (214 residues)
     ts = pd.read_csv(out / "descriptors" / "rmsd_rg_timeseries.csv")
     assert {"RMSD", "Rg"} <= set(ts.columns)
     assert "Ligand_RMSD" in ts.columns
-    assert 2.0 < ts["Ligand_RMSD"].iloc[1:].mean() < 8.0  # zanamivir after protein fit, Å
-    assert 18.5 < ts["Rg"].mean() < 20.0  # Cα Rg of the NA head, Å
+    # Ap5A is rigid on the CORE plus 0.3 Å noise per coordinate: noise alone gives
+    # sqrt(6) * 0.3 = 0.73 Å between two frames; the CORE moving relative to the all-Cα
+    # fit as the lids open adds a few Å (2.6 Å measured on this window)
+    assert 1.0 < ts["Ligand_RMSD"].iloc[1:].mean() < 4.0
+    assert 18.5 < ts["Rg"].mean() < 21.0  # Cα Rg of ADK, Å (19.7 measured; open > closed)
     rmsf = pd.read_csv(out / "descriptors" / "rmsf_residues.csv")
-    assert (rmsf["residue_name"] != "ZMR").sum() == 387  # protein residues (+ ligand row)
+    assert (rmsf["residue_name"] != "AP5").sum() == 214  # protein residues (+ ligand row)
 
     # uncertainty merged into the population table
     pops = pd.read_csv(out / "statistics" / "state_populations.csv")
@@ -93,7 +100,7 @@ def test_full_feature_run_with_index_ligand_window_and_bootstrap(tmp_path):
 
     # effective samples / equilibration reports
     eff = pd.read_csv(out / "convergence" / "effective_samples.csv")
-    assert eff["g_PC1"].iloc[0] >= 1.0 and eff["N_eff"].iloc[0] <= 65
+    assert eff["g_PC1"].iloc[0] >= 1.0 and eff["N_eff"].iloc[0] <= 81
     eq = pd.read_csv(out / "convergence" / "equilibration.csv")
     assert not eq["applied"].astype(bool).any()
 
@@ -101,8 +108,8 @@ def test_full_feature_run_with_index_ligand_window_and_bootstrap(tmp_path):
     assert (out / "pca" / "modes.nmd").exists()
     assert (out / "pca" / "average.pdb").exists()
     contrib = pd.read_csv(out / "pca" / "mode_contributions_residues.csv")
-    # --lig adds the ligand to the analysis group: 387 protein residues + ZMR
-    assert len(contrib) == 388 and (contrib["residue_name"] == "ZMR").sum() == 1
+    # --lig adds the ligand to the analysis group: 214 protein residues + AP5
+    assert len(contrib) == 215 and (contrib["residue_name"] == "AP5").sum() == 1
 
     # medoid representatives: two structures per state
     states = pd.read_csv(out / "states" / "basins.csv")
@@ -186,8 +193,8 @@ def test_tica_and_auto_bins(tmp_path):
 
 def test_external_cv_file_with_weights(tmp_path):
     # build a CV file from the frame times: two smooth functions + unit weights
-    n = 81
-    t = 250.0 * np.arange(n)
+    n = 105
+    t = 9600.0 * np.arange(n)
     cv = tmp_path / "cv.dat"
     np.savetxt(cv, np.column_stack([t, np.sin(t / 3000.0), np.cos(t / 5000.0)]))
     w = tmp_path / "w.dat"
@@ -267,3 +274,32 @@ def test_gromacs_pca_backend_matches_python_route(tmp_path):
     assert len(a) == len(b) == 2
     col = [c for c in a.columns if "Mean_Population" in c][0]
     np.testing.assert_allclose(np.sort(a[col].to_numpy()), np.sort(b[col].to_numpy()), atol=3.0)
+
+
+def test_window_with_a_single_frame_is_a_clear_error(tmp_path):
+    res = CliRunner().invoke(
+        main,
+        [
+            "analyze",
+            "-s",
+            str(TOPO),
+            "-f",
+            str(TRAJ),
+            "-n",
+            str(NDX),
+            "-c",
+            "C-alpha",
+            "-l",
+            "C-alpha",
+            "-T",
+            "300",
+            "-b",
+            "2000",
+            "-e",
+            "18000",
+            "-o",
+            str(tmp_path / "one"),
+        ],
+    )
+    assert res.exit_code != 0
+    assert "Only 1 frame" in res.output and "at least 2 frames" in res.output
