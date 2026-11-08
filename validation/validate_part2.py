@@ -732,6 +732,110 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
         "≥ 0.88",
         "same null experiment",
     )
+    # Null with heterogeneous replicates (thresholds fixed before the first run):
+    # both systems come from ONE slow two-state process (mean dwell 1000 frames,
+    # 3000 frames per replicate), so single replicates are often trapped in one
+    # state and replicate populations scatter widely, as in real µs simulations.
+    # 3 replicates per system. The replicate-level bootstrap and Welch's t must stay
+    # near nominal; the frame-level bootstrap is expected to fail (it omits the
+    # between-replicate variance), which is the documented reason for the default.
+    P_slow = np.array([[0.999, 0.001], [0.001, 0.999]])
+    het = {"replicate": [0, 0], "frame": [0, 0], "welch": [0, 0]}
+    rng_het = np.random.default_rng(11)  # own stream: later checks keep their draws
+    for e in range(100):
+        rows = []
+        for sysname in ("A", "B"):
+            for rep in ("1", "2", "3"):
+                s = _markov_chain(n_frames, P_slow, rng_het, s0=int(rng_het.random() < 0.5))
+                xy = centres[s] + rng_het.normal(0, 0.5, size=(n_frames, 2))
+                rows.append(
+                    pd.DataFrame(
+                        {
+                            "system": sysname,
+                            "replicate": f"{sysname}_Rep{rep}",
+                            "frame": np.arange(n_frames),
+                            "time_ps": np.arange(n_frames, dtype=float),
+                            "PC1": xy[:, 0],
+                            "PC2": xy[:, 1],
+                        }
+                    )
+                )
+        df = pd.concat(rows, ignore_index=True)
+        fel = calculate_fel(df["PC1"].to_numpy(), df["PC2"].to_numpy(), temperature=300.0, bins=24)
+        states, _, assign, labels = detect_energy_basins(fel, df, min_state_population=0.05)
+        if len(states) != 2:
+            continue
+        for lev in ("replicate", "frame"):
+            rb = np.random.default_rng(5000 + e)
+            boots = {
+                nm: bootstrap_system(
+                    nm, df[df["system"] == nm], fel, labels, states, 200, rb, level=lev
+                )
+                for nm in ("A", "B")
+            }
+            tbl = population_difference_table(states, assign, ["A", "B"], "A", boots)
+            lo, hi = tbl["B_minus_A_CI95_Low"].iloc[0], tbl["B_minus_A_CI95_High"].iloc[0]
+            het[lev][0] += not (lo <= 0 <= hi)
+            het[lev][1] += 1
+            if lev == "replicate":
+                wp = tbl["B_minus_A_Welch_p"].iloc[0]
+                if np.isfinite(wp):
+                    het["welch"][0] += wp < 0.05
+                    het["welch"][1] += 1
+    fpr = {k: v[0] / v[1] for k, v in het.items() if v[1]}
+    record(
+        "Comparison",
+        f"heterogeneous replicates: replicate-level bootstrap CI excludes 0 under the null "
+        f"(3 vs 3 replicates, {het['replicate'][1]} trials)",
+        fpr["replicate"] <= 0.15,
+        f"{fpr['replicate']:.3f}",
+        "0.05",
+        "≤ 0.15",
+        "two systems from one slow Markov process",
+    )
+    record(
+        "Comparison",
+        f"heterogeneous replicates: Welch's t rejects under the null at α = 0.05 "
+        f"({het['welch'][1]} trials)",
+        fpr["welch"] <= 0.10,
+        f"{fpr['welch']:.3f}",
+        "0.05",
+        "≤ 0.10",
+        "same null experiment",
+    )
+    record(
+        "Comparison",
+        "heterogeneous replicates: frame-level bootstrap (bootstrap_level: frame) is "
+        "anti-conservative, as documented",
+        fpr["frame"] > 0.15,
+        f"{fpr['frame']:.3f}",
+        "> 0.15 (omits between-replicate variance)",
+        "> 0.15",
+        "same null experiment; documents why 'replicate' is the default",
+    )
+    # Welch interval: same statistic and degrees of freedom as scipy
+    from conformatlas.comparison_stats import welch_interval
+
+    wa = np.array([65.0, 70.0, 61.0])
+    wb = np.array([40.0, 46.0, 55.0, 49.0])
+    wd, wlo, whi, wdf = welch_interval(wb, wa)
+    tt = ttest_ind(wb, wa, equal_var=False)
+    se = np.sqrt(wa.var(ddof=1) / 3 + wb.var(ddof=1) / 4)
+    t_back = wd / se
+    ok_ci = abs(t_back - tt.statistic) < 1e-12
+    if hasattr(tt, "confidence_interval"):
+        ci = tt.confidence_interval(0.95)
+        ok_ci = ok_ci and abs(ci.low - wlo) < 1e-10 and abs(ci.high - whi) < 1e-10
+        ok_ci = ok_ci and abs(getattr(tt, "df", wdf) - wdf) < 1e-10
+    record(
+        "Comparison",
+        "Welch 95 % interval and Welch–Satterthwaite df match SciPy",
+        ok_ci,
+        f"[{wlo:.4f}, {whi:.4f}], df {wdf:.4f}",
+        "scipy ttest_ind(...).confidence_interval",
+        "1e-10",
+        "SciPy",
+    )
     # Welch's t agrees with scipy (identical call) — check the table against scipy directly
     a = np.array([65.0, 70.0])
     b = np.array([40.0, 46.0])

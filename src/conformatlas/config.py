@@ -55,6 +55,7 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
     min_barrier = float(min_barrier_raw) if min_barrier_raw is not None else None
     stride = int(data.get("stride", 1))
     bootstrap_mode = str(data.get("bootstrap_mode", "fixed"))
+    bootstrap_level = str(data.get("bootstrap_level", "replicate"))
     fig_format = data.get("fig_format", None)
     colormap = data.get("colormap", None)
     font_scale = data.get("font_scale", None)
@@ -112,6 +113,7 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
         n_bootstrap=n_bootstrap,
         seed=seed,
         bootstrap_mode=bootstrap_mode,
+        bootstrap_level=bootstrap_level,
         fig_format=fig_format,
         colormap=colormap,
         font_scale=None if font_scale is None else float(font_scale),
@@ -149,6 +151,7 @@ end_ps: null
 index_file: null            # GROMACS .ndx for group names
 n_bootstrap: 200
 bootstrap_mode: fixed       # fixed | resegment (re-run the watershed on every resample)
+bootstrap_level: replicate  # replicate (resample replicates, then frame blocks) | frame
 stride: 1                   # Frame stride
 
 # Figures and report (optional; defaults keep png / turbo / 1.0 / 300 dpi)

@@ -807,6 +807,13 @@ def analyze(ctx, config_file, **options):
     default=None,
     help="'resegment' re-runs the watershed on every pooled-landscape resample; default fixed (YAML: bootstrap_mode).",
 )
+@click.option(
+    "--bootstrap-level",
+    type=click.Choice(["replicate", "frame"]),
+    default=None,
+    help="'replicate' (default) resamples replicates and then frame blocks, so intervals include "
+    "the spread between simulations; 'frame' resamples within replicates only (YAML: bootstrap_level).",
+)
 @_style_options
 @click.pass_context
 def compare(ctx, config_file, output_dir, **options):
@@ -830,6 +837,7 @@ def compare(ctx, config_file, output_dir, **options):
         "interactive",
         "plotly_js",
         "bootstrap_mode",
+        "bootstrap_level",
     ):
         if options.get(key) is not None:
             setattr(comp_config, key, options[key])

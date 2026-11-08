@@ -214,6 +214,9 @@ class ComparisonConfig:
     n_bootstrap: int = 200
     seed: int = 0
     bootstrap_mode: str = "fixed"  # 'fixed' | 'resegment'
+    # 'replicate': resample replicates, then blocks of frames inside each (default);
+    # 'frame': within-replicate block bootstrap only (1.0.x behaviour)
+    bootstrap_level: str = "replicate"
     # --- figures / report; None = keep the active module-level style ---
     fig_format: str | None = None
     colormap: str | None = None
@@ -229,6 +232,8 @@ class ComparisonConfig:
             raise ValueError(f"Temperature must be positive Kelvin (got {self.temperature})")
         if self.bootstrap_mode not in ("fixed", "resegment"):
             raise ValueError("bootstrap_mode must be 'fixed' or 'resegment'")
+        if self.bootstrap_level not in ("replicate", "frame"):
+            raise ValueError("bootstrap_level must be 'replicate' or 'frame'")
         if self.plotly_js not in (None, "inline", "cdn"):
             raise ValueError("plotly_js must be 'inline' or 'cdn'")
 
