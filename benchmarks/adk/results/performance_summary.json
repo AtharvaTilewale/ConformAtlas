@@ -1,0 +1,218 @@
+[
+ {
+  "config": "ConformAtlas 1.0.2 (released code)",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 0.7476852419786155,
+  "wall_seconds": 0.95,
+  "peak_rss_gb": 0.278272
+ },
+ {
+  "config": "ConformAtlas perf branch (Lanczos PCA)",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 0.7656795179937035,
+  "wall_seconds": 0.97,
+  "peak_rss_gb": 0.256536
+ },
+ {
+  "config": "NumPy dense covariance + eigh",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 0.3758970859926194,
+  "wall_seconds": 0.5,
+  "peak_rss_gb": 0.175808
+ },
+ {
+  "config": "MDAnalysis PCA",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 2.5990398819558322,
+  "wall_seconds": 2.73,
+  "peak_rss_gb": 0.149548
+ },
+ {
+  "config": "ProDy PCA",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 2.571904119104147,
+  "wall_seconds": 2.75,
+  "peak_rss_gb": 0.49204
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (auto solver)",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1.143599480157718,
+  "wall_seconds": 1.39,
+  "peak_rss_gb": 0.239076
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (full solver)",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1.2411790220066905,
+  "wall_seconds": 1.48,
+  "peak_rss_gb": 0.2632
+ },
+ {
+  "config": "GROMACS covar + anaeig",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 0.3231699571479112,
+  "wall_seconds": 1.06,
+  "peak_rss_gb": 0.107756
+ },
+ {
+  "config": "ConformAtlas 1.0.2 (released code)",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1.186918606981635,
+  "wall_seconds": 1.38,
+  "peak_rss_gb": 0.61174
+ },
+ {
+  "config": "ConformAtlas perf branch (Lanczos PCA)",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 0.8747127088718116,
+  "wall_seconds": 1.06,
+  "peak_rss_gb": 0.3725
+ },
+ {
+  "config": "NumPy dense covariance + eigh",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 0.7284435709007084,
+  "wall_seconds": 0.86,
+  "peak_rss_gb": 0.390248
+ },
+ {
+  "config": "MDAnalysis PCA",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 21.11469413409941,
+  "wall_seconds": 21.24,
+  "peak_rss_gb": 0.34754
+ },
+ {
+  "config": "ProDy PCA",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 19.719590574968606,
+  "wall_seconds": 19.89,
+  "peak_rss_gb": 0.515128
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (auto solver)",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1.1853525661863387,
+  "wall_seconds": 1.43,
+  "peak_rss_gb": 0.282676
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (full solver)",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1.9489802669268101,
+  "wall_seconds": 2.19,
+  "peak_rss_gb": 0.403424
+ },
+ {
+  "config": "GROMACS covar + anaeig",
+  "selection": "backbone",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 4.298711432842538,
+  "wall_seconds": 5.18,
+  "peak_rss_gb": 0.108904
+ },
+ {
+  "config": "ConformAtlas 1.0.2 (released code)",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 18.689605094958097,
+  "wall_seconds": 18.9,
+  "peak_rss_gb": 2.253912
+ },
+ {
+  "config": "ConformAtlas perf branch (Lanczos PCA)",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1.2417175120208412,
+  "wall_seconds": 1.44,
+  "peak_rss_gb": 0.673536
+ },
+ {
+  "config": "NumPy dense covariance + eigh",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 7.57774569792673,
+  "wall_seconds": 7.71,
+  "peak_rss_gb": 1.414208
+ },
+ {
+  "config": "MDAnalysis PCA",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 203.5903924209997,
+  "wall_seconds": 203.73,
+  "peak_rss_gb": 1.495256
+ },
+ {
+  "config": "ProDy PCA",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 135.47038411698304,
+  "wall_seconds": 135.64,
+  "peak_rss_gb": 0.848708
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (auto solver)",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1.3265712179709226,
+  "wall_seconds": 1.57,
+  "peak_rss_gb": 0.383136
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (full solver)",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 8.830587795004249,
+  "wall_seconds": 9.08,
+  "peak_rss_gb": 0.748968
+ },
+ {
+  "config": "GROMACS covar + anaeig",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 62.6232685870491,
+  "wall_seconds": 63.85,
+  "peak_rss_gb": 0.207048
+ }
+]

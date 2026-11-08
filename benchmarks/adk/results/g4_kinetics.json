@@ -1,0 +1,117 @@
+{
+  "deeptime": "0.4.5",
+  "n_frames": 4187,
+  "n_clusters_used": 100,
+  "gates": {
+    "tica_eigenvalues_rel": 1e-08,
+    "stationary_abs": 1e-07,
+    "timescales_rel": 1e-05
+  },
+  "lags": {
+    "10": {
+      "tica": {
+        "conformatlas": [
+          0.8843738875355056,
+          0.8018094845901459,
+          0.7849752658034422,
+          0.5117103582375406,
+          0.4746577702604427
+        ],
+        "deeptime": [
+          0.8843738875355068,
+          0.8018094845901472,
+          0.7849752658034427,
+          0.5117103582375433,
+          0.4746577702604431
+        ],
+        "max_rel_error": 5.207116127720557e-15,
+        "pass": true
+      },
+      "msm_timescale_ordering_diagnosis_only": {
+        "ts_rel_error_first_four_signed_order": 1.0982754423935903e-08,
+        "ts_rel_error_all_five_abs_ordered": 1.0982754423935903e-08,
+        "negative_eigenvalues_among_top_10_by_magnitude": [
+          -0.268339,
+          -0.258195
+        ]
+      },
+      "msm": {
+        "n_active_conformatlas": 96,
+        "n_active_deeptime": 96,
+        "same_active_set": true,
+        "max_abs_stationary_error": 2.3022703708741599e-10,
+        "max_abs_transition_matrix_error": 1.544357114413586e-09,
+        "timescales_frames_conformatlas": [
+          25.1868580598533,
+          12.552605402992478,
+          9.678674193843671,
+          8.852309834515411,
+          7.452398934432221
+        ],
+        "timescales_frames_deeptime": [
+          25.18685833647438,
+          12.552605401877354,
+          9.678674191776429,
+          8.852309839413447,
+          7.601644736741323
+        ],
+        "max_rel_timescale_error": 0.019633356658690825,
+        "pass_stationary": true,
+        "pass_timescales": false
+      }
+    },
+    "50": {
+      "tica": {
+        "conformatlas": [
+          0.7977387906094304,
+          0.6900114891417777,
+          0.6548317992011882,
+          0.35606089236369387,
+          0.19893295363364977
+        ],
+        "deeptime": [
+          0.7977387906094298,
+          0.69001148914178,
+          0.6548317992011871,
+          0.35606089236369504,
+          0.19893295363364935
+        ],
+        "max_rel_error": 3.3788833786125128e-15,
+        "pass": true
+      },
+      "msm_timescale_ordering_diagnosis_only": {
+        "ts_rel_error_first_four_signed_order": 8.130193159622658e-09,
+        "ts_rel_error_all_five_abs_ordered": 8.130193159622658e-09,
+        "negative_eigenvalues_among_top_10_by_magnitude": [
+          -0.20487,
+          -0.192941,
+          -0.192023
+        ]
+      },
+      "msm": {
+        "n_active_conformatlas": 96,
+        "n_active_deeptime": 96,
+        "same_active_set": true,
+        "max_abs_stationary_error": 1.1024893584871132e-10,
+        "max_abs_transition_matrix_error": 1.3144005606147147e-09,
+        "timescales_frames_conformatlas": [
+          74.16180403312129,
+          46.49987578378688,
+          35.58504951537969,
+          32.39265340634034,
+          31.485764296365073
+        ],
+        "timescales_frames_deeptime": [
+          74.16180463607108,
+          46.49987579133016,
+          35.58504951398712,
+          32.39265341112187,
+          31.538139199501
+        ],
+        "max_rel_timescale_error": 0.00166068463344077,
+        "pass_stationary": true,
+        "pass_timescales": false
+      }
+    }
+  }
+}

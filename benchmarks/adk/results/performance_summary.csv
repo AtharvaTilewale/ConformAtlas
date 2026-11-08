@@ -1,0 +1,25 @@
+config,selection,status,n_ok_runs,compute_seconds,wall_seconds,peak_rss_gb
+ConformAtlas 1.0.2 (released code),calpha,ok,3,0.7476852419786155,0.95,0.278272
+ConformAtlas perf branch (Lanczos PCA),calpha,ok,3,0.7656795179937035,0.97,0.256536
+NumPy dense covariance + eigh,calpha,ok,3,0.3758970859926194,0.5,0.175808
+MDAnalysis PCA,calpha,ok,3,2.5990398819558322,2.73,0.149548
+ProDy PCA,calpha,ok,3,2.571904119104147,2.75,0.49204
+MDTraj + scikit-learn PCA (auto solver),calpha,ok,3,1.143599480157718,1.39,0.239076
+MDTraj + scikit-learn PCA (full solver),calpha,ok,3,1.2411790220066905,1.48,0.2632
+GROMACS covar + anaeig,calpha,ok,3,0.3231699571479112,1.06,0.107756
+ConformAtlas 1.0.2 (released code),backbone,ok,3,1.186918606981635,1.38,0.61174
+ConformAtlas perf branch (Lanczos PCA),backbone,ok,3,0.8747127088718116,1.06,0.3725
+NumPy dense covariance + eigh,backbone,ok,3,0.7284435709007084,0.86,0.390248
+MDAnalysis PCA,backbone,ok,3,21.11469413409941,21.24,0.34754
+ProDy PCA,backbone,ok,3,19.719590574968606,19.89,0.515128
+MDTraj + scikit-learn PCA (auto solver),backbone,ok,3,1.1853525661863387,1.43,0.282676
+MDTraj + scikit-learn PCA (full solver),backbone,ok,3,1.9489802669268101,2.19,0.403424
+GROMACS covar + anaeig,backbone,ok,3,4.298711432842538,5.18,0.108904
+ConformAtlas 1.0.2 (released code),heavy,ok,3,18.689605094958097,18.9,2.253912
+ConformAtlas perf branch (Lanczos PCA),heavy,ok,3,1.2417175120208412,1.44,0.673536
+NumPy dense covariance + eigh,heavy,ok,3,7.57774569792673,7.71,1.414208
+MDAnalysis PCA,heavy,ok,3,203.5903924209997,203.73,1.495256
+ProDy PCA,heavy,ok,3,135.47038411698304,135.64,0.848708
+MDTraj + scikit-learn PCA (auto solver),heavy,ok,3,1.3265712179709226,1.57,0.383136
+MDTraj + scikit-learn PCA (full solver),heavy,ok,3,8.830587795004249,9.08,0.748968
+GROMACS covar + anaeig,heavy,ok,3,62.6232685870491,63.85,0.207048

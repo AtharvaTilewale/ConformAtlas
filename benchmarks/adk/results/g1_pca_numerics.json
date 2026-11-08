@@ -1,0 +1,463 @@
+{
+  "g0": {
+    "checks": {
+      "md5_dcd": true,
+      "md5_psf": true,
+      "n_atoms": true,
+      "n_residues": true,
+      "n_frames": true,
+      "dt_ps": true
+    },
+    "pass": true
+  },
+  "calpha": {
+    "N": 4187,
+    "D": 642,
+    "reference_top": [
+      494.1475891137105,
+      235.53950960061493,
+      161.15255217863165,
+      50.24888136880319,
+      36.96047085986227,
+      23.198075794188053,
+      17.98069614315091,
+      12.857636253604875,
+      11.121537619151853,
+      10.261309611682679
+    ],
+    "tools": {
+      "ConformAtlas": {
+        "max_rel_eigenvalue_error": 8.28934714451367e-15,
+        "max_explained_abs_error_pct": 1.4210854715202004e-14,
+        "max_one_minus_cos_separated": 1.7763568394002505e-15,
+        "max_projection_err_over_sd_separated": 1.0997719008610098e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.4
+      },
+      "MDAnalysis": {
+        "max_rel_eigenvalue_error": 2.392703194594902e-09,
+        "max_explained_abs_error_pct": 3.238521628645685e-08,
+        "max_one_minus_cos_separated": 1.887379141862766e-15,
+        "max_projection_err_over_sd_separated": 7.401113423032866e-08,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 2.4
+      },
+      "ProDy": {
+        "max_rel_eigenvalue_error": 4.154690362043856e-15,
+        "max_explained_abs_error_pct": 1.0658141036401503e-14,
+        "max_one_minus_cos_separated": 1.4432899320127035e-15,
+        "max_projection_err_over_sd_separated": 1.0031703149745698e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.1
+      },
+      "MDTraj+sklearn(full)": {
+        "max_rel_eigenvalue_error": 3.79017408490417e-08,
+        "max_explained_abs_error_pct": 3.5607031989570714e-08,
+        "max_one_minus_cos_separated": 2.6645352591003757e-15,
+        "max_projection_err_over_sd_separated": 5.533393210203229e-07,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.9
+      },
+      "MDTraj+sklearn(auto)": {
+        "max_rel_eigenvalue_error": 3.591152003936349e-08,
+        "max_explained_abs_error_pct": 3.5607031989570714e-08,
+        "max_one_minus_cos_separated": 4.782930718150169e-10,
+        "max_projection_err_over_sd_separated": 6.351522642935398e-05,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "gate": "informational (randomised solver)",
+        "seconds": 0.4
+      },
+      "GROMACS": {
+        "max_rel_eigenvalue_error": 3.4264342957746645e-06,
+        "max_explained_abs_error_pct": 4.8522918943305626e-05,
+        "max_one_minus_cos_separated": 5.351175058621038e-11,
+        "max_projection_err_over_sd_separated": NaN,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.7
+      }
+    }
+  },
+  "backbone": {
+    "N": 4187,
+    "D": 1926,
+    "reference_top": [
+      1478.441427688598,
+      704.0483685266458,
+      479.5718395226904,
+      147.91682069853422,
+      108.74585470256808,
+      67.92857795241382,
+      53.347516205624586,
+      37.69155175662493,
+      32.51596205121836,
+      29.99370573744753
+    ],
+    "tools": {
+      "ConformAtlas": {
+        "max_rel_eigenvalue_error": 5.061271054272073e-15,
+        "max_explained_abs_error_pct": 2.1316282072803006e-14,
+        "max_one_minus_cos_separated": 1.3322676295501878e-15,
+        "max_projection_err_over_sd_separated": 1.4828214548189022e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.6
+      },
+      "MDAnalysis": {
+        "max_rel_eigenvalue_error": 9.035679383756084e-10,
+        "max_explained_abs_error_pct": 1.7531085916289157e-08,
+        "max_one_minus_cos_separated": 1.9984014443252818e-15,
+        "max_projection_err_over_sd_separated": 9.891528680868726e-08,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 22.0
+      },
+      "ProDy": {
+        "max_rel_eigenvalue_error": 6.337115077384222e-15,
+        "max_explained_abs_error_pct": 8.881784197001252e-15,
+        "max_one_minus_cos_separated": 1.6653345369377348e-15,
+        "max_projection_err_over_sd_separated": 1.1797831070328753e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.3
+      },
+      "MDTraj+sklearn(full)": {
+        "max_rel_eigenvalue_error": 4.105571415614654e-08,
+        "max_explained_abs_error_pct": 3.872069775923137e-08,
+        "max_one_minus_cos_separated": 3.219646771412954e-15,
+        "max_projection_err_over_sd_separated": 3.5834528025527006e-07,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 2.8
+      },
+      "MDTraj+sklearn(auto)": {
+        "max_rel_eigenvalue_error": 4.029318811023013e-08,
+        "max_explained_abs_error_pct": 3.87206675611651e-08,
+        "max_one_minus_cos_separated": 1.8633361520414837e-10,
+        "max_projection_err_over_sd_separated": 4.1931875778045084e-05,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "gate": "informational (randomised solver)",
+        "seconds": 0.5
+      },
+      "GROMACS": {
+        "max_rel_eigenvalue_error": 1.373162486609159e-06,
+        "max_explained_abs_error_pct": 2.5565387701931286e-05,
+        "max_one_minus_cos_separated": 6.853662082306755e-11,
+        "max_projection_err_over_sd_separated": NaN,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 4.7
+      }
+    }
+  },
+  "heavy": {
+    "N": 4187,
+    "D": 4968,
+    "reference_top": [
+      3886.1568195428526,
+      1887.127698351621,
+      1234.6326719403899,
+      441.3134890744376,
+      322.80647922087337,
+      205.52476034664707,
+      146.52491540206023,
+      128.00938794140876,
+      110.72020322189786,
+      94.34916189326873
+    ],
+    "tools": {
+      "ConformAtlas": {
+        "max_rel_eigenvalue_error": 3.4642560876098776e-15,
+        "max_explained_abs_error_pct": 4.618527782440651e-14,
+        "max_one_minus_cos_separated": 3.3306690738754696e-15,
+        "max_projection_err_over_sd_separated": 1.4585808852576472e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 18.7
+      },
+      "MDAnalysis": {
+        "max_rel_eigenvalue_error": 9.55536967952678e-10,
+        "max_explained_abs_error_pct": 7.422464420869801e-09,
+        "max_one_minus_cos_separated": 2.3314683517128287e-15,
+        "max_projection_err_over_sd_separated": 3.776675674642995e-08,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 204.6
+      },
+      "ProDy": {
+        "max_rel_eigenvalue_error": 3.1630164278177142e-15,
+        "max_explained_abs_error_pct": 1.5987211554602254e-14,
+        "max_one_minus_cos_separated": 3.3306690738754696e-15,
+        "max_projection_err_over_sd_separated": 1.5970110155714516e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 4.4
+      },
+      "MDTraj+sklearn(full)": {
+        "max_rel_eigenvalue_error": 3.69040508974038e-08,
+        "max_explained_abs_error_pct": 2.9145054369905665e-08,
+        "max_one_minus_cos_separated": 3.4416913763379853e-15,
+        "max_projection_err_over_sd_separated": 1.8768435014324995e-07,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 18.5
+      },
+      "MDTraj+sklearn(auto)": {
+        "max_rel_eigenvalue_error": 3.525707093618212e-08,
+        "max_explained_abs_error_pct": 3.3650469855039944e-08,
+        "max_one_minus_cos_separated": 2.993581182941796e-08,
+        "max_projection_err_over_sd_separated": 0.0004597561641107149,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "gate": "informational (randomised solver)",
+        "seconds": 0.7
+      },
+      "GROMACS": {
+        "max_rel_eigenvalue_error": 4.781357063515298e-06,
+        "max_explained_abs_error_pct": 2.744333414028688e-05,
+        "max_one_minus_cos_separated": 1.289605089382917e-10,
+        "max_projection_err_over_sd_separated": NaN,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 63.3
+      }
+    }
+  }
+}
