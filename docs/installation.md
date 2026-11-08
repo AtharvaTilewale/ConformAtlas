@@ -3,7 +3,7 @@
 ## 1. Prerequisites
 * **Python**: Version 3.10, 3.11, or 3.12.
 * **MDAnalysis**: 2.2 or newer, installed automatically by `pip` together with numpy, scipy, pandas, matplotlib, scikit-image, click, jinja2 and PyYAML.
-* **GROMACS**: (Optional) GROMACS 2020 or newer (`gmx` or `gmx_mpi` accessible in PATH) for the `--pca-backend gromacs` route.
+* **GROMACS**: (Optional; tested with 2024.4 and 2026.3) `gmx` or `gmx_mpi` accessible in PATH, for the `--pca-backend gromacs` route and the GROMACS validation rows.
 * **Package Manager**: `pip` or `conda` (conda-forge).
 
 ---
@@ -33,12 +33,12 @@ conda install -c conda-forge plotly h5py rich weasyprint
 
 ### pip
 
-Install directly into your active Python environment:
-
 ```bash
-cd /path/to/ConformAtlas
-pip install .
+pip install conformatlas             # core (includes MDAnalysis)
+pip install "conformatlas[all]"      # every optional feature
 ```
+
+From a source checkout: `pip install .` (or `pip install -e ".[dev,docs]"` for development).
 
 Optional features are installed as extras:
 
@@ -53,8 +53,8 @@ Optional features are installed as extras:
 | `docs` | sphinx, sphinx-rtd-theme, myst-parser | building this documentation |
 
 ```bash
-pip install ".[all]"          # every optional feature
-pip install -e ".[dev,docs]"  # development
+pip install "conformatlas[all]"  # every optional feature (from a checkout: pip install ".[all]")
+pip install -e ".[dev,docs]"     # development, from a source checkout
 ```
 
 The core numerics (PCA, landscapes, bootstrap, MSM, reweighting, residue

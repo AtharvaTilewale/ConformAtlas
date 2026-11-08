@@ -52,6 +52,8 @@ by signed eigenvalue and its fifth timescale is the next positive one. A dense e
 ConformAtlas's own T ordered by |λ| reproduces deeptime's list (see `msm_timescale_ordering_diagnosis_only` in
 `results/g4_kinetics.json`). The gate is reported as FAIL. Whether to rank by |λ| or to flag negative
 eigenvalues in the output is a design question for ConformAtlas; it is not changed on this branch.
+Update: the ranking was changed to |λ| on `dev` (merge `a1dac8e`), and negative eigenvalues among the
+reported ones are flagged. The registered G4 result was obtained with 1.0.2 and is not re-run.
 
 ## D7 — H1: PyEMMA and deeptime are one reference, not two (found after the H1 run)
 `benchmarks/CRITERIA_T4L_HIV.md` H1 compares ConformAtlas with "a fresh PyEMMA MSM and deeptime". The two gave
@@ -81,3 +83,16 @@ MDAnalysis Cα projection error / SD 4.3e-6 (gate 1e-6, FAIL), eigenvalues 1.1e-
 harness now rounds the fitted coordinates to float32 once and gives the same numbers to every tool and to the
 reference, as the ADK benchmark did (its DCD input was already float32). Tolerances are unchanged; T0–T2 were
 re-run from scratch.
+
+## D11 — CRITERIA_T4L_HIV.md edited after results existed (no tolerance changed)
+The file was committed in `6c73a2a` before any T4L or HIV-1 protease result. Two later edits were not logged
+here at the time: `153f2ed` added the T4-R gate after T4 had failed (`fc2c8de`) and before T4-R was run, and
+updated the push policy under "Reporting rules"; `a2b4240`, the T4-R results commit, added the note on the
+code version (merge commits `d6bcbc2`, `a1dac8e`). No threshold of T0–T7 or H0–H4 was changed. The file's
+opening statement ("committed before any result") applies to T0–T7 and H0–H4 only.
+
+## D12 — description of the ff15ipq data (no gate affected)
+The data table of CRITERIA_T4L_HIV.md gives the ff15ipq set as 3 × ~1.07 µs. The deposited trajectories are
+1.07, 1.14 and 1.29 µs long (T0 frame counts 10662, 11368 and 12894 at 100 ps). RESULTS_T4L_HIV.md now
+computes the lengths from the T0 record. The records (Zenodo 3989057, 3991429) are open access but state no
+licence, which is why the trajectories are not redistributed.

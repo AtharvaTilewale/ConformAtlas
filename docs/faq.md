@@ -59,8 +59,9 @@ group must refer to the same atoms in every system of a comparison.
 
 ## My ΔG values differ from `gmx sham` by a constant
 
-`gmx sham` uses **298.15 K** unless `-tsham` is given; ConformAtlas has no default
-temperature and uses the `-T` value you pass. A landscape at 300 K is scaled by
+`gmx sham` uses **298.15 K** unless `-tsham` is given; ConformAtlas uses `-T`
+(300 K when it is omitted; the value is recorded as `temperature_K` in
+`run_metadata.json`), so always pass the simulation temperature. A landscape at 300 K is scaled by
 300/298.15 relative to sham's default, i.e. by 0.6 % — 0.03 kJ/mol at 5 kJ/mol.
 Larger differences are usually the second convention: `gmx sham` fills
 **unsampled bins with the maximum sampled free energy**, whereas ConformAtlas leaves
@@ -98,8 +99,8 @@ difference can be trusted. The [tutorial](tutorial_adk.md) shows a comparison wh
 
 ## N_eff is tiny although I have thousands of frames
 
-N_eff = N / g where g = 1 + 2τ is the statistical inefficiency of the PC1/PC2
-projections (Chodera 2007/2016, computed exactly from the autocorrelation
+N_eff = N / g where g = 1 + 2τ is the statistical inefficiency of the two landscape
+coordinates (PC1/PC2 by default, or the CVs of `--cv`; Chodera 2007/2016, computed exactly from the autocorrelation
 function). g is measured in frames, so N_eff is the trajectory length divided by
 the correlation time of the slowest mode in the plane, independent of how often
 you saved frames. Saving every 1 ps instead of every 100 ps multiplies N by 100 and
@@ -159,8 +160,8 @@ criterion. Two checks worth making:
    they are not, the states are artefacts of the grid; smooth (`--smooth-sigma 1`)
    or use fewer bins, and report that you did.
 
-For short trajectories such as the 81-frame tutorial fixture, the automatic rule
-would give 16 bins (the floor) and a fixed smaller grid is more honest.
+For short trajectories such as the 105-frame regression fixture `tests/data/adk_ca`,
+the automatic rule gives 16 bins (the floor) and a fixed smaller grid is more honest.
 
 ## `barriers.csv` is empty
 

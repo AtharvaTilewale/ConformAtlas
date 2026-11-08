@@ -17,7 +17,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common_t4l import TEMPERATURE, fitted, replicates, save_json, tpr, xtc  # noqa: E402
 
-WORK = Path("/media/atharva/3EA6170E34C679E4/ca_perf/t4l_analyze_whole")
+WORK = Path(os.environ.get("CA_BENCH_WORK", Path(os.environ.get("CA_BENCH_DATA", Path(__file__).resolve().parents[1] / "data")) / "work")) / "t4l_analyze_whole"  # $CA_BENCH_WORK
 
 
 def rmsip(a: np.ndarray, b: np.ndarray, k: int = 10) -> float:

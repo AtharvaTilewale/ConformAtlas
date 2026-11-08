@@ -211,7 +211,7 @@ def main(argv: list[str]) -> None:
     work = (
         Path(argv[argv.index("--work") + 1])
         if "--work" in argv
-        else Path("/media/atharva/3EA6170E34C679E4/ca_perf/t4l_compare_whole")
+        else Path(os.environ.get("CA_BENCH_WORK", Path(os.environ.get("CA_BENCH_DATA", Path(__file__).resolve().parents[1] / "data")) / "work")) / "t4l_compare_whole"
     )
     python = (
         argv[argv.index("--python") + 1]

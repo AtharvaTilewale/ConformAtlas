@@ -181,16 +181,11 @@ def sample_static_bias(
 
 
 def _find_plumed() -> str | None:
-    exe = shutil.which("plumed")
-    if exe:
-        return exe
-    for cand in (
-        Path.home() / ".claude-science/conda/envs/plumed-ref/bin/plumed",
-        Path("/usr/local/bin/plumed"),
-    ):
-        if cand.exists():
-            return str(cand)
-    return None
+    """PLUMED executable: $PLUMED, else ``plumed`` on PATH."""
+    env = os.environ.get("PLUMED")
+    if env and Path(env).exists():
+        return env
+    return shutil.which("plumed")
 
 
 def _pmf_deviation(pmf_df, f_true, mask):

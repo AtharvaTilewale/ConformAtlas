@@ -443,7 +443,8 @@ def main(ctx, structure, trajectory, temperature, output, quiet):
     "--pca-backend",
     type=click.Choice(["auto", "python", "gromacs"]),
     default=None,
-    help="auto/python: in-memory MDAnalysis route (Å); gromacs: gmx covar/anaeig (nm).",
+    help="auto/python: in-memory MDAnalysis route (Å); gromacs: gmx covar/anaeig (nm) on every "
+    "frame (not combinable with -b/-e, --stride or --equilibration auto).",
 )
 @click.option(
     "--cv",
@@ -535,7 +536,7 @@ def main(ctx, structure, trajectory, temperature, output, quiet):
     "--fel-backend",
     type=click.Choice(["python", "gromacs"]),
     default=None,
-    help="FEL backend (python default).",
+    help="Deprecated, no effect: the landscape is always computed in Python (to be removed in 2.0).",
 )
 @click.option("--gmx-command", type=str, default=None, help="Path to a GROMACS executable.")
 @click.option(

@@ -66,7 +66,7 @@ The published PMF covers NMP 35–79°, LID 95–155°; its lowest local minima 
 | 10 | 5.2e-15 PASS | 96 / 96 | 2.3e-10 PASS | 2.0e-02 FAIL | 1.1e-08 / 1.1e-08 |
 | 50 | 3.4e-15 PASS | 96 / 96 | 1.1e-10 PASS | 1.7e-03 FAIL | 8.1e-09 / 8.1e-09 |
 
-The timescale failures are explained in `DEVIATIONS.md` D6: ConformAtlas ranks eigenvalues by signed value, deeptime by magnitude; the reversible transition matrix has negative eigenvalues of large magnitude. The failure stays recorded as registered.
+The timescale failures are explained in `DEVIATIONS.md` D6: ConformAtlas 1.0.2, the code these gates were run with, ranked eigenvalues by signed value, deeptime by magnitude, and the reversible transition matrix has negative eigenvalues of large magnitude. The last column shows that ranking by |λ| reproduces deeptime. `dev` now ranks by |λ| (merge a1dac8e, CHANGELOG [Unreleased]); the registered G4 result was not re-run and stays recorded as FAIL.
 
 ## G5 — Level 2, each tool's own default superposition (informational expectation: RMSIP of the top 10 modes ≥ 0.95)
 
@@ -88,11 +88,19 @@ Crystal structures fitted on the CORE Cα atoms and projected into the trajector
 
 Default `conformatlas analyze` (Cα, one trajectory, 300 K):
 
+`states/state_free_energies.csv`
+
+| state | population | population_sd | population_ci95_low | population_ci95_high | dG_state_kJ_mol | dG_state_ci95_low | dG_state_ci95_high | reference_state | min_dG_kJ_mol | min_dG_ci95_low | min_dG_ci95_high |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| State A | 0.9355 | 0.0126 | 0.9049 | 0.9553 | -0.0 | -0.0 | 0.0 | State A | -0.0 | -0.0 | 0.0 |
+
 `states/state_ensemble_summary.csv`
 
 | state | frames | Rg_mean | Rg_sd | RMSF_mean | RMSF_max | average_pdb | RMSD_to_reference_mean | RMSD_to_reference_sd | RMSD_average_to_reference |
 |---|---|---|---|---|---|---|---|---|---|
 | State A | 3917 | 19.7038 | 0.5169 | 1.6986 | 3.7712 | nan | 7.2008 | 0.9781 | 7.0337 |
+
+`states/barriers.csv`: empty (a single major state, so no barrier between states).
 
 Warnings recorded by the run: Rep_1: equilibration detection suggests discarding the first 1352 frames (32%, t0 = 324480 ps); run with --equilibration auto or -b 324480 to apply.
 

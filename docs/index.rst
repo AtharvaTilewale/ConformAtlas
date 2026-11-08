@@ -5,9 +5,9 @@ ConformAtlas Documentation
 
 *Mapping conformational landscapes from molecular simulations*
 
-.. image:: https://img.shields.io/badge/python-3.10+-blue.svg
+.. image:: https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg
    :target: https://www.python.org/downloads/
-   :alt: Python 3.10+
+   :alt: Python 3.10 | 3.11 | 3.12
 .. image:: https://img.shields.io/badge/License-MIT-yellow.svg
    :target: https://opensource.org/licenses/MIT
    :alt: License: MIT
@@ -15,7 +15,7 @@ ConformAtlas Documentation
    :target: https://github.com/AtharvaTilewale/ConformAtlas/actions/workflows/ci.yml
    :alt: CI Status
 
-**ConformAtlas** is a rigorous, modular Python package and command-line interface (CLI) for molecular dynamics (MD) ensemble characterization, Principal Component Analysis (PCA), topological watershed energy basin segmentation, and Boltzmann-inverted Free Energy Landscape (FEL) evaluation.
+**ConformAtlas** turns molecular dynamics trajectories into a quantitative map of conformational space: principal components (or dihedral PCA / TICA), a free-energy landscape with bootstrap uncertainties, its metastable states, barriers and kinetics, optional Markov state models, condition comparisons in a shared PCA space, and a convergence assessment. It runs as one command (``conformatlas analyze``) and as a Python library.
 
 .. toctree::
    :maxdepth: 2
@@ -41,7 +41,7 @@ ConformAtlas Documentation
 
 .. toctree::
    :maxdepth: 2
-   :caption: Manifest & System Architecture
+   :caption: History
 
    outputs
    CURRENT_ARCHITECTURE

@@ -16,7 +16,7 @@ import numpy as np
 
 warnings.filterwarnings("ignore")
 
-DATA = Path(os.environ.get("CA_BENCH_DATA", "/media/atharva/3EA6170E34C679E4/ca_benchmark_data"))
+DATA = Path(os.environ.get("CA_BENCH_DATA", Path(__file__).resolve().parents[1] / "data"))
 ADK_EQ = DATA / "adk" / "equilibrium_1us"
 PSF = ADK_EQ / "adk4AKE.psf"
 DCD = ADK_EQ / "1ake_007-nowater-core-dt240ps.dcd"

@@ -166,7 +166,7 @@ def main() -> None:
         )
     L += [
         "",
-        "The timescale failures are explained in `DEVIATIONS.md` D6: ConformAtlas ranks eigenvalues by signed value, deeptime by magnitude; the reversible transition matrix has negative eigenvalues of large magnitude. The failure stays recorded as registered.",
+        "The timescale failures are explained in `DEVIATIONS.md` D6: ConformAtlas 1.0.2, the code these gates were run with, ranked eigenvalues by signed value, deeptime by magnitude, and the reversible transition matrix has negative eigenvalues of large magnitude. The last column shows that ranking by |λ| reproduces deeptime. `dev` now ranks by |λ| (merge a1dac8e, CHANGELOG [Unreleased]); the registered G4 result was not re-run and stays recorded as FAIL.",
         "",
     ]
 
@@ -202,8 +202,14 @@ def main() -> None:
         L.append("")
         if g6.get("analyze_returncode") == 0:
             L += ["Default `conformatlas analyze` (Cα, one trajectory, 300 K):", ""]
-            for key in ("analyze:states/state_ensemble_summary.csv", "analyze:states/barriers.csv"):
+            for key in (
+                "analyze:states/state_free_energies.csv",
+                "analyze:states/state_ensemble_summary.csv",
+                "analyze:states/barriers.csv",
+            ):
                 rows = g6.get(key)
+                if key.endswith("barriers.csv") and not rows:
+                    L += ["`states/barriers.csv`: empty (a single major state, so no barrier between states).", ""]
                 if rows:
                     cols = list(rows[0])
                     L += [

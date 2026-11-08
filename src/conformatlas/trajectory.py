@@ -137,7 +137,8 @@ def map_group_to_mda_selection(group: str) -> str:
         # GROMACS 'MainChain' = N, CA, C, O
         return "backbone or name BB"
     elif g_lower in ["c-alpha", "calpha", "ca"]:
-        return "name CA or name BB"
+        # GROMACS 'C-alpha' = protein CA only: calcium ions are also named CA (resname CA)
+        return "(protein and name CA) or name BB"
     elif g_lower in ["protein"]:
         return "protein or (name BB SC1 SC2 SC3 SC4 SC5)"
     elif g_lower in ["system"]:

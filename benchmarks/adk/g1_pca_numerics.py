@@ -8,6 +8,8 @@ Every tool receives the same pre-fitted coordinates and no further superposition
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -31,7 +33,7 @@ from common import (  # noqa: E402
     universe,
 )
 
-GMX = "/home/atharva/.claude-science/conda/envs/gmx-ref/bin/gmx"
+GMX = os.environ.get("GMX") or shutil.which("gmx") or "gmx"  # $GMX or gmx on PATH
 TOL_DOUBLE = {"eig": 1e-6, "expl": 1e-6, "vec": 1e-6, "proj": 1e-6}
 TOL_GMX = {"eig": 1e-4, "expl": 1e-3, "vec": 1e-4, "proj": 1e-3}
 

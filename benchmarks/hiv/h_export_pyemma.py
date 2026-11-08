@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pyemma
 
-DATA = Path(os.environ.get("CA_BENCH_DATA", "/media/atharva/3EA6170E34C679E4/ca_benchmark_data"))
+DATA = Path(os.environ.get("CA_BENCH_DATA", Path(__file__).resolve().parents[1] / "data"))
 OBJ = DATA / "hiv1_protease" / "data" / "MD" / "MSM_obj"
 OUT = Path(__file__).resolve().parent / "results"
 OUT.mkdir(exist_ok=True)

@@ -9,7 +9,7 @@ Comparing conformational spaces between Wild-Type (WT) and mutants requires proj
 Calculating separate PCAs for WT and Mutant produces distinct, non-equivalent eigenvectors ($\mathbf{v}_{1, \text{WT}} \ne \mathbf{v}_{1, \text{MUT}}$). Plotting them side-by-side as if the axes were equivalent is mathematically invalid and biologically misleading.
 
 ConformAtlas constructs a **shared PCA space** using either:
-1. **`combined` mode** (Recommended default for unbiased comparisons): Pools WT and mutant frames with balanced weighting to construct a shared basis.
+1. **`combined` mode** (default): pools all replicates of all systems into one covariance. With equal-replicate weighting every replicate weighs the same, so the systems are balanced when they have the same number of replicates (`pca_weighting: frames` weights every frame equally instead).
 2. **`reference-system` mode**: Computes eigenvectors strictly from the reference condition (e.g. WT) and projects mutants onto that basis to detect deviations from the WT baseline.
 
 ---
@@ -28,7 +28,7 @@ Mutants often introduce or delete side-chain atoms. ConformAtlas strictly matche
 When running `conformatlas compare --config compare.yaml`, the following outputs are generated:
 * `pca/projections.csv`: All frames projected onto the shared $PC_1 / PC_2$ axes.
 * `comparison/state_population_comparison.csv`: Direct shifts in major state occupancies.
-* `comparison/fel_diff.npy`: $\Delta\Delta G = \Delta G_{\text{mutant}} - \Delta G_{\text{WT}}$ free energy difference map.
+* `comparison/fel_diff_<SYS>_vs_<REF>.csv/.npy`: $\Delta\Delta G = \Delta G_{\text{system}} - \Delta G_{\text{reference}}$ map on the shared grid (with exactly two systems also saved as `comparison/fel_diff.npy`).
 * `figures/condition_comparison.png`: 4-panel comparison figure.
 
 
@@ -45,6 +45,6 @@ When running `conformatlas compare --config compare.yaml`, the following outputs
 * **Landscape overlap** (`fel_overlap.csv`): Bhattacharyya coefficient (1 = identical densities), Hellinger distance, Jensen–Shannon divergence in bits and the Jaccard index of sampled bins.
 * **Essential-subspace similarity** (`subspace_overlap.csv`): RMSIP between the leading eigenvectors of each system's own PCA. Values ≳ 0.7 indicate that the systems move along similar collective directions even where their populations differ.
 
-Comparison configurations accept `begin_ps`, `end_ps`, `index_file`, `bins: auto`, `n_bootstrap`, `bootstrap_level` (`replicate` or `frame`, also `--bootstrap-level`), `bootstrap_mode` (`fixed` or `resegment`, also `--bootstrap-mode`; re-segmentation of the pooled landscape on every resample, writing `comparison/state_count_distribution.csv` and `state_populations_resegmented.csv`) and `seed`; any number of systems may be listed and `reference_system` chooses the baseline for all differences.
+Comparison configurations accept `begin_ps`, `end_ps`, `index_file`, `bins: auto`, `n_bootstrap`, `bootstrap_level` (`replicate` or `frame`, also `--bootstrap-level`), `bootstrap_mode` (`fixed` or `resegment`, also `--bootstrap-mode`; re-segmentation of the pooled landscape on every resample, writing `comparison/state_count_distribution.csv` and `state_populations_resegmented.csv`) and `seed`; any number of systems may be listed and `reference_system` (under `pca:`, or at the top level) chooses the baseline for all differences. `pca_weighting` (or `pca: weighting`) is `equal-replicate` (default) or `frames`. Unknown or misspelled keys, and invalid values of `pca: reference`, `pca_weighting`, `bootstrap_level` and `bootstrap_mode`, stop with an error instead of being ignored.
 
 When plotly is installed (or with `--interactive`), `compare` also writes `comparison_interactive.html`: the per-system landscapes side by side on the shared grid with linked axes and a shared colour scale. The common-atom mapping is chain-aware (`chain/residue/atom` keys) and falls back to `residue/atom` keys with a warning when the systems carry different chain labels, so repeated residue numbers across chains are no longer collapsed.

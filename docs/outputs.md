@@ -15,12 +15,13 @@ results/
 ├── run_metadata.json            # Command line, options, engine, superposition, bootstrap, MSM summary, warnings,
 │                                # and `environment`: Python, NumPy, SciPy, pandas, matplotlib, scikit-image, click, Jinja2,
 │                                # PyYAML, MDAnalysis, WeasyPrint, GROMACS versions and the platform
-├── summary.json                 # States, populations (+ bootstrap CI), convergence, N_eff
+├── summary.json                 # States (population, minimum, representative frame), unassigned fraction, verdict (RMSIP, PC1 cosine content)
 ├── results.h5                   # (--save-hdf5) HDF5 container of every table and array; see below
 ├── conformatlas_<date>_<time>.log  # Full log including tracebacks
 │
 ├── pca/
-│   ├── eigenvalues.csv          # Eigenvalues (TICA: autocorrelations and implied timescales)
+│   ├── eigenvalues.csv          # Mode, Eigenvalue (TICA: autocorrelations at the lag)
+│   ├── tica_timescales.csv      # (--pca-type tica) Mode, Eigenvalue, Implied_timescale_ps
 │   ├── explained_variance.csv   # Individual and cumulative variance (%)
 │   ├── projections.csv          # system, replicate, frame, time_ps, PC1..PCn (dPC/IC for other types)
 │   ├── projections.npy          # (--engine streaming) memory-mapped (frames, components) array, same row order as projections.csv;
@@ -53,7 +54,7 @@ results/
 │   ├── state_populations_resegmented.csv  # (--bootstrap-mode resegment) state, population, match_rate,
 │   │                                      # population_mean/sd/ci95_low/ci95_high_resegmented (fractions)
 │   └── State_A/
-│       ├── representative.pdb   # Frame closest to the minimum (or medoid); representative_2.pdb …
+│       ├── representative.pdb   # Frame closest to the minimum (or medoid); representative_02.pdb … with --n-representatives
 │       ├── metadata.json        # Provenance (replicate, frame, time, distance, method)
 │       ├── average.pdb          # Average structure of the state's frames
 │       ├── rmsf_atoms.csv       # Per-atom RMSF within the state
@@ -76,13 +77,13 @@ results/
 │
 ├── convergence/
 │   ├── rmsip.csv                # Half-vs-half RMSIP: pooled, then one row per replicate
-│   ├── cosine_content.csv       # Cosine content of PC1–PC5
+│   ├── cosine_content.csv       # Cosine content of PC1–PC5: largest per-replicate value (+ one column per replicate)
 │   ├── progressive_overlap.csv  # Overlap of the first 25/50/75/100 % with the full data
 │   ├── population_stability.csv # State populations on the first f % of every replicate
 │   ├── pairwise_rmsip.csv       # Inter-replicate subspace overlap matrix
-│   ├── effective_samples.csv    # Statistical inefficiency g (PC1, PC2) and N_eff per replicate
+│   ├── effective_samples.csv    # g of the two landscape coordinates (g_PC1/g_PC2, or g_CV1/g_CV2) and N_eff per replicate
 │   └── equilibration.csv        # Replicate, observable, t0_index, t0_ps, frames_discarded, g_production, N_eff_production,
-│                                # N_eff_full, applied, deciding_observable. One row per replicate for the fit-group RMSD;
+│                                # N_eff_full, applied (+ deciding_observable with --equilibration-on cv). One row per replicate for the fit-group RMSD;
 │                                # with --equilibration-on cv a second row per replicate ("PC1+PC2 (latest t0)")
 │
 ├── statistics/
@@ -129,9 +130,9 @@ msm/
 ├── count_matrix.csv              # Microstate transition counts at the model lag (sliding window, within replicates); all microstates
 ├── transition_matrix.csv         # Reversible (or row-normalised) T on the largest connected set; index column `microstate`
 ├── stationary.csv                # microstate, stationary_probability (active set)
-├── eigenvalues.csv               # index, eigenvalue, timescale_ps (inf for the stationary eigenvalue)
+├── eigenvalues.csv               # index, eigenvalue, timescale_ps (inf for the stationary eigenvalue; −τ/ln|λ| otherwise), negative_eigenvalue
 ├── cluster_centers.csv           # microstate, one column per clustering component (PC1, PC2, PC3 …), component units
-├── implied_timescales.csv        # lag_frames, lag_ps, n_active, active_count_fraction, ts_1 … ts_k (ps)
+├── implied_timescales.csv        # lag_frames, lag_ps, n_active, active_count_fraction, ts_1 … ts_k (ps), n_negative_eigenvalues_reported
 ├── implied_timescale_changes.csv # lag_frames, next_lag_frames, max_rel_change, n_resolved — the plateau report
 ├── ck_test.csv                   # k, lag_frames, lag_ps, from_set, to_set, predicted, estimated, estimated_se, abs_deviation, within_tolerance
 ├── pcca_memberships.csv          # microstate, crisp_set, MS1 … MSm (PCCA+ memberships of each active microstate)
@@ -143,7 +144,7 @@ msm/
 └── msm_summary.json              # lag_frames, dt_ps, reversible, clustering, n_microstates, n_active, active_count_fraction,
                                   # n_metastable, suggested_lag_frames, plateau_found, ck_test {lag_frames, k_max, abs_tol,
                                   # max_abs_deviation, max_abs_deviation_diagonal, n_violations, passed}, estimator {iterations,
-                                  # converged}, notes
+                                  # converged, negative_eigenvalues}, notes
 ```
 
 `run_metadata.json` repeats the headline numbers under `msm` (`lag_frames`,
@@ -222,12 +223,18 @@ Axis labels follow the collective variables in use (PC, dPC, IC, RMSD/Rg, or the
 ## Comparison outputs (`conformatlas compare`)
 
 ```text
+pca/                                 # shared-space eigenvalues, explained variance, projections of every system,
+                                     # common_atom_mapping.csv
+fel/, states/                        # pooled landscape and its states (basins.csv, frame_assignments.csv,
+                                     # basin_map.npy, State_X/representative.pdb, metadata.json)
+conformatlas_<date>_<time>.log
 comparison/
 ├── state_population_comparison.csv  # Per-state populations per system, replicate SD/min/max/count,
 │                                    # heterogeneity ratio, bootstrap CI and level; difference to the
 │                                    # reference with bootstrap CI/p and Welch t/p, 95 % CI and df
 ├── state_free_energy_comparison.csv # State minima per system and ΔΔG vs reference with CI
 ├── fel_diff_<SYS>_vs_<REF>.csv/.npy # ΔΔG map on the shared grid (+ bootstrap SD column)
+├── fel_diff.npy                     # (exactly two systems) the same ΔΔG grid under its 1.0 name
 ├── fel_overlap.csv                  # Bhattacharyya, Hellinger, JS divergence, sampled-bin Jaccard
 ├── subspace_overlap.csv             # RMSIP between each system's own essential subspace
 ├── state_count_distribution.csv     # (--bootstrap-mode resegment) n_states, count, fraction over pooled-landscape resamples
@@ -236,7 +243,7 @@ comparison/
 └── <SYS>/                           # Per-system FEL on the shared grid
 comparison_interactive.html          # (plotly installed / --interactive) side-by-side Plotly landscapes, linked axes, shared colour scale
 figures/
-├── comparison_shared_pca.png, comparison_populations.png (bootstrap CI error bars)
+├── comparison_shared_pca.png, comparison_populations.png (bootstrap CI error bars), comparison_populations_unannotated.png
 ├── comparison_fel_<SYS>.png, condition_comparison.png
 └── ddg_map_<SYS>_vs_<REF>.png       # ΔΔG map with uncertainty panel; hatched where |ΔΔG| < 2 SD
 ```

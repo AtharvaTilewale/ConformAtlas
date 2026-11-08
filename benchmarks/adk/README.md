@@ -7,7 +7,8 @@ Pass criteria: [`../CRITERIA.md`](../CRITERIA.md) (committed before any result).
 Data are public and are not stored in this repository. Fetch them (resumable, md5-verified) and run in this order:
 
 ```bash
-export CA_BENCH_DATA=/path/to/data            # default: ../data
+export CA_BENCH_DATA=/path/to/data            # default: benchmarks/data
+export GMX=/path/to/gmx                        # default: gmx on PATH (GROMACS for G1, G2, G5, timings)
 python benchmarks/download_data.py             # ADK files; also queues the HIV-1 protease and T4L sets
 python benchmarks/adk/g1_pca_numerics.py       # G0 integrity, G1 PCA numerics
 python benchmarks/adk/g2_fel.py                # G2 free-energy landscape vs NumPy and gmx sham

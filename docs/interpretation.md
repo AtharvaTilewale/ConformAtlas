@@ -57,7 +57,9 @@ Cosine content tests whether motion along $PC_1$ resembles random Brownian diffu
 ConformAtlas reports sampling evidence as:
 1. `Good evidence of stability`: High RMSIP ($\ge 0.70$) combined with non-diffusive cosine content ($< 0.50$).
 2. `Mixed evidence`: Moderate overlap or borderline diffusion metrics.
-3. `Insufficient evidence`: Low overlap ($< 0.50$) or high cosine content ($\ge 0.70$).
+3. `Insufficient evidence`: low overlap ($< 0.50$), high cosine content ($\ge 0.70$), a half-vs-half RMSIP that could not be evaluated (streaming engine, GROMACS backend, `--from`: no fitted coordinates), or fewer than 50 effective samples (this last condition overrides the other diagnostics; see [Convergence](convergence.md)).
+
+The cosine content used here is the largest per-replicate value (§5.2 of [Methods](methods.md)).
 
 These thresholds are empirical heuristics and should be interpreted alongside physical knowledge of the biomolecular system.
 

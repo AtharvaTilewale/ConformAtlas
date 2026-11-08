@@ -232,7 +232,7 @@ def eigendecompose_covariance(
     explained = 100.0 * evals / total if total > 0 else np.zeros_like(evals)
     cumulative = np.cumsum(explained)
     k = min(int(n_components), len(evals))
-    return evals[:k], evecs[:, :k], explained[:k], cumulative[:k]
+    return evals[:k], _canonical_signs(evecs[:, :k]), explained[:k], cumulative[:k]
 
 
 # =============================================================================

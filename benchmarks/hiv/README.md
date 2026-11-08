@@ -7,6 +7,6 @@ Data: Zenodo 10.5281/zenodo.5006613 (Sadiq, Muñiz Chicharro, Friedrich & Wade 2
 ```bash
 python benchmarks/hiv/h_export_pyemma.py           # environment with PyEMMA 2.5 (Python 3.10)
 python benchmarks/hiv/h_export_pyemma.py --hmm     # environment with PyEMMA + bhmm, Python 3.9, numpy 1.23 (the saved HMM)
-CA_SRC=<timescale-fix src> python benchmarks/hiv/h_compare.py
+CA_SRC=src python benchmarks/hiv/h_compare.py     # src of dev (any commit >= a1dac8e, where the |λ| timescale order was merged)
 ```
 The exported arrays (`results/*.npz`) are derived from the authors' data and are not committed.

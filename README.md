@@ -23,12 +23,12 @@
 
 ---
 
-**ConformAtlas** turns molecular dynamics trajectories into a quantitative map of conformational space: principal components, a free-energy landscape with error bars, the metastable states on it, the barriers and rates between them, and a verdict on whether the sampling supports those numbers. It runs as a single command (`conformatlas analyze`) and as a Python library, reads anything [MDAnalysis](https://www.mdanalysis.org/) can open, and ships with a [validation suite](docs/benchmarks.md) that checks every numerical component against analytical results or an independent implementation.
+**ConformAtlas** turns molecular dynamics trajectories into a quantitative map of conformational space: principal components, a free-energy landscape with error bars, the metastable states on it, the barriers and rates between them, and a verdict on whether the sampling supports those numbers. It runs as a single command (`conformatlas analyze`) and as a Python library, reads anything [MDAnalysis](https://www.mdanalysis.org/) can open, and ships with a [validation suite](https://conformatlas.readthedocs.io/en/latest/benchmarks.html) that checks every numerical component against analytical results or an independent implementation.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/AtharvaTilewale/ConformAtlas/main/docs/assets/readme-landscape.png" alt="Free-energy landscape of apo adenylate kinase from a 1 µs simulation" width="860" />
   <br>
-  <sub>Apo <i>E. coli</i> adenylate kinase, 1 µs at 300 K (Seyler &amp; Beckstein, CC BY 4.0), 4,187 frames: free-energy landscape on the first two Cα principal components. The open state holds 99.0 % of the frames; the isolated bins on the left are the single closed-to-open transition. Unmodified <code>figures/fel_2d_3d.png</code> from one <code>conformatlas analyze</code> run; see the <a href="docs/tutorial_adk.md">tutorial</a>.</sub>
+  <sub>Apo <i>E. coli</i> adenylate kinase, 1 µs at 300 K (Seyler &amp; Beckstein, CC BY 4.0), 4,187 frames: free-energy landscape on the first two Cα principal components. The open state holds 99.0 % of the frames; the isolated bins on the left are the single closed-to-open transition. Unmodified <code>figures/fel_2d_3d.png</code> from one <code>conformatlas analyze</code> run; see the <a href="https://conformatlas.readthedocs.io/en/latest/tutorial_adk.html">tutorial</a>.</sub>
 </p>
 
 ## Features
@@ -102,7 +102,7 @@ conformatlas example -o demo
 conformatlas analyze -s demo/WT/topology.pdb -f demo/WT/rep1.xtc -f demo/WT/rep2.xtc -T 300 --bins 32 --smooth-sigma 1.0 -o demo/results
 ```
 
-Every option can live in a YAML file (`conformatlas init-config --type analyze -o run.yaml`). Trajectories must be made whole across periodic boundaries first (`gmx trjconv -pbc mol`). The full option reference is in [docs/cli.md](docs/cli.md).
+Every option can live in a YAML file (`conformatlas init-config --type analyze -o run.yaml`). Trajectories must be made whole across periodic boundaries first (`gmx trjconv -pbc mol`). The full option reference is in [docs/cli.md](https://conformatlas.readthedocs.io/en/latest/cli.html).
 
 From Python:
 
@@ -132,13 +132,13 @@ results/
 └── figures/            # 2-D/3-D landscapes, uncertainty maps, kinetics, MSM, DCCM panels
 ```
 
-Units: Å, ps, kJ/mol. The complete file manifest is in [docs/outputs.md](docs/outputs.md).
+Units: Å, ps, kJ/mol. The complete file manifest is in [docs/outputs.md](https://conformatlas.readthedocs.io/en/latest/outputs.html).
 
 ## Validation
 
-`validation/validate.py` compares every numerical component with an analytical result or an independent implementation — MDAnalysis, GROMACS (`covar`, `anaeig`, `sham`), pymbar, deeptime, SciPy and ProDy — and writes the report that is published as [docs/benchmarks.md](docs/benchmarks.md) (157/157 checks). Components that are conventions rather than derivations (convergence thresholds, grid heuristics, MSM lag selection) are labelled as such in [docs/methods.md](docs/methods.md).
+`validation/validate.py` compares every numerical component with an analytical result or an independent implementation — MDAnalysis, GROMACS (`covar`, `anaeig`, `sham`), pymbar, deeptime, SciPy and ProDy — and writes the report that is published as [docs/benchmarks.md](https://conformatlas.readthedocs.io/en/latest/benchmarks.html) (157/157 checks). Components that are conventions rather than derivations (convergence thresholds, grid heuristics, MSM lag selection) are labelled as such in [docs/methods.md](https://conformatlas.readthedocs.io/en/latest/methods.html).
 
-Boltzmann inversion assumes an unbiased equilibrium ensemble; for biased simulations use `conformatlas reweight` and `--weights-file`. See the [FAQ](docs/faq.md) for this and other pitfalls.
+Boltzmann inversion assumes an unbiased equilibrium ensemble; for biased simulations use `conformatlas reweight` and `--weights-file`. See the [FAQ](https://conformatlas.readthedocs.io/en/latest/faq.html) for this and other pitfalls.
 
 ## Documentation
 
@@ -146,10 +146,10 @@ Full documentation: **[conformatlas.readthedocs.io](https://conformatlas.readthe
 
 | Getting started | Reference | Background |
 |---|---|---|
-| [Installation](docs/installation.md) | [Command line](docs/cli.md) | [Methods](docs/methods.md) |
-| [Quickstart](docs/quickstart.md) | [Python API](docs/python_api.md) | [Interpreting results](docs/interpretation.md) |
-| [Tutorial: adenylate kinase](docs/tutorial_adk.md) | [Output files](docs/outputs.md) | [Convergence diagnostics](docs/convergence.md) |
-| [FAQ](docs/faq.md) | [Comparing systems](docs/comparison.md) | [Validation and benchmarks](docs/benchmarks.md) |
+| [Installation](https://conformatlas.readthedocs.io/en/latest/installation.html) | [Command line](https://conformatlas.readthedocs.io/en/latest/cli.html) | [Methods](https://conformatlas.readthedocs.io/en/latest/methods.html) |
+| [Quickstart](https://conformatlas.readthedocs.io/en/latest/quickstart.html) | [Python API](https://conformatlas.readthedocs.io/en/latest/python_api.html) | [Interpreting results](https://conformatlas.readthedocs.io/en/latest/interpretation.html) |
+| [Tutorial: adenylate kinase](https://conformatlas.readthedocs.io/en/latest/tutorial_adk.html) | [Output files](https://conformatlas.readthedocs.io/en/latest/outputs.html) | [Convergence diagnostics](https://conformatlas.readthedocs.io/en/latest/convergence.html) |
+| [FAQ](https://conformatlas.readthedocs.io/en/latest/faq.html) | [Comparing systems](https://conformatlas.readthedocs.io/en/latest/comparison.html) | [Validation and benchmarks](https://conformatlas.readthedocs.io/en/latest/benchmarks.html) |
 
 ## Citation
 
@@ -164,12 +164,12 @@ Full documentation: **[conformatlas.readthedocs.io](https://conformatlas.readthe
 }
 ```
 
-The DOI [10.5281/zenodo.22847857](https://doi.org/10.5281/zenodo.22847857) is the Zenodo concept DOI: it covers every release and resolves to the latest one. Each release also has its own version DOI, listed on the Zenodo record, for citing the exact version you used. A machine-readable citation is in [CITATION.cff](CITATION.cff).
+The DOI [10.5281/zenodo.22847857](https://doi.org/10.5281/zenodo.22847857) is the Zenodo concept DOI: it covers every release and resolves to the latest one. Each release also has its own version DOI, listed on the Zenodo record, for citing the exact version you used. A machine-readable citation is in [CITATION.cff](https://github.com/AtharvaTilewale/ConformAtlas/blob/main/CITATION.cff).
 
 ## Contributing
 
-Bug reports, feature requests and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Please run `ruff check`, the test suite and `validation/validate.py` before opening a pull request.
+Bug reports, feature requests and pull requests are welcome — see [CONTRIBUTING.md](https://github.com/AtharvaTilewale/ConformAtlas/blob/main/CONTRIBUTING.md). Please run `ruff check`, the test suite and `validation/validate.py` before opening a pull request.
 
 ## Authors and license
 
-Developed by **Atharva Tilewale** and **Dhaval Patel**. Released under the [MIT License](LICENSE).
+Developed by **Atharva Tilewale** and **Dhaval Patel**. Released under the [MIT License](https://github.com/AtharvaTilewale/ConformAtlas/blob/main/LICENSE).

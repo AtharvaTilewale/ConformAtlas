@@ -565,13 +565,23 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
                 "≥ 95 % of bins; median < XPM level step",
                 "GROMACS sham",
             )
+            # bins ConformAtlas leaves undefined: sham writes one constant fill value there,
+            # at or above its highest sampled ΔG; a few bins differ only because a single
+            # frame on a shared bin edge is binned to the neighbour (see the row above)
+            vals, counts = np.unique(np.round(G[~m], 4), return_counts=True)
+            fill = float(vals[np.argmax(counts)]) if len(vals) else float("nan")
+            n_fill = int(counts.max()) if len(counts) else 0
+            sham_sampled = G[np.abs(G - fill) > step / 2]  # bins sham itself sampled
+            g_sampled_max = float(sham_sampled.max()) if sham_sampled.size else float("nan")
             record(
                 "FEL",
-                "unsampled bins: sham = max sampled ΔG, ConformAtlas = NaN (deliberate difference)",
-                True,
-                f"sham fills with {np.unique(G[~m]).round(2).tolist()}",
-                "NaN",
-                "informational",
+                "unsampled bins: sham writes one constant fill value at or above the highest "
+                "sampled ΔG, ConformAtlas = NaN (deliberate difference)",
+                bool(len(vals)) and fill >= g_sampled_max - step and n_fill >= int((~m).sum()) - 3,
+                f"fill {fill:.2f} kJ/mol in {n_fill}/{int((~m).sum())} empty bins; highest sampled "
+                f"ΔG {g_sampled_max:.2f} kJ/mol",
+                "NaN in ConformAtlas",
+                "fill ≥ highest sampled ΔG; ≤ 3 edge-frame bins differ",
                 "GROMACS sham",
             )
         else:
@@ -840,18 +850,44 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
         "1e-10",
         "SciPy",
     )
-    # Welch's t agrees with scipy (identical call) — check the table against scipy directly
-    a = np.array([65.0, 70.0])
-    b = np.array([40.0, 46.0])
-    tt = ttest_ind(b, a, equal_var=False)
+    # Welch columns of the comparison table: per-replicate populations are built by
+    # population_difference_table from a frame table; compare with SciPy on the
+    # populations computed independently here
+    from conformatlas.comparison_stats import population_difference_table
+    from conformatlas.models import BasinState
+
+    rng_w = np.random.default_rng(11)
+    pops = {"WT": [0.65, 0.70, 0.61], "MUT": [0.40, 0.46, 0.55, 0.49]}
+    rows_w = []
+    indep = {}
+    for sysname, plist in pops.items():
+        indep[sysname] = []
+        for r_i, p_a in enumerate(plist):
+            n_fr = 200 + 37 * r_i  # unequal replicate lengths
+            lab = np.where(rng_w.random(n_fr) < p_a, "State A", "State B")
+            indep[sysname].append(100.0 * np.mean(lab == "State A"))
+            rows_w += [(sysname, f"Rep_{r_i + 1}", s_) for s_ in lab]
+    fa_w = pd.DataFrame(rows_w, columns=["system", "replicate", "state"])
+    st_w = [
+        BasinState(1, "State A", 0.5, 0.0, 0.0, 0.0, "Rep_1", 0, 0.0, 0.1, basin_id=1),
+        BasinState(2, "State B", 0.5, 1.0, 0.0, 0.0, "Rep_1", 1, 1.0, 0.1, basin_id=2),
+    ]
+    tab_w = population_difference_table(st_w, fa_w, ["WT", "MUT"], "WT", {}).set_index("State")
+    tt = ttest_ind(indep["MUT"], indep["WT"], equal_var=False)
+    got_t = float(tab_w.loc["State A", "MUT_minus_WT_Welch_t"])
+    got_p = float(tab_w.loc["State A", "MUT_minus_WT_Welch_p"])
+    got_d = float(tab_w.loc["State A", "MUT_minus_WT_Welch_Diff_Percent"])
+    ref_d = float(np.mean(indep["MUT"]) - np.mean(indep["WT"]))
+    err_w = max(abs(got_t - tt.statistic), abs(got_p - tt.pvalue), abs(got_d - ref_d))
     record(
         "Comparison",
-        "Welch's t-test matches scipy.stats.ttest_ind(equal_var=False)",
-        True,
-        f"t = {tt.statistic:.3f}, p = {tt.pvalue:.3f}",
-        "same call",
-        "identity",
-        "SciPy (the table calls this function)",
+        "Welch t, p and mean difference of the comparison table match SciPy on "
+        "independently computed per-replicate populations (3 vs 4 replicates, unequal lengths)",
+        err_w < 1e-10,
+        f"t = {got_t:.4f}, p = {got_p:.4f}, Δ = {got_d:.3f} pp; max |Δ| vs SciPy {err_w:.1e}",
+        f"t = {tt.statistic:.4f}, p = {tt.pvalue:.4f}, Δ = {ref_d:.3f} pp",
+        "1e-10",
+        "scipy.stats.ttest_ind(equal_var=False)",
     )
     record(
         "Comparison",

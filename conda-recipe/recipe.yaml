@@ -2,7 +2,7 @@ schema_version: 1
 
 context:
   name: conformatlas
-  version: "1.0.1"
+  version: "1.0.2"
 
 package:
   name: ${{ name|lower }}
@@ -10,7 +10,7 @@ package:
 
 source:
   url: https://pypi.org/packages/source/${{ name[0] }}/${{ name }}/${{ name }}-${{ version }}.tar.gz
-  sha256: fd3614481e4c8163a34824f300326262a3c203e0d262cedfe897b1d5beecfd07
+  sha256: a475fa5c5a8229a1900182f41619ad2e5308ba8df1003c67d33c56fec3a1f398
 
 build:
   number: 0
@@ -32,7 +32,7 @@ requirements:
     - scipy >=1.8.0
     - pandas >=1.4.0
     - matplotlib-base >=3.5.0
-    - click >=8.0.0
+    - click >=8.1
     - jinja2 >=3.0.0
     - pyyaml >=6.0
     - scikit-image >=0.19.0

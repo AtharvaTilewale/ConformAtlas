@@ -59,11 +59,9 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement: the project
-maintainer, reachable through the contact details on the
-[AtharvaTilewale](https://github.com/AtharvaTilewale) GitHub profile or by
-opening a confidential report via GitHub's private vulnerability/abuse
-reporting on this repository.
+reported to the community leaders responsible for enforcement by email to the
+project maintainer, Atharva Tilewale, at tilewale.atharva@gmail.com. Reports are
+treated confidentially.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

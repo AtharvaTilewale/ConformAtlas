@@ -518,7 +518,8 @@ def check_equilibration_multi(record, KB):
         "Timeseries",
         "detect_equilibration_multi: per-observable t₀ vs pymbar.detect_equilibration",
         dev <= 25,
-        f"ours {[res.per_observable[k].t0_index for k in ('CV1', 'CV2')]}, pymbar {[t_pm[k] for k in ('CV1', 'CV2')]}",
+        f"ours {[int(res.per_observable[k].t0_index) for k in ('CV1', 'CV2')]}, "
+        f"pymbar {[int(t_pm[k]) for k in ('CV1', 'CV2')]}",
         f"true burn-in {burn_a}, {burn_b}",
         "≤ 25 frames (one nskip)",
         "pymbar 4 (Chodera 2016)",

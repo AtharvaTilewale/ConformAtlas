@@ -1,7 +1,8 @@
 # Command-line reference
 
-Every option below is taken from `conformatlas <command> --help` of version
-1.0.2. Options marked *YAML* can also be given in the configuration file read
+Every option below is taken from `conformatlas <command> --help` of the
+development version (1.0.2 plus the changes listed under [Unreleased] in the
+changelog). Options marked *YAML* can also be given in the configuration file read
 by `--config` (key names in parentheses where they differ from the flag;
 `conformatlas init-config --type analyze` writes a template with every key).
 Command-line flags override the file.
@@ -65,7 +66,7 @@ PCA / free-energy-landscape analysis of one system (single or multi-replicate).
 | `--dihedral-set [backbone\|backbone+chi\|chi\|nucleic]` | `backbone` | Torsions used by `--pca-type dihedral`: backbone φ/ψ, φ/ψ plus side-chain χ₁/χ₂, χ₁/χ₂ only, or nucleic-acid α–ζ and χ. |
 | `--tica-lag INTEGER` | 10 | TICA lag time in frames. |
 | `--n-components INTEGER` | 10 | Components to retain. |
-| `--pca-backend [auto\|python\|gromacs]` | `auto` | `auto`/`python`: in-memory MDAnalysis route (Å); `gromacs`: `gmx covar`/`anaeig` (nm). |
+| `--pca-backend [auto\|python\|gromacs]` | `auto` | `auto`/`python`: in-memory MDAnalysis route (Å); `gromacs`: `gmx covar`/`anaeig` (nm) on every frame of every trajectory, so it cannot be combined with `-b/-e`, `--stride` or `--equilibration auto` (pre-filter with `gmx trjconv`). |
 | `--pca-weighting [equal-replicate\|frames]` | `equal-replicate` | Weighting of replicates in PCA. |
 | `--cv [pc\|rmsd-rg\|file]` | `pc` | Landscape coordinates: two components, RMSD × Rg, or columns of `--cv-file`. |
 | `--fel-pcs TEXT` | `1,2` | Components spanning the landscape, e.g. `1,3`. |
@@ -98,7 +99,7 @@ PCA / free-energy-landscape analysis of one system (single or multi-replicate).
 | `--seed INTEGER` | 0 | Random seed for the bootstrap (and the MSM clustering). |
 | `--n-representatives INTEGER` | 1 | Structures written per state. |
 | `--representative [minimum\|medoid]` | `minimum` | Closest to the basin minimum, or medoid in PC space. *YAML* `representative_method` |
-| `--fel-backend [python\|gromacs]` | `python` | FEL backend. |
+| `--fel-backend [python\|gromacs]` | `python` | Deprecated, no effect: the landscape is always computed in Python (to be removed in 2.0). |
 | `--gmx-command TEXT` | — | Path to a GROMACS executable. |
 
 ### Markov state model
@@ -207,9 +208,11 @@ options.
 
 ## `conformatlas example`
 
-Generates the 5-residue polyalanine demonstration project (WT and MUT, two
-replicates each) and a `comparison.yaml`. `-o, --output PATH` (default
-`example_project`).
+Generates the 5-residue polyalanine demonstration project (WT and MUT) with exactly
+known populations (WT 65 %, MUT 30 % State A) and a `comparison.yaml`. Options:
+`-o, --output PATH` (default `example_project`), `--replicates INTEGER` (trajectories
+per system, default 2), `--frames INTEGER` (frames per trajectory, 10 ps apart,
+default 100).
 
 ## `conformatlas init-config`
 

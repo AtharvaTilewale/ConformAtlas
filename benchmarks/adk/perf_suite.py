@@ -13,6 +13,7 @@ import csv
 import json
 import os
 import platform
+import shutil
 import statistics
 import subprocess
 import sys
@@ -22,7 +23,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = HERE / "results"
-GMX = "/home/atharva/.claude-science/conda/envs/gmx-ref/bin/gmx"
+GMX = os.environ.get("GMX") or shutil.which("gmx") or "gmx"  # $GMX or gmx on PATH
 THREADS = "8"
 REPEATS = 4  # first discarded
 TIMEOUT = 1800

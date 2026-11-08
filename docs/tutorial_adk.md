@@ -132,12 +132,12 @@ for name in ("1ake", "4ake"):
 ```
 
 ```text
-1AKE: PC1 = -100.8 Å, PC2 = -27.9 Å
-4AKE: PC1 = -7.4 Å, PC2 = -11.6 Å
+1AKE: PC1 = 100.8 Å, PC2 = 27.9 Å
+4AKE: PC1 = 7.4 Å, PC2 = 11.6 Å
 ```
 
-The closed crystal structure lies at the far negative end of PC1, next to the first
-frame of the trajectory (PC1 = −92.9 Å, `pca/projections.csv`). The open crystal
+The closed crystal structure lies at the far positive end of PC1, next to the first
+frame of the trajectory (PC1 = 92.9 Å, `pca/projections.csv`). The open crystal
 structure lies inside the basin. PC1 is the closed-to-open motion.
 
 ## 4. The free-energy landscape and its single state
@@ -146,8 +146,10 @@ structure lies inside the basin. PC1 is the closed-to-open motion.
 
 `states/` reports one major state, State A, holding 99.0 % of the frames. Its
 bootstrap 95 % interval is [98.0, 99.7] % (`statistics/state_populations.csv`) and its
-minimum is at PC1 = −8.9 Å, PC2 = −7.8 Å, a few ångström from the 4AKE projection.
-The remaining 1.0 % are the frames of the opening transition, on the left of the map.
+minimum is at PC1 = 8.9 Å, PC2 = 7.8 Å, a few ångström from the 4AKE projection.
+The remaining 1.0 % lie in sparsely sampled bins at the two ends of PC1: about half are
+frames of the opening transition at the start of the run (large positive PC1), the rest
+short excursions later in the run.
 They form no basin because the simulation passes through that region only once. The
 3D panel draws sampled bins only.
 

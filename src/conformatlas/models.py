@@ -292,7 +292,7 @@ class ConvergenceResults:
 
     rmsip_halves: float  # Top modes overlap between 1st half and 2nd half
     progressive_overlap: dict[int, float]  # fraction (e.g. 25, 50, 75, 100) -> RMSIP
-    cosine_content: dict[int, float]  # PC index -> cosine content (0.0 to 1.0)
+    cosine_content: dict[int, float]  # PC index -> largest per-replicate cosine content (0-1)
     population_stability: pd.DataFrame | None = None
     pairwise_rmsip: pd.DataFrame | None = None
     sampling_assessment: str = "Insufficient evidence"
@@ -301,6 +301,8 @@ class ConvergenceResults:
     statistical_inefficiency: dict[str, dict[str, float]] = field(default_factory=dict)
     n_eff: dict[str, float] = field(default_factory=dict)
     equilibration: pd.DataFrame | None = None
+    # replicate -> {"PC1": c1, ...}; cosine content is defined per continuous trajectory
+    cosine_content_per_replicate: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass

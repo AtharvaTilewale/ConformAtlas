@@ -4,8 +4,8 @@ The command line is a thin wrapper around library functions. Everything
 `conformatlas analyze` does is available as
 `conformatlas.pipeline.run_analysis(config)`, and the individual steps (PCA,
 landscape, basins, bootstrap, kinetics, convergence) are plain functions on NumPy
-arrays that can be used on their own. The generated reference for every module is
-in [API Reference](api.rst); this page explains how the pieces fit together.
+arrays that can be used on their own. The generated reference for the library modules is
+in [API Reference](api.rst) (the CLI, report and plotting internals are not included); this page explains how the pieces fit together.
 
 ```{contents}
 :local:
@@ -94,7 +94,7 @@ Python.
 | `convergence` | `ConvergenceResults` | `rmsip_halves`, `progressive_overlap`, `cosine_content`, `population_stability`, `statistical_inefficiency`, `n_eff`, `equilibration`, `sampling_assessment`, `assessment_notes` |
 | `replicate_statistics` | DataFrame | Population mean, block SD/SEM, CI per state (`statistics/state_populations.csv`) |
 | `run_metadata` | dict | Contents of `run_metadata.json` |
-| `extras` | dict | Objects not covered above; keys present today: `bootstrap` (`BootstrapResult` with `fe_std`, `fe_ci_low`, `fe_ci_high`, `state_table`, `barrier_table`, `block_lengths`), `barriers` (DataFrame), `kinetics` (dict of DataFrames), `descriptors` (dict of DataFrames), `state_summary` (DataFrame), `tica_timescales_ps` (array, TICA only) |
+| `extras` | dict | Objects not covered above; keys present today: `bootstrap` (`BootstrapResult` with `fe_std`, `fe_ci_low`, `fe_ci_high`, `state_table`, `barrier_table`, `block_lengths`), `barriers` (DataFrame), `kinetics` (dict of DataFrames), `descriptors` (dict of DataFrames), `state_summary` (DataFrame), `basin_map` (2-D integer array), `msm` (`MSMResult`, with `--msm`), `tica_timescales_ps` (array, TICA only) |
 | `warnings` | `list[str]` | Warnings emitted during the run (also in `run_metadata.json`) |
 | `output_dir` | `Path` | Where everything was written |
 
@@ -134,7 +134,7 @@ validation suite tests against independent implementations
 | TICA | `pca.compute_tica(coords_dict, lag=10, n_components=10, weighting="equal-replicate")`, `pca.implied_timescales(eigenvalues, lag_frames, dt_ps)` | deeptime, AR(1) theory |
 | Dihedral features | `features.stream_backbone_dihedrals(topology_path, trajectory_path, selection="protein", stride=1, begin_ps=None, end_ps=None)` → features, times, feature table | MDAnalysis Ramachandran |
 | Landscape | `fel.calculate_fel(pc1, pc2, temperature=300.0, bins=64, smooth_sigma=0.0, x_range=None, y_range=None, weights=None)` → `FELGrid`; `fel.choose_bins(cv1, cv2)` (Freedman–Diaconis, 16–128) | Exact Gaussian, `gmx sham` |
-| Basins | `basins.detect_energy_basins(fel_grid, projections, min_state_population=0.05, max_states=10, min_barrier=None, weights=None)` → states, unassigned fraction, frame assignments, basin map; `basins.compute_state_barriers(basin_labels, free_energy, states)` | Analytic double well |
+| Basins | `basins.detect_energy_basins(fel_grid, projections, min_state_population=0.05, max_states=10, min_peak_distance=3, min_barrier=None, weights=None, cv_columns=("PC1", "PC2"))` → states, unassigned fraction, frame assignments, basin map; `basins.compute_state_barriers(basin_labels, free_energy, states)` | Analytic double well |
 | Time series | `timeseries.statistical_inefficiency(x, mintime=3, fast=False)`, `timeseries.effective_sample_size(x)`, `timeseries.detect_equilibration(x, nskip=1, max_discard=0.9)`, `timeseries.block_length_from_g(g, n, min_blocks=5)` | pymbar |
 | Bootstrap | `bootstrap.bootstrap_landscape(cv1, cv2, replicate_ids, fel_grid, basin_labels, states, block_lengths, n_boot=200, weights=None, seed=0)` → `BootstrapResult` | Coverage on known Markov systems |
 | Kinetics | `kinetics.compute_state_kinetics(frame_assignments, state_labels, dt_ps=None)` (lag-1 counts within replicates) | Known Markov chain |
@@ -261,7 +261,7 @@ chain.
 `save_results(results, path)` writes one HDF5 file (h5py; `conformatlas[hdf5]`)
 holding the complete `AnalysisResults`; `load_results(path)` is its inverse.
 `load_results_dir(path)` rebuilds the object from a results *directory*
-(eigenvectors are then empty because the pipeline does not write them) and is
+(`pca.eigenvectors` is read from `pca/eigenvectors.npy` when the run wrote it, i.e. with the in-memory engine and Cartesian PCA, and is empty otherwise) and is
 what `conformatlas analyze --from` uses. `rebin(results, bins, smooth_sigma,
 *, min_state_population=None, max_states=None, min_barrier=None, weights=None,
 temperature=None)` recomputes the landscape, basins, barriers and population

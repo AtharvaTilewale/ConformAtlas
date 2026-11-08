@@ -215,11 +215,12 @@ def compute_cartesian_pca(
 
     cum_var = np.cumsum(explained_var)
 
-    # Truncate to n_components
+    # Truncate to n_components; the same sign convention as the Lanczos route
+    # (largest-magnitude component positive) so every route and engine gives the same axes
     k_comp = min(n_components, len(evals))
     return (
         evals[:k_comp],
-        evecs[:, :k_comp],
+        _canonical_signs(evecs[:, :k_comp]),
         explained_var[:k_comp],
         cum_var[:k_comp],
         mean_struct,
@@ -311,7 +312,7 @@ def compute_tica(
     k = min(n_components, len(lam))
     kin = lam**2
     kin_pct = 100.0 * kin / kin.sum() if kin.sum() > 0 else np.zeros_like(kin)
-    return lam[:k], evecs[:, :k], kin_pct[:k], np.cumsum(kin_pct)[:k], mean
+    return lam[:k], _canonical_signs(evecs[:, :k]), kin_pct[:k], np.cumsum(kin_pct)[:k], mean
 
 
 def implied_timescales(eigenvalues: np.ndarray, lag_frames: int, dt_ps: float) -> np.ndarray:

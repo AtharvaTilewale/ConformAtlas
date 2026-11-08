@@ -1,4 +1,8 @@
-# Existing Architecture & Audit of ConformAtlas
+# History: the pre-1.0 architecture and its audit
+
+This page records the original script-based tool and the deficiencies that motivated the
+rewrite; it does not describe the current package. For the current module layout see the
+[Python API](python_api.md) and the [API Reference](api.rst).
 
 ## 1. Overview of the Existing System
 

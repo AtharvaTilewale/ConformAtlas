@@ -7,6 +7,8 @@ The comparison recipe (identical CV values through a text round-trip, sham's bin
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import KB, TEMPERATURE, coordinates, save_json  # noqa: E402
 
-GMX = "/home/atharva/.claude-science/conda/envs/gmx-ref/bin/gmx"
+GMX = os.environ.get("GMX") or shutil.which("gmx") or "gmx"  # $GMX or gmx on PATH
 GATE_NUMPY = 1e-9
 GATE_SHAM = 1e-3
 GRIDS = (32, 64)

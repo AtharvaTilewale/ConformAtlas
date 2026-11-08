@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import resource
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -25,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
 from common_t4l import DATA, SELECTIONS, SETS, replicates, tpr, xtc  # noqa: E402
 
-GMX = "/home/atharva/.claude-science/conda/envs/gmx-ref/bin/gmx"
+GMX = os.environ.get("GMX") or shutil.which("gmx") or "gmx"  # $GMX or gmx on PATH
 K = 10
 
 

@@ -8,6 +8,7 @@ Expectation (not a gate): RMSIP >= 0.95.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import DCD, N_MODES, PSF, SELECTIONS, coordinates, save_json, universe  # noqa: E402
 
-GMX = "/home/atharva/.claude-science/conda/envs/gmx-ref/bin/gmx"
+GMX = os.environ.get("GMX") or shutil.which("gmx") or "gmx"  # $GMX or gmx on PATH
 SEL = SELECTIONS["calpha"]
 
 

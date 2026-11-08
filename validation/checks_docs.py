@@ -354,7 +354,7 @@ def tutorial_number_sources(
             1,
         )
     )
-    rows.append(("unassigned", f"The remaining {un:.1f} % are", un, 1))
+    rows.append(("unassigned", f"The remaining {un:.1f} % lie", un, 1))
 
     # ---- domain-angle landscape
     fe = np.load(G / "fel" / "free_energy.npy")
@@ -767,7 +767,8 @@ def run(record, tmp: Path, ROOT: Path, KB: float) -> None:
     actual_table = page[i : j + len(BENCH_END)] if i >= 0 and j >= 0 else ""
     record(
         "Docs",
-        "docs/benchmarks.md validation table is the rendering of validation/results.json",
+        "committed docs/benchmarks.md table is the rendering of the committed "
+        "validation/results.json (state before this run; both are regenerated afterwards)",
         actual_table == expected_table,
         f"{sum(1 for r in results)} checks listed"
         if actual_table == expected_table
