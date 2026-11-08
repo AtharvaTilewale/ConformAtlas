@@ -136,7 +136,7 @@ Units: Å, ps, kJ/mol. The complete file manifest is in [docs/outputs.md](docs/o
 
 ## Validation
 
-`validation/validate.py` compares every numerical component with an analytical result or an independent implementation — MDAnalysis, GROMACS (`covar`, `anaeig`, `sham`), pymbar, deeptime, SciPy and ProDy — and writes the report that is published as [docs/benchmarks.md](docs/benchmarks.md) (147/152 checks). Components that are conventions rather than derivations (convergence thresholds, grid heuristics, MSM lag selection) are labelled as such in [docs/methods.md](docs/methods.md).
+`validation/validate.py` compares every numerical component with an analytical result or an independent implementation — MDAnalysis, GROMACS (`covar`, `anaeig`, `sham`), pymbar, deeptime, SciPy and ProDy — and writes the report that is published as [docs/benchmarks.md](docs/benchmarks.md) (157/157 checks). Components that are conventions rather than derivations (convergence thresholds, grid heuristics, MSM lag selection) are labelled as such in [docs/methods.md](docs/methods.md).
 
 Boltzmann inversion assumes an unbiased equilibrium ensemble; for biased simulations use `conformatlas reweight` and `--weights-file`. See the [FAQ](docs/faq.md) for this and other pitfalls.
 

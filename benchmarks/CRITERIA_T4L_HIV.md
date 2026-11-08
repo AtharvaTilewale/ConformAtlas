@@ -13,6 +13,8 @@ normalises its covariance by N (ADK D2); GROMACS projections are not comparable 
 * **Timescale fix**: branch `fix/msm-timescale-ordering` (implied timescales ranked by |λ|, the deeptime /
   PyEMMA convention). Every gate on implied timescales uses this code and says so.
 * **Lanczos PCA**: branch `perf/truncated-pca`, used only in the performance tables, labelled.
+* Note added 2026-11-08 (after T0–T7, before T4-R): both branches were merged into `dev` with their code unchanged (only changelog and documentation conflicts resolved)
+  (merge commits `d6bcbc2`, `a1dac8e`); T4-R uses `dev`.
 
 ## Data (public, not in the repository)
 

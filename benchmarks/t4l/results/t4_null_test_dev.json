@@ -1,0 +1,158 @@
+{
+  "n_splits_run": 10,
+  "n_split_state_pairs": 20,
+  "bootstrap_false_positive_rate": 0.1,
+  "gate": 0.15,
+  "pass": true,
+  "welch_false_positive_rate": 0.0,
+  "welch_ci_false_positive_rate": 0.0,
+  "bootstrap_ci_half_width_median_pp": 48.56495600439956,
+  "bootstrap_level": [
+    "replicate"
+  ],
+  "code_version": "1.0.2 /media/atharva/3EA6170E34C679E4/ConformAtlas/src/conformatlas @ dev 2a987e1",
+  "states_per_split": {
+    "split_4_5": 2,
+    "split_4_6": 2,
+    "split_4_7": 2,
+    "split_4_8": 2,
+    "split_5_6": 2,
+    "split_5_7": 2,
+    "split_5_8": 2,
+    "split_6_7": 2,
+    "split_6_8": 2,
+    "split_7_8": 2
+  },
+  "runs": {
+    "split_4_5": {
+      "A": [
+        "md1us4",
+        "md1us5"
+      ],
+      "B": [
+        "md1us6",
+        "md1us7",
+        "md1us8"
+      ],
+      "returncode": 0,
+      "seconds": 13.7
+    },
+    "split_4_6": {
+      "A": [
+        "md1us4",
+        "md1us6"
+      ],
+      "B": [
+        "md1us5",
+        "md1us7",
+        "md1us8"
+      ],
+      "returncode": 0,
+      "seconds": 13.5
+    },
+    "split_4_7": {
+      "A": [
+        "md1us4",
+        "md1us7"
+      ],
+      "B": [
+        "md1us5",
+        "md1us6",
+        "md1us8"
+      ],
+      "returncode": 0,
+      "seconds": 14.2
+    },
+    "split_4_8": {
+      "A": [
+        "md1us4",
+        "md1us8"
+      ],
+      "B": [
+        "md1us5",
+        "md1us6",
+        "md1us7"
+      ],
+      "returncode": 0,
+      "seconds": 14.7
+    },
+    "split_5_6": {
+      "A": [
+        "md1us5",
+        "md1us6"
+      ],
+      "B": [
+        "md1us4",
+        "md1us7",
+        "md1us8"
+      ],
+      "returncode": 0,
+      "seconds": 14.9
+    },
+    "split_5_7": {
+      "A": [
+        "md1us5",
+        "md1us7"
+      ],
+      "B": [
+        "md1us4",
+        "md1us6",
+        "md1us8"
+      ],
+      "returncode": 0,
+      "seconds": 14.7
+    },
+    "split_5_8": {
+      "A": [
+        "md1us5",
+        "md1us8"
+      ],
+      "B": [
+        "md1us4",
+        "md1us6",
+        "md1us7"
+      ],
+      "returncode": 0,
+      "seconds": 13.8
+    },
+    "split_6_7": {
+      "A": [
+        "md1us6",
+        "md1us7"
+      ],
+      "B": [
+        "md1us4",
+        "md1us5",
+        "md1us8"
+      ],
+      "returncode": 0,
+      "seconds": 17.5
+    },
+    "split_6_8": {
+      "A": [
+        "md1us6",
+        "md1us8"
+      ],
+      "B": [
+        "md1us4",
+        "md1us5",
+        "md1us7"
+      ],
+      "returncode": 0,
+      "seconds": 14.5
+    },
+    "split_7_8": {
+      "A": [
+        "md1us7",
+        "md1us8"
+      ],
+      "B": [
+        "md1us4",
+        "md1us5",
+        "md1us6"
+      ],
+      "returncode": 0,
+      "seconds": 15.0
+    }
+  }
+}

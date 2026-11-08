@@ -4,6 +4,7 @@ No number is typed by hand. Criteria: CRITERIA_T4L_HIV.md; deviations: DEVIATION
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -36,6 +37,8 @@ def main() -> None:
             "t6_replicates.json",
         )
     )
+    t4r = load(T / "t4_null_test_dev.json")
+    t5r = load(T / "t5_force_field_dev.json")
     h = load(H / "h_compare.json")
     perf = load(T / "performance_summary.json")
     gates: list[tuple[str, bool]] = []
@@ -123,13 +126,16 @@ def main() -> None:
         L.append("")
     if t4:
         gates.append(
-            ("T4 null test of compare (bootstrap false-positive rate <= 0.15)", t4["pass"])
+            (
+                "T4 null test of compare, 1.0.2 code (bootstrap false-positive rate <= 0.15)",
+                t4["pass"],
+            )
         )
         tab = pd.read_csv(T / "t4_null_test_table.csv")
         hw = ((tab.ci_high - tab.ci_low) / 2).median()
         sd = pd.concat([tab.A_replicate_sd_pct, tab.B_replicate_sd_pct]).median()
         L += [
-            "### T4 — null test of `conformatlas compare` (all 10 splits of the 5 ff99SB*-ILDN replicates into 2 + 3)",
+            "### T4 — null test of `conformatlas compare`, released 1.0.2 code (all 10 splits of the 5 ff99SB*-ILDN replicates into 2 + 3)",
             "",
             f"**{yn(t4['pass'])}: bootstrap false-positive rate {t4['bootstrap_false_positive_rate']:.2f}** over {t4['n_split_state_pairs']} (split, state) pairs "
             f"(gate ≤ {t4['gate']}; nominal 0.05). Welch test on per-replicate populations: false-positive rate {t4['welch_false_positive_rate']:.2f} "
@@ -142,9 +148,50 @@ def main() -> None:
             "variability between independent simulations, and they are far too narrow for a between-condition claim. Per-split values: `t4l/results/t4_null_test_table.csv`.",
             "",
         ]
+    if t4r:
+        gates.append(
+            (
+                "T4-R null re-test of compare, dev code (bootstrap false-positive rate <= 0.15)",
+                t4r["pass"],
+            )
+        )
+        tr = pd.read_csv(T / "t4_null_test_dev_table.csv")
+        code_r = re.sub(r" /\S+ ", " ", t4r.get("code_version", "n/a"))
+        exc = tr[tr.ci_excludes_zero]
+        het_md4 = pd.concat(
+            [
+                tr.loc[tr.split.str.startswith("split_4"), "A_heterogeneity_ratio"],
+                tr.loc[~tr.split.str.startswith("split_4"), "B_heterogeneity_ratio"],
+            ]
+        )
+        het_other = pd.concat(
+            [
+                tr.loc[~tr.split.str.startswith("split_4"), "A_heterogeneity_ratio"],
+                tr.loc[tr.split.str.startswith("split_4"), "B_heterogeneity_ratio"],
+            ]
+        )
+        L += [
+            "### T4-R — the same null test after the `compare` fix (branch `dev`, pre-registered in `CRITERIA_T4L_HIV.md`)",
+            "",
+            f"Code: ConformAtlas {code_r}. Default `bootstrap_level: replicate` (replicates resampled, then frame blocks inside each).",
+            "",
+            f"**{yn(t4r['pass'])}: bootstrap false-positive rate {t4r['bootstrap_false_positive_rate']:.2f}** over {t4r['n_split_state_pairs']} (split, state) pairs "
+            f"(gate ≤ {t4r['gate']}; 1.0.2 code: {t4['bootstrap_false_positive_rate']:.2f}). "
+            f"The two states of a split are complementary, so this is {exc.split.nunique()} of {tr.split.nunique()} splits "
+            f"({', '.join(sorted(exc.split.unique()))}). Median 95 % half-width {t4r['bootstrap_ci_half_width_median_pp']:.1f} pp "
+            f"(1.0.2: {((tab.ci_high - tab.ci_low) / 2).median():.1f} pp). Welch: p < 0.05 in {t4r['welch_false_positive_rate']:.2f}, "
+            f"95 % interval excludes 0 in {t4r['welch_ci_false_positive_rate']:.2f} of pairs.",
+            "",
+            f"The new replicate-heterogeneity ratio flags the problem directly: for the group holding md1us4 it is "
+            f"{het_md4.min():.1f}–{het_md4.max():.1f} (warning above 2, issued in every split), for the other group "
+            f"{het_other.min():.2f}–{het_other.max():.2f} (no warning). With two or three replicates the replicate-level "
+            "bootstrap is still somewhat narrow (it underestimates between-replicate variance by (k − 1)/k), which is why the "
+            "Welch test is reported as the primary between-condition test. Per-split values: `t4l/results/t4_null_test_dev_table.csv`.",
+            "",
+        ]
     if t5 and t5.get("population_table"):
         L += [
-            "### T5 — force-field comparison, 5 ff99SB*-ILDN vs 3 ff15ipq (informational)",
+            "### T5 — force-field comparison, 5 ff99SB*-ILDN vs 3 ff15ipq (informational; released 1.0.2 code, frame-level bootstrap)",
             "",
             "| State | ff99SB*-ILDN % (replicate SD) | ff15ipq % (replicate SD) | difference (pp), bootstrap 95 % CI | Welch p |",
             "|---|---|---|---|---|",
@@ -160,6 +207,28 @@ def main() -> None:
                 f"\nRMSIP between the two force fields' top-10 essential subspaces: {so[0]['ff15ipq']:.3f}. Given T4, only the replicate-level (Welch) test should be read as evidence of a difference."
             )
         L.append("")
+    if t5r and t5r.get("population_table"):
+        L += [
+            "**T5 with the `dev` code** (replicate-level bootstrap, Welch interval):",
+            "",
+            "| State | ff15ipq − ff99SB*-ILDN (pp) | bootstrap 95 % CI | Welch 95 % CI (df) | Welch p | heterogeneity ratio ff99SB* / ff15ipq |",
+            "|---|---|---|---|---|---|",
+        ]
+        for r in t5r["population_table"]:
+            L.append(
+                f"| {r['State']} | {r['ff15ipq_minus_ff99SBstar_Percent']:.1f} | "
+                f"[{r['ff15ipq_minus_ff99SBstar_CI95_Low']:.1f}, {r['ff15ipq_minus_ff99SBstar_CI95_High']:.1f}] | "
+                f"[{r['ff15ipq_minus_ff99SBstar_Welch_CI95_Low']:.1f}, {r['ff15ipq_minus_ff99SBstar_Welch_CI95_High']:.1f}] "
+                f"({r['ff15ipq_minus_ff99SBstar_Welch_dof']:.1f}) | {r['ff15ipq_minus_ff99SBstar_Welch_p']:.3f} | "
+                f"{r['ff99SBstar_Replicate_Heterogeneity_Ratio']:.1f} / {r['ff15ipq_Replicate_Heterogeneity_Ratio']:.1f} |"
+            )
+        L += [
+            "",
+            "The difference stays significant at the replicate level, with a much wider interval than in 1.0.2; `compare` now warns "
+            "that the ff99SB*-ILDN replicates disagree (ratio > 2), so the size of the difference is uncertain until that force "
+            "field is sampled further.",
+            "",
+        ]
     if t6:
         s = t6["rmsip_summary"]
         L += [

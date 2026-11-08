@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -383,7 +384,9 @@ def ddg_map(
     if boot_ref is not None and boot_sys is not None:
         n = min(len(boot_ref.fe_grids), len(boot_sys.fe_grids))
         diffs = boot_sys.fe_grids[:n] - boot_ref.fe_grids[:n]
-        with np.errstate(all="ignore"):
+        # bins never sampled in any resample give all-NaN columns (NaN SD, masked below)
+        with np.errstate(all="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
             sd = np.nanstd(diffs, axis=0)
         sd[np.isnan(ddg)] = np.nan
     return ddg, sd

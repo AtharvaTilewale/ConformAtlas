@@ -69,20 +69,32 @@ no measured free energy, only a lower bound. On identical projections, bin edges
 and temperature the two agree bin-for-bin to the resolution of sham's XPM output
 (validation check "ΔG grid vs gmx sham", median |Δ| 0.006 kJ/mol).
 
-## Why does `compare` print two p-values, and why do they disagree?
+## Why does `compare` print two p-values, and which one should I read?
 
-The bootstrap p-value resamples blocks of frames within each replicate; it asks
-whether the population difference could be produced by frame-to-frame noise given
-the trajectories you have. Welch's t-test uses the per-replicate populations as
-the samples; it asks whether the difference would reproduce in new, independent
-simulations. With two replicates per system the t-test has at most two degrees of
-freedom and almost no power, so a tiny bootstrap p together with a large Welch p is
-the expected outcome of under-replicated sampling (the
-[tutorial](tutorial_neuraminidase.md) shows exactly this). For a claim about a
-mutation the replicate-level test is the relevant one; plan for three or more
-replicates per system. Welch's t-test is `scipy.stats.ttest_ind(equal_var=False)`
-on the replicate populations and assumes those populations are approximately
-normal across replicates.
+Read **Welch's t-test** first. It uses the per-replicate populations as the samples
+and asks whether the difference would reproduce in new, independent simulations;
+its 95 % interval is reported next to it (`*_Welch_CI95_Low/High`). With two
+replicates per system it has at most two degrees of freedom and almost no power.
+Plan for three or more replicates per system; a non-significant result with two
+replicates is not evidence of no difference. The test is
+`scipy.stats.ttest_ind(equal_var=False)` on the replicate populations, so it
+assumes those populations are roughly normal across replicates.
+
+The **bootstrap** p-value and interval come from resampling. By default
+(`bootstrap_level: replicate`) the replicates are drawn with replacement and then
+blocks of frames inside each, so the interval includes the spread between
+simulations. With few replicates it is still somewhat too narrow, which is why
+Welch's test comes first. The 1.0.x bootstrap (`bootstrap_level: frame`) resamples
+frames within each replicate only. It asks whether frame-to-frame noise could
+produce the difference *given these trajectories*, and it is not a test of a
+difference between conditions. On published T4 lysozyme replicates it called two
+groups of identical simulations different in 20 of 20 comparisons
+(`benchmarks/RESULTS_T4L_HIV.md`).
+
+When the two disagree, or `compare` warns that replicates disagree
+(`*_Replicate_Heterogeneity_Ratio` > 2), the simulations have not converged to a
+common distribution. More or longer replicates are needed before the size of the
+difference can be trusted. The [tutorial](tutorial_neuraminidase.md) shows this case.
 
 ## N_eff is tiny although I have thousands of frames
 

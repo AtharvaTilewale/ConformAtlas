@@ -423,7 +423,7 @@
     "section": "Comparison",
     "check": "type-I error of the bootstrap population-difference test under the null (\u03b1 = 0.05, 100 trials)",
     "pass": true,
-    "measured": "0.090",
+    "measured": "0.020",
     "expected": "0.05",
     "tolerance": "\u2264 0.12 (binomial SE \u2248 0.02; mild anti-conservatism expected)",
     "reference": "two systems from one Markov process",
@@ -433,10 +433,50 @@
     "section": "Comparison",
     "check": "95 % CI of the population difference contains 0 under the null",
     "pass": true,
-    "measured": "0.890",
+    "measured": "0.970",
     "expected": "0.95",
     "tolerance": "\u2265 0.88",
     "reference": "same null experiment",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "heterogeneous replicates: replicate-level bootstrap CI excludes 0 under the null (3 vs 3 replicates, 100 trials)",
+    "pass": true,
+    "measured": "0.100",
+    "expected": "0.05",
+    "tolerance": "\u2264 0.15",
+    "reference": "two systems from one slow Markov process",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "heterogeneous replicates: Welch's t rejects under the null at \u03b1 = 0.05 (100 trials)",
+    "pass": true,
+    "measured": "0.010",
+    "expected": "0.05",
+    "tolerance": "\u2264 0.10",
+    "reference": "same null experiment",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "heterogeneous replicates: frame-level bootstrap (bootstrap_level: frame) is anti-conservative, as documented",
+    "pass": true,
+    "measured": "0.450",
+    "expected": "> 0.15 (omits between-replicate variance)",
+    "tolerance": "> 0.15",
+    "reference": "same null experiment; documents why 'replicate' is the default",
+    "note": ""
+  },
+  {
+    "section": "Comparison",
+    "check": "Welch 95 % interval and Welch\u2013Satterthwaite df match SciPy",
+    "pass": true,
+    "measured": "[-28.2852, -7.3815], df 4.9979",
+    "expected": "scipy ttest_ind(...).confidence_interval",
+    "tolerance": "1e-10",
+    "reference": "SciPy",
     "note": ""
   },
   {
@@ -1493,8 +1533,8 @@
     "section": "Docs",
     "check": "docs/benchmarks.md validation table is the rendering of validation/results.json",
     "pass": true,
-    "measured": "147 checks listed",
-    "expected": "147 rows",
+    "measured": "157 checks listed",
+    "expected": "157 rows",
     "tolerance": "byte-identical",
     "reference": "validation/results.json",
     "note": ""

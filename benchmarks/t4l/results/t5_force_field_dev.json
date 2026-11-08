@@ -1,0 +1,115 @@
+{
+  "run": {
+    "returncode": 0,
+    "seconds": 21.4
+  },
+  "population_table": [
+    {
+      "State": "State A",
+      "ff99SBstar_Population_Percent": 26.4374,
+      "ff99SBstar_Replicate_SD_Percent": 40.9279,
+      "ff99SBstar_Replicate_Min_Percent": 1.8798,
+      "ff99SBstar_Replicate_Max_Percent": 99.2901,
+      "ff99SBstar_N_Replicates": 5,
+      "ff99SBstar_CI95_Low_Percent": 3.9494,
+      "ff99SBstar_CI95_High_Percent": 65.7802,
+      "ff99SBstar_Bootstrap_Level": "replicate",
+      "ff99SBstar_Replicate_Heterogeneity_Ratio": 7.2913,
+      "ff15ipq_Population_Percent": 97.1424,
+      "ff15ipq_Replicate_SD_Percent": 2.4996,
+      "ff15ipq_Replicate_Min_Percent": 94.7102,
+      "ff15ipq_Replicate_Max_Percent": 99.6588,
+      "ff15ipq_N_Replicates": 3,
+      "ff15ipq_CI95_Low_Percent": 94.006,
+      "ff15ipq_CI95_High_Percent": 99.3147,
+      "ff15ipq_Bootstrap_Level": "replicate",
+      "ff15ipq_Replicate_Heterogeneity_Ratio": 1.7013,
+      "ff15ipq_minus_ff99SBstar_Percent": 70.705,
+      "ff15ipq_minus_ff99SBstar_CI95_Low": 31.3182,
+      "ff15ipq_minus_ff99SBstar_CI95_High": 92.5578,
+      "ff15ipq_minus_ff99SBstar_Bootstrap_p": 0.005,
+      "ff15ipq_minus_ff99SBstar_Welch_t": 3.8421,
+      "ff15ipq_minus_ff99SBstar_Welch_p": 0.018,
+      "ff15ipq_minus_ff99SBstar_Welch_df": "3 vs 5 replicates",
+      "ff15ipq_minus_ff99SBstar_Welch_Diff_Percent": 70.5421,
+      "ff15ipq_minus_ff99SBstar_Welch_CI95_Low": 19.8108,
+      "ff15ipq_minus_ff99SBstar_Welch_CI95_High": 100.0,
+      "ff15ipq_minus_ff99SBstar_Welch_dof": 4.0496,
+      "Difference_Percent": 70.705
+    },
+    {
+      "State": "State B",
+      "ff99SBstar_Population_Percent": 71.4509,
+      "ff99SBstar_Replicate_SD_Percent": 40.3317,
+      "ff99SBstar_Replicate_Min_Percent": 0.2,
+      "ff99SBstar_Replicate_Max_Percent": 97.6302,
+      "ff99SBstar_N_Replicates": 5,
+      "ff99SBstar_CI95_Low_Percent": 33.5226,
+      "ff99SBstar_CI95_High_Percent": 94.0159,
+      "ff99SBstar_Bootstrap_Level": "replicate",
+      "ff99SBstar_Replicate_Heterogeneity_Ratio": 6.9587,
+      "ff15ipq_Population_Percent": 2.116,
+      "ff15ipq_Replicate_SD_Percent": 2.2264,
+      "ff15ipq_Replicate_Min_Percent": 0.0698,
+      "ff15ipq_Replicate_Max_Percent": 4.5207,
+      "ff15ipq_N_Replicates": 3,
+      "ff15ipq_CI95_Low_Percent": 0.1972,
+      "ff15ipq_CI95_High_Percent": 5.2659,
+      "ff15ipq_Bootstrap_Level": "replicate",
+      "ff15ipq_Replicate_Heterogeneity_Ratio": 1.6096,
+      "ff15ipq_minus_ff99SBstar_Percent": -69.3348,
+      "ff15ipq_minus_ff99SBstar_CI95_Low": -91.3893,
+      "ff15ipq_minus_ff99SBstar_CI95_High": -30.8007,
+      "ff15ipq_minus_ff99SBstar_Bootstrap_p": 0.005,
+      "ff15ipq_minus_ff99SBstar_Welch_t": -3.8265,
+      "ff15ipq_minus_ff99SBstar_Welch_p": 0.0183,
+      "ff15ipq_minus_ff99SBstar_Welch_df": "3 vs 5 replicates",
+      "ff15ipq_minus_ff99SBstar_Welch_Diff_Percent": -69.1935,
+      "ff15ipq_minus_ff99SBstar_Welch_CI95_Low": -100.0,
+      "ff15ipq_minus_ff99SBstar_Welch_CI95_High": -19.186,
+      "ff15ipq_minus_ff99SBstar_Welch_dof": 4.0405,
+      "Difference_Percent": -69.3348
+    }
+  ],
+  "subspace_overlap.csv": [
+    {
+      "RMSIP_top10": "ff99SBstar",
+      "ff99SBstar": 1.0,
+      "ff15ipq": 0.8405
+    },
+    {
+      "RMSIP_top10": "ff15ipq",
+      "ff99SBstar": 0.8405,
+      "ff15ipq": 1.0
+    }
+  ],
+  "fel_overlap.csv": [
+    {
+      "System_A": "ff99SBstar",
+      "System_B": "ff15ipq",
+      "Bhattacharyya_Coefficient": 0.4878,
+      "Hellinger_Distance": 0.7157,
+      "JS_Divergence_bits": 0.5588,
+      "Sampled_Bin_Jaccard": 0.3291
+    }
+  ],
+  "state_free_energy_comparison.csv": [
+    {
+      "State": "State A",
+      "ff99SBstar_dG_min_kJmol": 0.3845,
+      "ff15ipq_dG_min_kJmol": -0.0,
+      "ff15ipq_minus_ff99SBstar_ddG_kJmol": -0.3845,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_Low": -4.8552,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_High": 0.0
+    },
+    {
+      "State": "State B",
+      "ff99SBstar_dG_min_kJmol": -0.0,
+      "ff15ipq_dG_min_kJmol": 5.0107,
+      "ff15ipq_minus_ff99SBstar_ddG_kJmol": 5.0107,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_Low": 0.0804,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_High": 7.7106
+    }
+  ],
+  "code_version": "1.0.2 /media/atharva/3EA6170E34C679E4/ConformAtlas/src/conformatlas @ dev 2a987e1"
+}

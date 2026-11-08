@@ -418,27 +418,41 @@ percentage points):
 
 | State | early | late | late − early | bootstrap 95 % CI | bootstrap p | Welch t | Welch p |
 |---|---|---|---|---|---|---|---|
-| State A | 75.0 | 19.5 | −55.5 | [−75.6, −25.9] | 0.005 | −1.72 | 0.23 |
-| State B | 0.0 | 80.5 | +80.5 | [61.0, 97.6] | 0.005 | 4.00 | 0.16 |
-| State C | 17.5 | 0.0 | −17.5 | [−32.6, 0.0] | 0.070 | −1.00 | 0.50 |
+| State A | 75.0 | 19.5 | −55.5 | [−100.0, 0.0] | 0.060 | −1.72 | 0.23 |
+| State B | 0.0 | 80.5 | +80.5 | [42.4, 100.0] | 0.005 | 4.00 | 0.16 |
+| State C | 17.5 | 0.0 | −17.5 | [−50.0, 0.0] | 0.680 | −1.00 | 0.50 |
 
 ![Population shifts](_static/tutorial/comparison_populations.png)
 
-Two statistics are reported because they answer different questions:
+Two statistics are reported. Both treat the replicates as the units that might
+or might not reproduce:
 
-- The **block-bootstrap p-value** resamples frames within each replicate and asks
-  whether the observed difference could arise from frame-to-frame noise. It reaches
-  its floor of 1/B = 0.005 for States A and B: given these frames, the two halves
-  clearly occupy different regions.
-- **Welch's t-test** across replicates (2 vs 2 here) asks whether the difference is
-  reproducible between *independent simulations*. With two replicates per system
-  the test has at most 2 degrees of freedom and p = 0.23 and 0.16: the data cannot
-  show that the difference would recur in a new simulation.
+- **Welch's t-test** across replicates (2 vs 2 here) is the primary test. It asks
+  whether the difference would recur in *independent simulations*. With two
+  replicates per system it has at most 2 degrees of freedom, so p = 0.23, 0.16
+  and 0.50. Its 95 % intervals (`late_minus_early_Welch_CI95_*`) cover nearly the
+  whole possible range, so the data cannot show that any difference would recur.
+- The **bootstrap** (default `bootstrap_level: replicate`) draws each system's two
+  replicates with replacement and then resamples blocks of frames inside each
+  draw. With two replicates it has only three distinct replicate draws, so its
+  intervals are coarse: for State A the interval runs from −100.0 to 0.0
+  (p = 0.060). State B is absent from both `early` replicates and present in both
+  `late` ones, so it keeps the floor p = 1/B = 0.005. That is the only kind of
+  difference two replicates can support at all, and Welch's p for it is still 0.16.
 
-The disagreement is the point. The bootstrap treats the sampled frames as the
-population; the replicate test treats the simulations as the population. For a
-mutant-versus-wild-type claim the second is the relevant one, and it needs three
-or more replicates per system to have any power.
+`compare` also prints warnings: in `early` (State A) and in `late` (States A and B)
+the two replicates disagree, with between-replicate spread more than twice what
+the frame-to-frame noise inside each replicate explains (the
+`*_Replicate_Heterogeneity_Ratio` columns). That is the non-convergence of section 3
+seen from the comparison side.
+
+With `bootstrap_level: frame` (the 1.0.x behaviour, which resamples frames inside
+each replicate only) the bootstrap intervals for States A and B both exclude zero.
+They describe the uncertainty given these frames, not the spread between
+simulations. A comparison of the two halves of one trajectory should not report a
+difference, and the replicate-level statistics do not. For a
+mutant-versus-wild-type claim use the replicate-level evidence, with three or more
+replicates per system.
 
 ### 5.3 Landscape overlap and ΔΔG
 
@@ -452,7 +466,7 @@ The ΔΔG map (`comparison/fel_diff_late_vs_early.csv`, `figures/ddg_map_late_vs
 is defined only where both systems sampled the bin (2 bins here); both are
 hatched because |ΔΔG| is smaller than twice its bootstrap SD. State A, the only
 state present in both systems, is 3.00 kJ/mol less favourable in `late`
-(`state_free_energy_comparison.csv`, 95 % CI [0.0, 4.89]).
+(`state_free_energy_comparison.csv`, 95 % CI [0.0, 5.68]).
 
 ![ΔΔG map with uncertainty](_static/tutorial/ddg_map_late_vs_early.png)
 
@@ -464,9 +478,9 @@ state present in both systems, is 3.00 kJ/mol less favourable in `late`
   38 % of the variance in the plane, cosine content 0.92, RMSIP 0.39, N_eff ≈ 3,
   intervals spanning ±35 points, an empty barrier table and a detected
   equilibration point past the midpoint of the run.
-- `compare` between the two halves of one trajectory finds large,
-  bootstrap-significant but replicate-insignificant differences — the signature of
-  unconverged sampling, and the reason both statistics are printed.
+- `compare` between the two halves of one trajectory finds large differences that
+  the replicate-level test cannot confirm, and it warns that the replicates within
+  each half disagree. That is the signature of unconverged sampling.
 - A real study of this system needs several independent replicates of a few hundred
   nanoseconds each; the same commands, with more `-f` arguments, produce the same
   tables with meaningful intervals.
