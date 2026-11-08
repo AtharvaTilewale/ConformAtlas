@@ -56,6 +56,8 @@ Eigen-decomposition yields orthogonal eigenvectors $\mathbf{v}_j$ and non-negati
 
 $$\mathbf{C} \, \mathbf{v}_j = \lambda_j \, \mathbf{v}_j, \quad \lambda_1 \ge \lambda_2 \ge \dots \ge \lambda_{3M} \ge 0$$
 
+Only the leading components are used, so for large problems (smaller dimension $\min(N_\text{total}, 3M) \ge 1000$ and at most 10 % of it requested, default 10 components) the leading eigenpairs are computed with the implicitly restarted Lanczos method (ARPACK, machine tolerance, fixed starting vector) on whichever of the Gram matrix ($N_\text{total} \times N_\text{total}$) and the covariance ($3M \times 3M$) is smaller. Only matrix–vector products with the weighted, centred data matrix are needed, so neither matrix is formed. The total variance is the squared Frobenius norm of that data matrix, which equals $\operatorname{tr}\mathbf{C}$, so the explained-variance percentages of §2.3 are the same as with a full decomposition. Smaller problems, requests for many components, rank-deficient spectra and solver non-convergence use the dense routes (covariance `eigh`, or SVD when frames are fewer than coordinates). Eigenvector signs are arbitrary; on the Lanczos route each vector is oriented so that its largest-magnitude component is positive, which makes results reproducible. On synthetic 8,976-coordinate data the two routes agree to $10^{-15}$ in the eigenvalues (`validation/checks_performance.py`).
+
 ### 2.3 Explained Variance and Projections
 The individual and cumulative explained variances are:
 
