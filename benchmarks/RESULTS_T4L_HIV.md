@@ -82,3 +82,39 @@ RMSIP between the two force fields' top-10 essential subspaces: 0.841. Given T4,
 
 **H4 (informational): implied-timescale scan** vs the authors' saved scan (Bayesian, effective counts): ratio of the slowest timescale at each lag 1: 1.000, 2: 1.002, 3: 1.000, 5: 1.004, 8: 1.005, 12: 1.010, 18: 1.008, 27: 1.004, 41: 1.019, 62: 1.025, 93: 1.011, 140: 1.025, 210: 1.012, 315: 1.001, 473: 1.000, 500: 0.991.
 
+## Performance (reported, never gated)
+
+Pooled 100 ps data: median of 3 runs after one discarded warm-up; 1 ps data (1,000,001 frames): one run. Fresh process, 8 BLAS threads, 1800 s timeout, no superposition. The timed stage is reading the trajectory -> covariance -> eigendecomposition -> top-10 projections, so it includes I/O; for GROMACS it is `covar` + `anaeig` run as subprocesses. Heavy atoms on the 1 ps data were run only for the two out-of-core routes (ConformAtlas streaming, GROMACS); the in-memory routes would need about 31 GB for the float64 coordinate array alone. Peak memory is the process's maximum resident set (for GROMACS, the largest of its `covar`/`anaeig` child processes).
+
+| Dataset | Selection | Tool | compute stage (s) | wall (s) | peak memory (GB) | status |
+|---|---|---|---|---|---|---|
+| pooled100 | calpha | ConformAtlas 1.0.2 (released code) | 4.8 | 5.0 | 0.96 | ok |
+| pooled100 | calpha | ConformAtlas perf branch (Lanczos PCA) | 4.8 | 5.0 | 0.87 | ok |
+| pooled100 | calpha | ConformAtlas streaming engine (released code) | 10.7 | 10.9 | 0.22 | ok |
+| pooled100 | calpha | NumPy dense covariance + eigh | 4.2 | 4.4 | 0.61 | ok |
+| pooled100 | calpha | MDAnalysis PCA | 22.8 | 22.9 | 0.15 | ok |
+| pooled100 | calpha | ProDy PCA (coordinates read with MDAnalysis) | 4.7 | 4.8 | 0.65 | ok |
+| pooled100 | calpha | MDTraj + scikit-learn PCA (auto solver) | 4.7 | 5.0 | 0.43 | ok |
+| pooled100 | calpha | MDTraj + scikit-learn PCA (full solver) | 5.1 | 5.3 | 0.62 | ok |
+| pooled100 | calpha | GROMACS covar + anaeig | 9.9 | 16.3 | 0.03 | ok |
+| pooled100 | heavy | ConformAtlas 1.0.2 (released code) | 12.7 | 12.8 | 6.86 | ok |
+| pooled100 | heavy | ConformAtlas perf branch (Lanczos PCA) | 9.5 | 9.7 | 4.84 | ok |
+| pooled100 | heavy | ConformAtlas streaming engine (released code) | 35.5 | 35.7 | 1.41 | ok |
+| pooled100 | heavy | NumPy dense covariance + eigh | 12.2 | 12.3 | 3.76 | ok |
+| pooled100 | heavy | MDAnalysis PCA | 1166.6 | 1166.8 | 0.97 | ok |
+| pooled100 | heavy | ProDy PCA (coordinates read with MDAnalysis) | 9.7 | 9.9 | 3.43 | ok |
+| pooled100 | heavy | MDTraj + scikit-learn PCA (auto solver) | 6.3 | 6.5 | 1.81 | ok |
+| pooled100 | heavy | MDTraj + scikit-learn PCA (full solver) | 24.7 | 24.9 | 3.49 | ok |
+| pooled100 | heavy | GROMACS covar + anaeig | 118.8 | 125.1 | 0.13 | ok |
+| md1us4_1ps | calpha | ConformAtlas 1.0.2 (released code) | 88.8 | 89.1 | 15.39 | ok |
+| md1us4_1ps | calpha | ConformAtlas perf branch (Lanczos PCA) | 81.3 | 81.5 | 12.68 | ok |
+| md1us4_1ps | calpha | ConformAtlas streaming engine (released code) | 178.2 | 178.3 | 0.32 | ok |
+| md1us4_1ps | calpha | NumPy dense covariance + eigh | 71.1 | 71.2 | 8.82 | ok |
+| md1us4_1ps | calpha | MDAnalysis PCA | 448.0 | 448.1 | 0.28 | ok |
+| md1us4_1ps | calpha | ProDy PCA (coordinates read with MDAnalysis) | 73.6 | 73.8 | 8.86 | ok |
+| md1us4_1ps | calpha | MDTraj + scikit-learn PCA (auto solver) | 69.6 | 69.8 | 4.13 | ok |
+| md1us4_1ps | calpha | MDTraj + scikit-learn PCA (full solver) | 83.3 | 83.6 | 7.87 | ok |
+| md1us4_1ps | calpha | GROMACS covar + anaeig | 198.6 | 198.7 | 0.07 | ok |
+| md1us4_1ps | heavy | ConformAtlas streaming engine (released code) | 594.7 | 594.8 | 0.97 | ok |
+| md1us4_1ps | heavy | GROMACS covar + anaeig | 1583.9 | 1584.0 | 0.13 | ok |
+

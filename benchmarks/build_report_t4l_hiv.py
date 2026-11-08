@@ -253,7 +253,7 @@ def main() -> None:
         L += [
             "## Performance (reported, never gated)",
             "",
-            "Pooled 100 ps data: median of 3 runs after one discarded warm-up; 1 ps data (1,000,001 frames): one run. Fresh process, 8 BLAS threads, 1800 s timeout, no superposition.",
+            "Pooled 100 ps data: median of 3 runs after one discarded warm-up; 1 ps data (1,000,001 frames): one run. Fresh process, 8 BLAS threads, 1800 s timeout, no superposition. The timed stage is reading the trajectory -> covariance -> eigendecomposition -> top-10 projections, so it includes I/O; for GROMACS it is `covar` + `anaeig` run as subprocesses. Heavy atoms on the 1 ps data were run only for the two out-of-core routes (ConformAtlas streaming, GROMACS); the in-memory routes would need about 31 GB for the float64 coordinate array alone. Peak memory is the process's maximum resident set (for GROMACS, the largest of its `covar`/`anaeig` child processes).",
             "",
             "| Dataset | Selection | Tool | compute stage (s) | wall (s) | peak memory (GB) | status |",
             "|---|---|---|---|---|---|---|",
