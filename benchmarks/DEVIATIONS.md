@@ -52,3 +52,32 @@ by signed eigenvalue and its fifth timescale is the next positive one. A dense e
 ConformAtlas's own T ordered by |λ| reproduces deeptime's list (see `msm_timescale_ordering_diagnosis_only` in
 `results/g4_kinetics.json`). The gate is reported as FAIL. Whether to rank by |λ| or to flag negative
 eigenvalues in the output is a design question for ConformAtlas; it is not changed on this branch.
+
+## D7 — H1: PyEMMA and deeptime are one reference, not two (found after the H1 run)
+`benchmarks/CRITERIA_T4L_HIV.md` H1 compares ConformAtlas with "a fresh PyEMMA MSM and deeptime". The two gave
+identical differences to every printed digit; PyEMMA 2.5.12's `maximum_likelihood_msm.py` imports its estimator
+from `deeptime.markov.tools.estimation`. H1 therefore has one independent reference implementation (deeptime),
+reached through two interfaces. Gates and tolerances are unchanged.
+
+## D8 — T4L protein-only run file written with GROMACS 2023.3 (preparation detail, before any result)
+`gmx convert-tpr` from GROMACS 2026.3 writes tpx version 138, which MDAnalysis 2.10 cannot read, so the first
+T0 run stopped before measuring anything. The protein-only run files were regenerated with GROMACS 2023.3
+(`/usr/bin/gmx convert-tpr`, group Protein); they contain the same 2,612 atoms with masses. All other GROMACS
+calculations still use 2026.3. `prepare_t4l.sh` takes the converter from `$GMX_CONVERT`.
+
+## D9 — T0 failed on the first T4L copies: the deposited trajectories are not whole across the periodic boundary
+The pre-registered integrity gate T0 (every consecutive Cα–Cα distance ≤ 4.2 Å in every frame) failed for all
+8 replicates (maximum ≈ 115 Å). In the 100 ps copy of md1us4, 9,494 of 10,001 frames had the protein split across
+the rhombic-dodecahedron box (edge 82 Å). `prepare_t4l.sh` now writes the 100 ps copies with
+`gmx trjconv -pbc whole` (bonds from the protein-only run file); on md1us4 this leaves 0 broken frames (largest
+Cα–Cα 4.15 Å, longest bond 1.97 Å). T0 is re-run on the new copies. A `compare` smoke run and the first null-test
+splits had been started on the broken copies; they were stopped and none of their output is used.
+
+## D10 — T1: unequal input for MDAnalysis in the first run (harness bug, found by the first T1 Cα run)
+The registered design gives every tool identical pre-fitted coordinates. The Kabsch fit produces float64
+values; MDAnalysis receives coordinates through `MemoryReader`, which stores float32, while the other tools and
+the NumPy reference used the float64 values. The first run therefore measured float32 rounding of the input:
+MDAnalysis Cα projection error / SD 4.3e-6 (gate 1e-6, FAIL), eigenvalues 1.1e-8, eigenvectors 5.3e-14. The
+harness now rounds the fitted coordinates to float32 once and gives the same numbers to every tool and to the
+reference, as the ADK benchmark did (its DCD input was already float32). Tolerances are unchanged; T0–T2 were
+re-run from scratch.
