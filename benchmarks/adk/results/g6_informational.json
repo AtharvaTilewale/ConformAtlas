@@ -1,0 +1,96 @@
+{
+  "trajectory_PC_ranges": {
+    "PC1": [
+      -104.7967613428499,
+      103.70546191150258,
+      22.229430697022146
+    ],
+    "PC2": [
+      -48.51600350623312,
+      61.15580464504625,
+      15.347296491584938
+    ],
+    "PC3": [
+      -31.808264530265728,
+      69.1473028411992,
+      12.694587515103894
+    ]
+  },
+  "explained_variance_pct_top5": [
+    41.9469531644872,
+    19.99435997517276,
+    13.67983717313878,
+    4.2655018860367795,
+    3.1374819471987196
+  ],
+  "crystal_projection": {
+    "4AKE": {
+      "n_residues_in_common": 214,
+      "PC1_PC2_PC3": [
+        4.192754524614853,
+        -11.55935167359551,
+        14.110156301115682
+      ],
+      "percentile_in_trajectory": [
+        55.24241700501552,
+        23.501313589682347,
+        90.51827083830905
+      ],
+      "rmsd_to_mean_structure_A": 2.0660817530613094
+    },
+    "1AKE": {
+      "n_residues_in_common": 214,
+      "PC1_PC2_PC3": [
+        101.40545213748375,
+        -24.18670806182075,
+        48.394489389121134
+      ],
+      "percentile_in_trajectory": [
+        99.97611655122999,
+        4.29902077860043,
+        98.82971101026989
+      ],
+      "rmsd_to_mean_structure_A": 8.546673901678105
+    }
+  },
+  "trajectory_first_frame_PC1_PC2_PC3": [
+    97.10713679296103,
+    -20.234955618773935,
+    38.46742457225406
+  ],
+  "analyze_returncode": 0,
+  "analyze:states/state_ensemble_summary.csv": [
+    {
+      "state": "State A",
+      "frames": 3917,
+      "Rg_mean": 19.7038,
+      "Rg_sd": 0.5169,
+      "RMSF_mean": 1.6986,
+      "RMSF_max": 3.7712,
+      "average_pdb": NaN,
+      "RMSD_to_reference_mean": 7.2008,
+      "RMSD_to_reference_sd": 0.9781,
+      "RMSD_average_to_reference": 7.0337
+    }
+  ],
+  "analyze:states/barriers.csv": [],
+  "analyze:states/state_free_energies.csv": [
+    {
+      "state": "State A",
+      "population": 0.9355,
+      "population_sd": 0.0126,
+      "population_ci95_low": 0.9049,
+      "population_ci95_high": 0.9553,
+      "dG_state_kJ_mol": -0.0,
+      "dG_state_ci95_low": -0.0,
+      "dG_state_ci95_high": 0.0,
+      "reference_state": "State A",
+      "min_dG_kJ_mol": -0.0,
+      "min_dG_ci95_low": -0.0,
+      "min_dG_ci95_high": 0.0
+    }
+  ],
+  "analyze_warnings": [
+    "Rep_1: equilibration detection suggests discarding the first 1352 frames (32%, t0 = 324480 ps); run with --equilibration auto or -b 324480 to apply."
+  ]
+}

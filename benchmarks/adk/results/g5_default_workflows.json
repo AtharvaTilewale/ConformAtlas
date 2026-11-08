@@ -1,0 +1,23 @@
+{
+  "n_modes": 10,
+  "reference": "ConformAtlas default (`analyze -c C-alpha -l Backbone --engine memory`)",
+  "expectation": ">= 0.95",
+  "tools": {
+    "MDAnalysis (align=True)": {
+      "rmsip": 0.9999917069121281,
+      "meets_expectation": true
+    },
+    "ProDy (Ensemble.superpose)": {
+      "rmsip": 0.9999917068921993,
+      "meets_expectation": true
+    },
+    "MDTraj superpose + sklearn PCA": {
+      "rmsip": 0.9999917500849179,
+      "meets_expectation": true
+    },
+    "GROMACS covar (default fit)": {
+      "rmsip": 0.9999917077108076,
+      "meets_expectation": true
+    }
+  }
+}

@@ -1,0 +1,268 @@
+{
+  "replicates": [
+    "ff99SBstar/md1us4",
+    "ff99SBstar/md1us5",
+    "ff99SBstar/md1us6",
+    "ff99SBstar/md1us7",
+    "ff99SBstar/md1us8",
+    "ff15ipq/sim1",
+    "ff15ipq/sim2",
+    "ff15ipq/sim3"
+  ],
+  "rmsip_top10": [
+    [
+      1.0000000000000002,
+      0.8323077575994745,
+      0.7971224612839969,
+      0.810225383162812,
+      0.8198560192300777,
+      0.8336783519912089,
+      0.8437561278280415,
+      0.861852549194177
+    ],
+    [
+      0.8323077575994745,
+      1.0,
+      0.8875623074712495,
+      0.943648610299882,
+      0.9400867661996533,
+      0.820270695035615,
+      0.8239348791331644,
+      0.790936065582972
+    ],
+    [
+      0.7971224612839969,
+      0.8875623074712495,
+      1.0000000000000002,
+      0.8926909277964025,
+      0.8872713377617746,
+      0.8089840888379216,
+      0.8229640711259826,
+      0.7847834522756941
+    ],
+    [
+      0.810225383162812,
+      0.9436486102998819,
+      0.8926909277964026,
+      1.0000000000000007,
+      0.9279433821655784,
+      0.8075488612794505,
+      0.8099100076849753,
+      0.7814721636012538
+    ],
+    [
+      0.8198560192300777,
+      0.9400867661996534,
+      0.8872713377617746,
+      0.9279433821655784,
+      1.0000000000000007,
+      0.7962416927308061,
+      0.8037950217539477,
+      0.7760491079149867
+    ],
+    [
+      0.8336783519912089,
+      0.820270695035615,
+      0.8089840888379217,
+      0.8075488612794505,
+      0.7962416927308061,
+      1.0000000000000004,
+      0.8998421766511099,
+      0.8587281672131488
+    ],
+    [
+      0.8437561278280417,
+      0.8239348791331644,
+      0.8229640711259826,
+      0.8099100076849753,
+      0.8037950217539477,
+      0.8998421766511099,
+      0.999999999999999,
+      0.8762714453423338
+    ],
+    [
+      0.8618525491941771,
+      0.7909360655829721,
+      0.7847834522756941,
+      0.7814721636012538,
+      0.7760491079149867,
+      0.8587281672131488,
+      0.8762714453423338,
+      1.0
+    ]
+  ],
+  "rmsip_summary": {
+    "within_ff99SBstar": {
+      "min": 0.7971224612839969,
+      "median": 0.887416822616512,
+      "max": 0.943648610299882
+    },
+    "within_ff15ipq": {
+      "min": 0.8587281672131488,
+      "median": 0.8762714453423338,
+      "max": 0.8998421766511099
+    },
+    "between_force_fields": {
+      "min": 0.7760491079149867,
+      "median": 0.8089840888379216,
+      "max": 0.861852549194177
+    }
+  },
+  "analyze": {
+    "ff99SBstar/md1us4": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          96.3903609639036
+        ]
+      ],
+      "unassigned_percent": 3.6096390360963904,
+      "convergence": {
+        "rmsip_halves": 0.827586774983219,
+        "pc1_cosine_content": 0.6033182289700278,
+        "assessment": "Insufficient evidence"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 364 frames (4%, t0 = 36400 ps); run with --equilibration auto or -b 36400 to apply.",
+        "PC1+PC2 explain only 39.1% of the variance; a 2-D landscape on them captures a minority of the motion. Inspect the scree plot and consider dihedral PCA, TICA or user CVs."
+      ]
+    },
+    "ff99SBstar/md1us5": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          83.8016198380162
+        ]
+      ],
+      "unassigned_percent": 16.198380161983806,
+      "convergence": {
+        "rmsip_halves": 0.9218158398976307,
+        "pc1_cosine_content": 0.1179068497989976,
+        "assessment": "Insufficient evidence"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 854 frames (9%, t0 = 85400 ps); run with --equilibration auto or -b 85400 to apply."
+      ]
+    },
+    "ff99SBstar/md1us6": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          85.25147485251475
+        ],
+        [
+          "State B",
+          13.698630136986301
+        ]
+      ],
+      "unassigned_percent": 1.0498950104989468,
+      "convergence": {
+        "rmsip_halves": 0.8223813853670324,
+        "pc1_cosine_content": 0.3507031893949211,
+        "assessment": "Insufficient evidence"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 7347 frames (73%, t0 = 734700 ps); run with --equilibration auto or -b 734700 to apply."
+      ]
+    },
+    "ff99SBstar/md1us7": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          89.79102089791022
+        ],
+        [
+          "State B",
+          5.169483051694831
+        ]
+      ],
+      "unassigned_percent": 5.039496050394954,
+      "convergence": {
+        "rmsip_halves": 0.9038740845823183,
+        "pc1_cosine_content": 0.08392167097149716,
+        "assessment": "Insufficient evidence"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 2912 frames (29%, t0 = 291200 ps); run with --equilibration auto or -b 291200 to apply."
+      ]
+    },
+    "ff99SBstar/md1us8": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          93.4006599340066
+        ]
+      ],
+      "unassigned_percent": 6.599340065993397,
+      "convergence": {
+        "rmsip_halves": 0.9285486471440241,
+        "pc1_cosine_content": 0.0020585477504958837,
+        "assessment": "Good evidence of stability"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 74 frames (1%, t0 = 7400 ps); run with --equilibration auto or -b 7400 to apply."
+      ]
+    },
+    "ff15ipq/sim1": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          98.27424498217971
+        ]
+      ],
+      "unassigned_percent": 1.7257550178202963,
+      "convergence": {
+        "rmsip_halves": 0.9082680186415736,
+        "pc1_cosine_content": 0.12174589681190952,
+        "assessment": "Insufficient evidence"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 2575 frames (24%, t0 = 257500 ps); run with --equilibration auto or -b 257500 to apply.",
+        "PC1+PC2 explain only 48.7% of the variance; a 2-D landscape on them captures a minority of the motion. Inspect the scree plot and consider dihedral PCA, TICA or user CVs."
+      ]
+    },
+    "ff15ipq/sim2": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          98.74208304011259
+        ]
+      ],
+      "unassigned_percent": 1.2579169598874063,
+      "convergence": {
+        "rmsip_halves": 0.8771457754869025,
+        "pc1_cosine_content": 0.00017106024285647037,
+        "assessment": "Insufficient evidence"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 10081 frames (89%, t0 = 1008100 ps); run with --equilibration auto or -b 1008100 to apply."
+      ]
+    },
+    "ff15ipq/sim3": {
+      "returncode": 0,
+      "states": [
+        [
+          "State A",
+          97.37862571738793
+        ]
+      ],
+      "unassigned_percent": 2.6213742826120656,
+      "convergence": {
+        "rmsip_halves": 0.8416925309620875,
+        "pc1_cosine_content": 0.38000496291261404,
+        "assessment": "Insufficient evidence"
+      },
+      "warnings": [
+        "Rep_1: equilibration detection suggests discarding the first 7250 frames (56%, t0 = 725000 ps); run with --equilibration auto or -b 725000 to apply.",
+        "PC1+PC2 explain only 42.5% of the variance; a 2-D landscape on them captures a minority of the motion. Inspect the scree plot and consider dihedral PCA, TICA or user CVs."
+      ]
+    }
+  }
+}

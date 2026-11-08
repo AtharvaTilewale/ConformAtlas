@@ -1,0 +1,30 @@
+config,dataset,selection,status,n_ok_runs,compute_seconds,wall_seconds,peak_rss_gb
+ConformAtlas 1.0.2 (released code),pooled100,calpha,ok,3,4.796088283183053,4.99,0.962012
+ConformAtlas perf branch (Lanczos PCA),pooled100,calpha,ok,3,4.80010969704017,5.01,0.866044
+ConformAtlas streaming engine (released code),pooled100,calpha,ok,3,10.743516513844952,10.95,0.215076
+NumPy dense covariance + eigh,pooled100,calpha,ok,3,4.234796636039391,4.36,0.610288
+MDAnalysis PCA,pooled100,calpha,ok,3,22.824065412860364,22.95,0.145408
+ProDy PCA (coordinates read with MDAnalysis),pooled100,calpha,ok,3,4.653589874040335,4.83,0.654664
+MDTraj + scikit-learn PCA (auto solver),pooled100,calpha,ok,3,4.711110466858372,4.97,0.425088
+MDTraj + scikit-learn PCA (full solver),pooled100,calpha,ok,3,5.097112433984876,5.35,0.618028
+GROMACS covar + anaeig,pooled100,calpha,ok,3,9.925321662100032,16.29,0.029732
+ConformAtlas 1.0.2 (released code),pooled100,heavy,ok,3,12.661347546847537,12.85,6.855956
+ConformAtlas perf branch (Lanczos PCA),pooled100,heavy,ok,3,9.498847589828074,9.69,4.840064
+ConformAtlas streaming engine (released code),pooled100,heavy,ok,3,35.476045762887225,35.69,1.411208
+NumPy dense covariance + eigh,pooled100,heavy,ok,3,12.181525147985667,12.32,3.758756
+MDAnalysis PCA,pooled100,heavy,ok,3,1166.6394341990817,1166.75,0.971912
+ProDy PCA (coordinates read with MDAnalysis),pooled100,heavy,ok,3,9.709117932943627,9.88,3.43136
+MDTraj + scikit-learn PCA (auto solver),pooled100,heavy,ok,3,6.257823023945093,6.45,1.807804
+MDTraj + scikit-learn PCA (full solver),pooled100,heavy,ok,3,24.655327189015225,24.91,3.490764
+GROMACS covar + anaeig,pooled100,heavy,ok,3,118.78777589509264,125.13,0.132276
+ConformAtlas 1.0.2 (released code),md1us4_1ps,calpha,ok,1,88.84190602810122,89.06,15.385532
+ConformAtlas perf branch (Lanczos PCA),md1us4_1ps,calpha,ok,1,81.29691799497232,81.54,12.679784
+ConformAtlas streaming engine (released code),md1us4_1ps,calpha,ok,1,178.1664524800144,178.35,0.320848
+NumPy dense covariance + eigh,md1us4_1ps,calpha,ok,1,71.11270923004486,71.24,8.816468
+MDAnalysis PCA,md1us4_1ps,calpha,ok,1,447.97900229296647,448.1,0.282012
+ProDy PCA (coordinates read with MDAnalysis),md1us4_1ps,calpha,ok,1,73.5688398659695,73.77,8.857272
+MDTraj + scikit-learn PCA (auto solver),md1us4_1ps,calpha,ok,1,69.60609191004187,69.85,4.131108
+MDTraj + scikit-learn PCA (full solver),md1us4_1ps,calpha,ok,1,83.33777993894182,83.57,7.87306
+GROMACS covar + anaeig,md1us4_1ps,calpha,ok,1,198.60068318108097,198.69,0.072872
+ConformAtlas streaming engine (released code),md1us4_1ps,heavy,ok,1,594.6623079117853,594.83,0.971312
+GROMACS covar + anaeig,md1us4_1ps,heavy,ok,1,1583.910970651079,1584.0,0.132708

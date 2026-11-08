@@ -1,0 +1,41 @@
+{
+ "pyemma": "2.5.12",
+ "n_dtrajs": 964,
+ "frames_per_dtraj": [
+  1300
+ ],
+ "saved_model": {
+  "class": "BayesianMSM",
+  "lag": 300,
+  "reversible": true,
+  "count_mode": "effective",
+  "connectivity": "largest",
+  "n_active": 100
+ },
+ "fresh_model": {
+  "call": "pyemma.msm.estimate_markov_model(dtrajs, 300, reversible=True, count_mode='sliding', connectivity='largest', mincount_connectivity=0)",
+  "n_active": 100,
+  "seconds": 0.08267157594673336
+ },
+ "its": {
+  "lags": [
+   1,
+   2,
+   3,
+   5,
+   8,
+   12,
+   18,
+   27,
+   41,
+   62,
+   93,
+   140,
+   210,
+   315,
+   473,
+   500
+  ],
+  "n_timescales": 12
+ }
+}
