@@ -1,0 +1,86 @@
+{
+  "run": {
+    "returncode": 0,
+    "seconds": 30.5
+  },
+  "population_table": [
+    {
+      "State": "State A",
+      "ff99SBstar_Population_Percent": 26.4374,
+      "ff99SBstar_Replicate_SD_Percent": 40.9279,
+      "ff99SBstar_CI95_Low_Percent": 22.656,
+      "ff99SBstar_CI95_High_Percent": 31.2232,
+      "ff15ipq_Population_Percent": 97.1424,
+      "ff15ipq_Replicate_SD_Percent": 2.4996,
+      "ff15ipq_CI95_Low_Percent": 95.5984,
+      "ff15ipq_CI95_High_Percent": 98.3286,
+      "ff15ipq_minus_ff99SBstar_Percent": 70.705,
+      "ff15ipq_minus_ff99SBstar_CI95_Low": 65.0159,
+      "ff15ipq_minus_ff99SBstar_CI95_High": 74.9699,
+      "ff15ipq_minus_ff99SBstar_Bootstrap_p": 0.005,
+      "ff15ipq_minus_ff99SBstar_Welch_t": 3.8421,
+      "ff15ipq_minus_ff99SBstar_Welch_p": 0.018,
+      "ff15ipq_minus_ff99SBstar_Welch_df": "3 vs 5 replicates",
+      "Difference_Percent": 70.705
+    },
+    {
+      "State": "State B",
+      "ff99SBstar_Population_Percent": 71.4509,
+      "ff99SBstar_Replicate_SD_Percent": 40.3317,
+      "ff99SBstar_CI95_Low_Percent": 66.6246,
+      "ff99SBstar_CI95_High_Percent": 75.3276,
+      "ff15ipq_Population_Percent": 2.116,
+      "ff15ipq_Replicate_SD_Percent": 2.2264,
+      "ff15ipq_CI95_Low_Percent": 0.9391,
+      "ff15ipq_CI95_High_Percent": 3.4162,
+      "ff15ipq_minus_ff99SBstar_Percent": -69.3348,
+      "ff15ipq_minus_ff99SBstar_CI95_Low": -73.7026,
+      "ff15ipq_minus_ff99SBstar_CI95_High": -63.4553,
+      "ff15ipq_minus_ff99SBstar_Bootstrap_p": 0.005,
+      "ff15ipq_minus_ff99SBstar_Welch_t": -3.8265,
+      "ff15ipq_minus_ff99SBstar_Welch_p": 0.0183,
+      "ff15ipq_minus_ff99SBstar_Welch_df": "3 vs 5 replicates",
+      "Difference_Percent": -69.3348
+    }
+  ],
+  "subspace_overlap.csv": [
+    {
+      "RMSIP_top10": "ff99SBstar",
+      "ff99SBstar": 1.0,
+      "ff15ipq": 0.8405
+    },
+    {
+      "RMSIP_top10": "ff15ipq",
+      "ff99SBstar": 0.8405,
+      "ff15ipq": 1.0
+    }
+  ],
+  "fel_overlap.csv": [
+    {
+      "System_A": "ff99SBstar",
+      "System_B": "ff15ipq",
+      "Bhattacharyya_Coefficient": 0.4878,
+      "Hellinger_Distance": 0.7157,
+      "JS_Divergence_bits": 0.5588,
+      "Sampled_Bin_Jaccard": 0.3291
+    }
+  ],
+  "state_free_energy_comparison.csv": [
+    {
+      "State": "State A",
+      "ff99SBstar_dG_min_kJmol": 0.3845,
+      "ff15ipq_dG_min_kJmol": -0.0,
+      "ff15ipq_minus_ff99SBstar_ddG_kJmol": -0.3845,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_Low": -1.4252,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_High": 0.0
+    },
+    {
+      "State": "State B",
+      "ff99SBstar_dG_min_kJmol": -0.0,
+      "ff15ipq_dG_min_kJmol": 5.0107,
+      "ff15ipq_minus_ff99SBstar_ddG_kJmol": 5.0107,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_Low": 3.3942,
+      "ff15ipq_minus_ff99SBstar_ddG_CI95_High": 6.3249
+    }
+  ]
+}

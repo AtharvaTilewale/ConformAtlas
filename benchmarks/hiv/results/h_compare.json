@@ -1,0 +1,322 @@
+{
+ "conformatlas_src": "/media/atharva/3EA6170E34C679E4/ca_perf/fix_wt/src",
+ "conformatlas_version": "1.0.2",
+ "deeptime": "0.4.5",
+ "pyemma": "2.5.12",
+ "gates": {
+  "stationary_abs": 1e-06,
+  "T_abs": 1e-06,
+  "timescales_rel": 1e-05
+ },
+ "H0": {
+  "n_dtrajs": 964,
+  "frames_each": [
+   1300
+  ],
+  "label_range": [
+   0,
+   99
+  ],
+  "centres_shape": [
+   100,
+   3
+  ],
+  "saved_lag": 300,
+  "saved_count_mode": "effective",
+  "pass": true
+ },
+ "H1": {
+  "vs_pyemma_fresh_sliding": {
+   "same_active_set": true,
+   "n_active": [
+    100,
+    100
+   ],
+   "max_abs_stationary": 3.0351398547234787e-09,
+   "max_abs_T": 4.001837694556087e-09,
+   "timescales_frames": [
+    [
+     2046.3535952498034,
+     1270.127949697769,
+     668.9499436838323,
+     528.5432860982102,
+     242.91395270967678
+    ],
+    [
+     2046.3536580943437,
+     1270.1279653793956,
+     668.9499521873377,
+     528.5432913851965,
+     242.91395211927292
+    ]
+   ],
+   "max_rel_timescales": 3.0710498160494124e-08,
+   "pass": true
+  },
+  "vs_deeptime_sliding": {
+   "same_active_set": true,
+   "n_active": [
+    100,
+    100
+   ],
+   "max_abs_stationary": 3.0351398547234787e-09,
+   "max_abs_T": 4.001837694556087e-09,
+   "timescales_frames": [
+    [
+     2046.3535952498034,
+     1270.127949697769,
+     668.9499436838323,
+     528.5432860982102,
+     242.91395270967678
+    ],
+    [
+     2046.3536580943437,
+     1270.1279653793956,
+     668.9499521873377,
+     528.5432913851965,
+     242.91395211927292
+    ]
+   ],
+   "max_rel_timescales": 3.0710498160494124e-08,
+   "pass": true
+  },
+  "negative_eigenvalues_in_slowest_5": [],
+  "seconds": {
+   "conformatlas": 0.02774768997915089,
+   "deeptime": 0.027345604030415416,
+   "pyemma": 0.08267157594673336
+  }
+ },
+ "H2_informational": {
+  "same_active_set": true,
+  "n_active": [
+   100,
+   100
+  ],
+  "max_abs_stationary": 0.00016372052507713304,
+  "max_abs_T": 0.023598339769672613,
+  "timescales_frames": [
+   [
+    2046.3535952498034,
+    1270.127949697769,
+    668.9499436838323,
+    528.5432860982102,
+    242.91395270967678
+   ],
+   [
+    2038.8778405102903,
+    1267.8020127205823,
+    647.8715841264292,
+    507.87986270802355,
+    243.1931232454093
+   ]
+  ],
+  "max_rel_timescales": 0.04068565207529376,
+  "timescale_ratio_conformatlas_over_saved": [
+   1.0036666025746996,
+   1.0018346216158749,
+   1.0325347801537315,
+   1.0406856520752938,
+   0.9988520623773938
+  ],
+  "timescales_ns": [
+   [
+    204.63535952498034,
+    127.0127949697769,
+    66.89499436838324,
+    52.85432860982102,
+    24.29139527096768
+   ],
+   [
+    203.88778405102903,
+    126.78020127205824,
+    64.78715841264292,
+    50.78798627080236,
+    24.31931232454093
+   ]
+  ],
+  "note": "saved model: BayesianMSM point estimate from PyEMMA 'effective' counts; differs from sliding counts by construction"
+ },
+ "H3_informational": {
+  "pcca_set_sizes": [
+   2,
+   3,
+   3,
+   31,
+   61
+  ],
+  "pcca_set_stationary": [
+   0.003911225198186141,
+   0.00718009925651571,
+   0.04558623043750366,
+   0.4100437801588346,
+   0.5332786649489596
+  ],
+  "deeptime_pcca": {
+   "stationary_weighted_crisp_agreement_with_conformatlas": 1.0,
+   "max_abs_membership_difference_best_permutation": 0.007059173490280624,
+   "set_stationary_sorted": [
+    0.003883415001391342,
+    0.007199216079439698,
+    0.0457283303784471,
+    0.4100910269245783,
+    0.5330980116161436
+   ]
+  },
+  "stationary_weighted_agreement_best_permutation": 0.7146247848079463,
+  "permutation_pcca_to_hmm": [
+   1,
+   0,
+   2,
+   3,
+   4
+  ],
+  "hmm_pi": [
+   0.09972619315604586,
+   0.2897928631665278,
+   0.07386866108114848,
+   0.25004922881116687,
+   0.286563053785111
+  ],
+  "pcca_stationary_in_hmm_order": [
+   0.00718009925651571,
+   0.003911225198186141,
+   0.04558623043750366,
+   0.4100437801588346,
+   0.5332786649489596
+  ]
+ },
+ "H4_informational": {
+  "rows": [
+   {
+    "lag": 1,
+    "ratio_ts1": 1.0002902083603462,
+    "max_abs_log_ratio_top5": 0.00448420948240521,
+    "conformatlas_ts1_ns": 4.364533458172874,
+    "saved_ts1_ns": 4.363267201552559,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 2,
+    "ratio_ts1": 1.0017543595215,
+    "max_abs_log_ratio_top5": 0.006716966344286905,
+    "conformatlas_ts1_ns": 6.876614391272016,
+    "saved_ts1_ns": 6.864571464961443,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 3,
+    "ratio_ts1": 1.0001360900813285,
+    "max_abs_log_ratio_top5": 0.004010953958525551,
+    "conformatlas_ts1_ns": 9.064722723666902,
+    "saved_ts1_ns": 9.063489272674664,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 5,
+    "ratio_ts1": 1.0040017375974146,
+    "max_abs_log_ratio_top5": 0.003993751942755597,
+    "conformatlas_ts1_ns": 12.720635926578531,
+    "saved_ts1_ns": 12.669934174635126,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 8,
+    "ratio_ts1": 1.005247459428022,
+    "max_abs_log_ratio_top5": 0.005233739488418863,
+    "conformatlas_ts1_ns": 17.38932869186455,
+    "saved_ts1_ns": 17.298555225157138,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 12,
+    "ratio_ts1": 1.0102058484233822,
+    "max_abs_log_ratio_top5": 0.010154120406846778,
+    "conformatlas_ts1_ns": 22.397065689582988,
+    "saved_ts1_ns": 22.170793927334568,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 18,
+    "ratio_ts1": 1.00777712337441,
+    "max_abs_log_ratio_top5": 0.0077470374377693225,
+    "conformatlas_ts1_ns": 29.30291070732999,
+    "saved_ts1_ns": 29.07677702507577,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 27,
+    "ratio_ts1": 1.0035342793574062,
+    "max_abs_log_ratio_top5": 0.008959151190530708,
+    "conformatlas_ts1_ns": 38.88606813404776,
+    "saved_ts1_ns": 38.749117926442636,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 41,
+    "ratio_ts1": 1.0194731059757247,
+    "max_abs_log_ratio_top5": 0.019285931062771423,
+    "conformatlas_ts1_ns": 53.8307953470361,
+    "saved_ts1_ns": 52.802565395303226,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 62,
+    "ratio_ts1": 1.0245109893092683,
+    "max_abs_log_ratio_top5": 0.024215415149067537,
+    "conformatlas_ts1_ns": 73.80592960949595,
+    "saved_ts1_ns": 72.04015416101721,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 93,
+    "ratio_ts1": 1.0107569386461075,
+    "max_abs_log_ratio_top5": 0.01158943306345755,
+    "conformatlas_ts1_ns": 95.46536405330829,
+    "saved_ts1_ns": 94.44937789018059,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 140,
+    "ratio_ts1": 1.025266922958226,
+    "max_abs_log_ratio_top5": 0.02495299133105664,
+    "conformatlas_ts1_ns": 125.63088430507094,
+    "saved_ts1_ns": 122.53480678239895,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 210,
+    "ratio_ts1": 1.0118402950533314,
+    "max_abs_log_ratio_top5": 0.0430961400020026,
+    "conformatlas_ts1_ns": 160.5262628744676,
+    "saved_ts1_ns": 158.6478258073392,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 315,
+    "ratio_ts1": 1.0009506285198253,
+    "max_abs_log_ratio_top5": 0.05045517673753907,
+    "conformatlas_ts1_ns": 215.56549902451752,
+    "saved_ts1_ns": 215.36077093361646,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 473,
+    "ratio_ts1": 1.0002784173451247,
+    "max_abs_log_ratio_top5": 0.10949889278595656,
+    "conformatlas_ts1_ns": 266.961694978145,
+    "saved_ts1_ns": 266.8873888998802,
+    "n_negative_reported": 0
+   },
+   {
+    "lag": 500,
+    "ratio_ts1": 0.9911169405250752,
+    "max_abs_log_ratio_top5": 0.08774912486564762,
+    "conformatlas_ts1_ns": 273.2186775500674,
+    "saved_ts1_ns": 275.66744788493,
+    "n_negative_reported": 0
+   }
+  ],
+  "note": "saved ITS object: PyEMMA timescales_msm with errors='bayes' (effective counts); ratios are informational"
+ }
+}
