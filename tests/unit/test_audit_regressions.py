@@ -289,12 +289,38 @@ def test_streaming_equilibration_keeps_the_time_window_of_every_replicate(tmp_pa
         n_bootstrap=0,
         progress=False,
     )
+    # Windows cannot rewrite pca/projections.npy while the previous pass still maps it:
+    # every earlier streaming result must be released when the re-read starts
+    import gc
+    import weakref
+
+    import conformatlas.streaming as pl  # pipeline imports streaming_pca from here
+
+    real_stream = pl.streaming_pca
+    maps: list = []
+    still_mapped: list[int] = []
+
+    def tracking_stream(*args, **kwargs):
+        gc.collect()
+        still_mapped.append(sum(r() is not None for r in maps))
+        out = real_stream(*args, **kwargs)
+        maps.append(weakref.ref(out.projection_array))
+        return out
+
     times = {}
     for engine in ("memory", "streaming"):
-        res = run_analysis(AnalysisConfig(output_dir=tmp_path / engine, engine=engine, **common))
+        if engine == "streaming":
+            pl.streaming_pca = tracking_stream
+        try:
+            res = run_analysis(
+                AnalysisConfig(output_dir=tmp_path / engine, engine=engine, **common)
+            )
+        finally:
+            pl.streaming_pca = real_stream
         times[engine] = res.pca.projections.groupby("replicate")["time_ps"].agg(["min", "count"])
     eq = pd.read_csv(tmp_path / "streaming" / "convergence" / "equilibration.csv")
     t0 = dict(zip(eq["Replicate"], eq["t0_index"]))
     assert t0["Rep_1"] == 0 and t0["Rep_2"] > 0  # the case the old begin map got wrong
+    assert len(still_mapped) == 2 and still_mapped == [0, 0]  # first pass + re-read
     pd.testing.assert_frame_equal(times["memory"], times["streaming"])
     assert (times["streaming"]["min"] >= 2400.0).all()

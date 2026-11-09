@@ -15,6 +15,7 @@ existing output directory (rebin / resegment / MSM) without reading trajectories
 from __future__ import annotations
 
 import datetime
+import gc
 import logging
 import shutil
 import sys
@@ -655,6 +656,10 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
             # first frame of the requested window (-b), not frame 0 of the file
             begin_map = {rep: float(times_dict[rep][t0_stage_a.get(rep, 0)]) for rep in times_dict}
             echo("  • Streaming engine: re-reading from the production start of each replicate")
+            # release the memory map of pca/projections.npy first: Windows cannot
+            # rewrite a file that is still mapped
+            del spca
+            gc.collect()
             spca = _stream(begin_map)
             times_dict = dict(spca.times)
             fit_rmsd_dict = dict(spca.fit_rmsd)
@@ -732,6 +737,10 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
                 )
             if use_streaming:
                 begin_map = {rep: float(times_dict[rep][extra.get(rep, 0)]) for rep in times_dict}
+                # release the memory map of pca/projections.npy first: Windows cannot
+                # rewrite a file that is still mapped
+                del spca
+                gc.collect()
                 spca = _stream(begin_map)
                 times_dict = dict(spca.times)
                 fit_rmsd_dict = dict(spca.fit_rmsd)
