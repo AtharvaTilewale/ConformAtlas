@@ -477,14 +477,22 @@ def check_basins():
             "definition of --min-barrier",
         )
         truth = (xs, ys, p_left, states, labels, fel, assign)
-    n_minor = int((assign["state"] == "Unassigned").sum())
+    # every 'Unassigned' frame must belong to a watershed basin whose own population is
+    # below min_state_population (0.02 here), and their total must be small on a clean
+    # double well
+    unas = assign[assign["state"] == "Unassigned"]
+    n_minor = len(unas)
+    basin_pop = assign["basin_id"].value_counts(normalize=True)
+    minor_ids = sorted(int(b) for b in unas["basin_id"].unique())
+    p_max = float(max((basin_pop[b] for b in minor_ids), default=0.0))
     record(
         "Basins",
         "frames outside major states lie only in sub-threshold minor basins (reported as 'Unassigned / Minor')",
-        unassigned < 1e-3 and n_minor == int(round(unassigned * len(xs))),
-        f"{n_minor} frames ({unassigned:.1e}), all in isolated high-ΔG pockets",
-        "≈ 0",
-        "< 0.1 %",
+        unassigned < 1e-3 and p_max < 0.02,
+        f"{n_minor} frames ({unassigned:.1e}) in {len(minor_ids)} minor basin(s), "
+        f"largest {p_max:.1e} of all frames",
+        "every such basin < 2 % (min_state_population); total ≈ 0",
+        "< 0.1 % in total",
         "design: minor basins below --min-state-population are not merged",
     )
     return truth
@@ -527,16 +535,17 @@ if __name__ == "__main__":
         f"({time.time() - t_start:.0f} s). **{n_pass}/{n_tot} checks passed**, {n_skip} skipped.",
         "",
         "Each row compares a ConformAtlas quantity with an analytical result or an independent "
-        "implementation (MDAnalysis, GROMACS, pymbar, deeptime, SciPy, ProDy).",
+        "implementation (MDAnalysis, GROMACS, PLUMED, pymbar, deeptime, SciPy, ProDy).",
         "",
         "| Section | Check | Result | Measured | Expected | Tolerance | Reference |",
         "|---|---|---|---|---|---|---|",
     ]
     for r in RESULTS:
         flag = "skipped" if r["note"] == "skipped" else ("pass" if r["pass"] else "**FAIL**")
-        lines.append(
-            f"| {r['section']} | {r['check']} | {flag} | {r['measured']} | {r['expected']} | {r['tolerance']} | {r['reference']} |"
-        )
+        # escape "|" inside cells (|cos|, |Δλ| ...): unescaped pipes split the row on GitHub
+        cells = [r["section"], r["check"], flag, r["measured"], r["expected"], r["tolerance"]]
+        cells.append(r["reference"])
+        lines.append("| " + " | ".join(str(c).replace("|", "\\|") for c in cells) + " |")
     (OUT / "VALIDATION.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     # docs/benchmarks.md is rendered from results.json: regenerate it from THIS
     # run (inside checks_docs.run it would still reflect the previous report).

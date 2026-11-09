@@ -96,7 +96,7 @@ def test_conda_recipe_dependencies_match_pyproject():
 
 def test_tutorial_figures_exist_and_are_referenced():
     docs = ROOT / "docs"
-    tutorial = (docs / "tutorial_neuraminidase.md").read_text(encoding="utf-8")
+    tutorial = (docs / "tutorial_adk.md").read_text(encoding="utf-8")
     refs = re.findall(r"\]\((_static/tutorial/[^)]+)\)", tutorial)
     assert len(refs) >= 10
     for ref in refs:
@@ -107,7 +107,7 @@ def test_tutorial_figures_exist_and_are_referenced():
 
 def test_index_toctree_lists_new_pages():
     index = (ROOT / "docs" / "index.rst").read_text(encoding="utf-8")
-    for page in ("tutorial_neuraminidase", "faq", "benchmarks", "python_api", "contributing"):
+    for page in ("tutorial_adk", "faq", "benchmarks", "python_api", "contributing"):
         assert re.search(rf"^\s+{page}\s*$", index, re.M), page
 
 

@@ -63,16 +63,22 @@ venv.bak/
 .*_offsets.npz
 .*_offsets.lock
 
-# ConformAtlas default analysis and comparison outputs
+# ConformAtlas default analysis and comparison outputs (anchored to the repository root:
+# benchmarks/*/results/ hold tracked, pre-registered benchmark results)
 Outputs/
 FEL_output/
-results/
-results_*/
+/results/
+/results_*/
 *.log
+# README quick-start output
+/demo/
+# Public benchmark datasets (benchmarks/download_data.py default)
+benchmarks/data/
 
 # Example run outputs
 examples/**/Outputs/
 examples/**/FEL_output/
+examples/**/results/
 examples/**/results_*/
 
 # Local development / prompt files

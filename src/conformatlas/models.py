@@ -214,6 +214,9 @@ class ComparisonConfig:
     n_bootstrap: int = 200
     seed: int = 0
     bootstrap_mode: str = "fixed"  # 'fixed' | 'resegment'
+    # 'replicate': resample replicates, then blocks of frames inside each (default);
+    # 'frame': within-replicate block bootstrap only (1.0.x behaviour)
+    bootstrap_level: str = "replicate"
     # --- figures / report; None = keep the active module-level style ---
     fig_format: str | None = None
     colormap: str | None = None
@@ -229,6 +232,8 @@ class ComparisonConfig:
             raise ValueError(f"Temperature must be positive Kelvin (got {self.temperature})")
         if self.bootstrap_mode not in ("fixed", "resegment"):
             raise ValueError("bootstrap_mode must be 'fixed' or 'resegment'")
+        if self.bootstrap_level not in ("replicate", "frame"):
+            raise ValueError("bootstrap_level must be 'replicate' or 'frame'")
         if self.plotly_js not in (None, "inline", "cdn"):
             raise ValueError("plotly_js must be 'inline' or 'cdn'")
 
@@ -287,7 +292,7 @@ class ConvergenceResults:
 
     rmsip_halves: float  # Top modes overlap between 1st half and 2nd half
     progressive_overlap: dict[int, float]  # fraction (e.g. 25, 50, 75, 100) -> RMSIP
-    cosine_content: dict[int, float]  # PC index -> cosine content (0.0 to 1.0)
+    cosine_content: dict[int, float]  # PC index -> largest per-replicate cosine content (0-1)
     population_stability: pd.DataFrame | None = None
     pairwise_rmsip: pd.DataFrame | None = None
     sampling_assessment: str = "Insufficient evidence"
@@ -296,6 +301,8 @@ class ConvergenceResults:
     statistical_inefficiency: dict[str, dict[str, float]] = field(default_factory=dict)
     n_eff: dict[str, float] = field(default_factory=dict)
     equilibration: pd.DataFrame | None = None
+    # replicate -> {"PC1": c1, ...}; cosine content is defined per continuous trajectory
+    cosine_content_per_replicate: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass

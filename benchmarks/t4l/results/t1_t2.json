@@ -1,0 +1,393 @@
+{
+  "T0": {
+    "replicates": {
+      "ff99SBstar/md1us4": {
+        "frames": 10001,
+        "expected_frames": 10001,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.149423339121786,
+        "pass": true
+      },
+      "ff99SBstar/md1us5": {
+        "frames": 10001,
+        "expected_frames": 10001,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.157861685043515,
+        "pass": true
+      },
+      "ff99SBstar/md1us6": {
+        "frames": 10001,
+        "expected_frames": 10001,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.159866504365615,
+        "pass": true
+      },
+      "ff99SBstar/md1us7": {
+        "frames": 10001,
+        "expected_frames": 10001,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.1402052009332895,
+        "pass": true
+      },
+      "ff99SBstar/md1us8": {
+        "frames": 10001,
+        "expected_frames": 10001,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.125298161499384,
+        "pass": true
+      },
+      "ff15ipq/sim1": {
+        "frames": 10662,
+        "expected_frames": 10662,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.129727551435574,
+        "pass": true
+      },
+      "ff15ipq/sim2": {
+        "frames": 11368,
+        "expected_frames": 11368,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.170434724026191,
+        "pass": true
+      },
+      "ff15ipq/sim3": {
+        "frames": 12894,
+        "expected_frames": 12894,
+        "dt_ps": 100.0,
+        "atoms": 2612,
+        "max_consecutive_ca_A": 4.145107559631545,
+        "pass": true
+      }
+    },
+    "pass": true
+  },
+  "T1_calpha": {
+    "N": 50005,
+    "D": 486,
+    "replicate_frames": [
+      10001,
+      10001,
+      10001,
+      10001,
+      10001
+    ],
+    "tools": {
+      "ConformAtlas": {
+        "max_rel_eigenvalue_error": 2.1849138604189745e-14,
+        "max_explained_abs_error_pct": 2.842170943040401e-14,
+        "max_one_minus_cos_separated": 1.3322676295501878e-15,
+        "max_projection_err_over_sd_separated": 3.6412961217174906e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.6
+      },
+      "MDAnalysis": {
+        "max_rel_eigenvalue_error": 3.239833910882357e-09,
+        "max_explained_abs_error_pct": 2.3187368469734793e-08,
+        "max_one_minus_cos_separated": 1.9095836023552692e-14,
+        "max_projection_err_over_sd_separated": 8.746445470246438e-07,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "note": "MemoryReader holds float32 coordinates",
+        "seconds": 11.7
+      },
+      "ProDy": {
+        "max_rel_eigenvalue_error": 1.66277040447968e-14,
+        "max_explained_abs_error_pct": 4.263256414560601e-14,
+        "max_one_minus_cos_separated": 2.6645352591003757e-15,
+        "max_projection_err_over_sd_separated": 6.114073080065044e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 0.3
+      },
+      "scikit-learn PCA (full)": {
+        "max_rel_eigenvalue_error": 1.1130693251191002e-14,
+        "max_explained_abs_error_pct": 1.4210854715202004e-14,
+        "max_one_minus_cos_separated": 1.2212453270876722e-15,
+        "max_projection_err_over_sd_separated": 5.525496219778187e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 1.4
+      },
+      "scikit-learn PCA (auto)": {
+        "max_rel_eigenvalue_error": 3.732622640876204e-12,
+        "max_explained_abs_error_pct": 5.955200776952552e-10,
+        "max_one_minus_cos_separated": 1.9984014443252818e-15,
+        "max_projection_err_over_sd_separated": 1.5188374807473074e-10,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "gate": "informational (randomised solver)",
+        "seconds": 0.2
+      },
+      "GROMACS": {
+        "max_rel_eigenvalue_error": 1.6148583280444264e-05,
+        "max_explained_abs_error_pct": 0.000671492225094994,
+        "max_one_minus_cos_separated": 3.56041729432377e-09,
+        "max_projection_err_over_sd_separated": NaN,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 2.9
+      }
+    }
+  },
+  "T2": {
+    "32": {
+      "numpy": {
+        "occupied_in_both": 675,
+        "occupied_in_one_only": 0,
+        "max_abs_diff_kJ_mol": 3.050075747523806e-10,
+        "pass": true
+      },
+      "gmx_sham": {
+        "occupied_in_both": 675,
+        "occupied_in_one_only": 0,
+        "max_abs_diff_kJ_mol": 3.99037454563711e-05,
+        "pass": true
+      }
+    },
+    "64": {
+      "numpy": {
+        "occupied_in_both": 2250,
+        "occupied_in_one_only": 0,
+        "max_abs_diff_kJ_mol": 2.48165932248412e-10,
+        "pass": true
+      },
+      "gmx_sham": {
+        "occupied_in_both": 2250,
+        "occupied_in_one_only": 0,
+        "max_abs_diff_kJ_mol": 4.65962953750676e-05,
+        "pass": true
+      }
+    }
+  },
+  "T1_heavy": {
+    "N": 50005,
+    "D": 3879,
+    "replicate_frames": [
+      10001,
+      10001,
+      10001,
+      10001,
+      10001
+    ],
+    "tools": {
+      "ConformAtlas": {
+        "max_rel_eigenvalue_error": 2.577674051221871e-14,
+        "max_explained_abs_error_pct": 2.1649348980190553e-14,
+        "max_one_minus_cos_separated": 2.4424906541753444e-15,
+        "max_projection_err_over_sd_separated": 3.892938799454842e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 10.7
+      },
+      "MDAnalysis": {
+        "max_rel_eigenvalue_error": 2.08609066393123e-09,
+        "max_explained_abs_error_pct": 1.8257630074458575e-08,
+        "max_one_minus_cos_separated": 1.6653345369377348e-15,
+        "max_projection_err_over_sd_separated": 4.8095790172065706e-08,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "note": "MemoryReader holds float32 coordinates",
+        "seconds": 1229.4
+      },
+      "ProDy": {
+        "max_rel_eigenvalue_error": 3.1890454608065456e-14,
+        "max_explained_abs_error_pct": 3.552713678800501e-14,
+        "max_one_minus_cos_separated": 4.3298697960381105e-15,
+        "max_projection_err_over_sd_separated": 4.618946200868401e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 5.8
+      },
+      "scikit-learn PCA (full)": {
+        "max_rel_eigenvalue_error": 2.2306794674035424e-14,
+        "max_explained_abs_error_pct": 7.815970093361102e-14,
+        "max_one_minus_cos_separated": 3.552713678800501e-15,
+        "max_projection_err_over_sd_separated": 6.422147796200653e-13,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 43.7
+      },
+      "scikit-learn PCA (auto)": {
+        "max_rel_eigenvalue_error": 3.2983587015763784e-06,
+        "max_explained_abs_error_pct": 2.0842406275312086e-06,
+        "max_one_minus_cos_separated": 1.4926492476474706e-06,
+        "max_projection_err_over_sd_separated": 0.006092528730037753,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "gate": "informational (randomised solver)",
+        "seconds": 2.4
+      },
+      "GROMACS": {
+        "max_rel_eigenvalue_error": 4.378399572979217e-06,
+        "max_explained_abs_error_pct": 0.00041701704160601594,
+        "max_one_minus_cos_separated": 1.398466897839512e-10,
+        "max_projection_err_over_sd_separated": NaN,
+        "n_separated_modes": 10,
+        "separated_modes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "subspace_sine_nonseparated": NaN,
+        "pass": true,
+        "seconds": 116.2
+      }
+    }
+  }
+}

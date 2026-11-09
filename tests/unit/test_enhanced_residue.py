@@ -29,8 +29,8 @@ from conformatlas.residue_analysis import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-TOP = ROOT / "tests/data/h1n1_ca/neuraminidase_ca.pdb"
-TRJ = ROOT / "tests/data/h1n1_ca/neuraminidase_ca.xtc"
+TOP = ROOT / "tests/data/adk_ca/adk_ap5_ca.pdb"
+TRJ = ROOT / "tests/data/adk_ca/adk_ap5_ca.xtc"
 
 
 def _atom_table(n_res, chain="A"):
@@ -139,19 +139,19 @@ def test_state_residue_differences_detects_known_shift():
 
 
 # ----------------------------------------------------------------------------
-# contacts on the neuraminidase fixture
+# contacts on the ADK fixture (synthetic Ap5A placed from 1AKE)
 # ----------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
 def contacts():
-    return ligand_residue_contacts(TOP, TRJ, "resname ZMR", "protein", cutoff=4.5, use_pbc=False)
+    return ligand_residue_contacts(TOP, TRJ, "resname AP5", "protein", cutoff=4.5, use_pbc=False)
 
 
 def test_contacts_vs_brute_force(contacts):
     mda = pytest.importorskip("MDAnalysis")
     u = mda.Universe(str(TOP), str(TRJ))
-    lig = u.select_atoms("resname ZMR and not name H*")
+    lig = u.select_atoms("resname AP5 and not name H*")
     prot = u.select_atoms("protein and not name H*")
     resids = prot.resids
     uniq = list(dict.fromkeys(resids.tolist()))
@@ -179,7 +179,7 @@ def test_contact_persistence_and_binding_site(contacts):
     pw = contact_persistence(contacts, states, weights=w)
     np.testing.assert_allclose(pw["persistence_all"], pers["persistence_S1"])
     with pytest.raises(ValueError):
-        ligand_residue_contacts(TOP, TRJ, "resname ZMR", "resname ZMR")
+        ligand_residue_contacts(TOP, TRJ, "resname AP5", "resname AP5")
 
 
 def test_binding_site_rmsf_from_fitted_coordinates(contacts):
@@ -212,7 +212,7 @@ def test_write_outputs_and_plots(tmp_path, contacts):
     table = _atom_table(n_res)
     m = dccm(coords)
     diff = state_residue_differences(coords, table, states, "A", "B")
-    pers = contact_persistence(contacts, np.array(["A", "B"] * 40 + ["A"]))
+    pers = contact_persistence(contacts, np.array(["A", "B"] * 52 + ["A"]))  # 105 fixture frames
     written = write_residue_outputs(
         tmp_path / "residues", table, m, dccm_per_state(coords, states), diff, pers
     )
@@ -256,7 +256,7 @@ def test_analyze_residues_end_to_end(tmp_path):
         fa,
         tmp_path / "residues",
         ca,
-        ligand_selection="resname ZMR",
+        ligand_selection="resname AP5",
         reference_state="S1",
         figure_dir=tmp_path / "figures",
     )

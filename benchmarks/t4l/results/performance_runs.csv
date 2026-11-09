@@ -1,0 +1,84 @@
+compute_seconds,config,dataset,discarded_warmup,load1,peak_rss_gb,repeat,selection,status,top_eigenvalue,wall_seconds
+4.8621124271303415,ConformAtlas 1.0.2 (released code),pooled100,True,3.921875,0.961724,0,calpha,ok,129159.88576720255,5.06
+4.796088283183053,ConformAtlas 1.0.2 (released code),pooled100,False,3.92822265625,0.962012,1,calpha,ok,129159.88576720255,4.99
+4.733019510982558,ConformAtlas 1.0.2 (released code),pooled100,False,3.853515625,0.962724,2,calpha,ok,129159.88576720255,4.92
+4.798210534034297,ConformAtlas 1.0.2 (released code),pooled100,False,3.705078125,0.961432,3,calpha,ok,129159.88576720255,5.0
+4.791376111796126,ConformAtlas perf branch (Lanczos PCA),pooled100,True,3.72900390625,0.866184,0,calpha,ok,129159.88576720255,4.98
+4.80010969704017,ConformAtlas perf branch (Lanczos PCA),pooled100,False,3.59033203125,0.86548,1,calpha,ok,129159.88576720255,4.99
+4.845823730807751,ConformAtlas perf branch (Lanczos PCA),pooled100,False,3.462890625,0.866332,2,calpha,ok,129159.88576720255,5.05
+4.7959204718936235,ConformAtlas perf branch (Lanczos PCA),pooled100,False,3.345703125,0.866044,3,calpha,ok,129159.88576720255,5.01
+9.783380386885256,ConformAtlas streaming engine (released code),pooled100,True,3.23779296875,0.215072,0,calpha,ok,129159.88576720249,9.98
+10.593706594081596,ConformAtlas streaming engine (released code),pooled100,False,3.9580078125,0.214748,1,calpha,ok,129159.88576720249,10.79
+10.743516513844952,ConformAtlas streaming engine (released code),pooled100,False,4.4931640625,0.215076,2,calpha,ok,129159.88576720249,10.95
+10.84541838010773,ConformAtlas streaming engine (released code),pooled100,False,5.80810546875,0.215112,3,calpha,ok,129159.88576720249,11.04
+4.247840496012941,NumPy dense covariance + eigh,pooled100,True,7.43212890625,0.609724,0,calpha,ok,129159.88576720259,4.38
+4.234796636039391,NumPy dense covariance + eigh,pooled100,False,7.0771484375,0.610316,1,calpha,ok,129159.88576720259,4.36
+4.251488915877417,NumPy dense covariance + eigh,pooled100,False,7.0771484375,0.610288,2,calpha,ok,129159.88576720259,4.38
+4.228332901839167,NumPy dense covariance + eigh,pooled100,False,6.67041015625,0.609784,3,calpha,ok,129159.88576720259,4.35
+23.486036986811087,MDAnalysis PCA,pooled100,True,6.29638671875,0.145752,0,calpha,ok,129162.46881796629,23.61
+22.810059214010835,MDAnalysis PCA,pooled100,False,5.10693359375,0.145416,1,calpha,ok,129162.46881796629,22.93
+22.98499620403163,MDAnalysis PCA,pooled100,False,4.3837890625,0.144828,2,calpha,ok,129162.46881796629,23.11
+22.824065412860364,MDAnalysis PCA,pooled100,False,3.8984375,0.145408,3,calpha,ok,129162.46881796629,22.95
+4.678335438016802,ProDy PCA (coordinates read with MDAnalysis),pooled100,True,3.53515625,0.65524,0,calpha,ok,129159.88576720253,4.84
+4.642906483029947,ProDy PCA (coordinates read with MDAnalysis),pooled100,False,3.4921875,0.654664,1,calpha,ok,129159.88576720253,4.83
+4.653589874040335,ProDy PCA (coordinates read with MDAnalysis),pooled100,False,3.533203125,0.654944,2,calpha,ok,129159.88576720253,4.83
+4.690406996989623,ProDy PCA (coordinates read with MDAnalysis),pooled100,False,3.57080078125,0.654636,3,calpha,ok,129159.88576720253,4.87
+4.714235669001937,MDTraj + scikit-learn PCA (auto solver),pooled100,True,3.44482421875,0.423812,0,calpha,ok,1291.622314453125,4.96
+4.711110466858372,MDTraj + scikit-learn PCA (auto solver),pooled100,False,3.4091796875,0.425088,1,calpha,ok,1291.622314453125,4.97
+4.677810705965385,MDTraj + scikit-learn PCA (auto solver),pooled100,False,3.45654296875,0.424992,2,calpha,ok,1291.622314453125,4.91
+4.7313253111205995,MDTraj + scikit-learn PCA (auto solver),pooled100,False,3.50048828125,0.454788,3,calpha,ok,1291.622314453125,5.0
+5.135052851866931,MDTraj + scikit-learn PCA (full solver),pooled100,True,3.2998046875,0.617912,0,calpha,ok,1291.6241455078125,5.38
+5.058546039974317,MDTraj + scikit-learn PCA (full solver),pooled100,False,3.43603515625,0.618028,1,calpha,ok,1291.6241455078125,5.3
+5.154530223924667,MDTraj + scikit-learn PCA (full solver),pooled100,False,3.6416015625,0.618176,2,calpha,ok,1291.6241455078125,5.42
+5.097112433984876,MDTraj + scikit-learn PCA (full solver),pooled100,False,3.67041015625,0.617724,3,calpha,ok,1291.6241455078125,5.35
+9.948946940014139,GROMACS covar + anaeig,pooled100,True,3.697265625,0.029648,0,calpha,ok,,16.31
+9.925321662100032,GROMACS covar + anaeig,pooled100,False,3.39404296875,0.029696,1,calpha,ok,,16.29
+9.920098430011421,GROMACS covar + anaeig,pooled100,False,3.6767578125,0.029732,2,calpha,ok,,16.26
+9.988463653018698,GROMACS covar + anaeig,pooled100,False,3.36083984375,0.02978,3,calpha,ok,,16.37
+13.243667506147176,ConformAtlas 1.0.2 (released code),pooled100,True,3.34228515625,6.856332,0,heavy,ok,1028151.1182718748,13.44
+12.443505730945617,ConformAtlas 1.0.2 (released code),pooled100,False,3.78759765625,6.856152,1,heavy,ok,1028151.1182718748,12.65
+14.311252601910383,ConformAtlas 1.0.2 (released code),pooled100,False,4.22705078125,6.855548,2,heavy,ok,1028151.1182718748,14.52
+12.661347546847537,ConformAtlas 1.0.2 (released code),pooled100,False,4.9453125,6.855956,3,heavy,ok,1028151.1182718748,12.85
+9.488405509851873,ConformAtlas perf branch (Lanczos PCA),pooled100,True,5.10986328125,4.839864,0,heavy,ok,1028151.1182718745,9.7
+9.600789727177471,ConformAtlas perf branch (Lanczos PCA),pooled100,False,5.42578125,4.839972,1,heavy,ok,1028151.1182718745,9.8
+9.498847589828074,ConformAtlas perf branch (Lanczos PCA),pooled100,False,5.4599609375,4.840064,2,heavy,ok,1028151.1182718745,9.69
+9.381716704927385,ConformAtlas perf branch (Lanczos PCA),pooled100,False,5.3427734375,4.840544,3,heavy,ok,1028151.1182718745,9.59
+36.76565998606384,ConformAtlas streaming engine (released code),pooled100,True,5.4443359375,1.411004,0,heavy,ok,1028151.1182718753,36.97
+35.476045762887225,ConformAtlas streaming engine (released code),pooled100,False,7.41845703125,1.41088,1,heavy,ok,1028151.1182718753,35.69
+35.42462294502184,ConformAtlas streaming engine (released code),pooled100,False,9.2431640625,1.411208,2,heavy,ok,1028151.1182718753,35.64
+35.99331257794984,ConformAtlas streaming engine (released code),pooled100,False,11.00341796875,1.41508,3,heavy,ok,1028151.1182718753,36.21
+10.982995036058128,NumPy dense covariance + eigh,pooled100,True,10.8779296875,3.75932,0,heavy,ok,1028151.1182718755,11.12
+12.181525147985667,NumPy dense covariance + eigh,pooled100,False,10.37451171875,3.758244,1,heavy,ok,1028151.1182718755,12.32
+12.06436943099834,NumPy dense covariance + eigh,pooled100,False,10.01025390625,3.758756,2,heavy,ok,1028151.1182718755,12.23
+12.36947170109488,NumPy dense covariance + eigh,pooled100,False,9.41943359375,3.758872,3,heavy,ok,1028151.1182718755,12.51
+1221.5715655379463,MDAnalysis PCA,pooled100,True,9.07275390625,0.97188,0,heavy,ok,1028171.6799707536,1221.7
+1145.0029520560056,MDAnalysis PCA,pooled100,False,9.46875,0.971912,1,heavy,ok,1028171.6799707536,1145.11
+1166.6394341990817,MDAnalysis PCA,pooled100,False,8.73388671875,0.9723,2,heavy,ok,1028171.6799707536,1166.75
+1185.5882790158503,MDAnalysis PCA,pooled100,False,11.244140625,0.971768,3,heavy,ok,1028171.6799707536,1185.7
+9.649626586120576,ProDy PCA (coordinates read with MDAnalysis),pooled100,True,9.24560546875,3.432156,0,heavy,ok,1028151.1182718748,9.8
+9.333457113010809,ProDy PCA (coordinates read with MDAnalysis),pooled100,False,8.69189453125,3.43136,1,heavy,ok,1028151.1182718748,9.49
+9.709117932943627,ProDy PCA (coordinates read with MDAnalysis),pooled100,False,8.07568359375,3.43194,2,heavy,ok,1028151.1182718748,9.88
+9.875034474069253,ProDy PCA (coordinates read with MDAnalysis),pooled100,False,7.28857421875,3.431204,3,heavy,ok,1028151.1182718748,10.04
+6.235454343026504,MDTraj + scikit-learn PCA (auto solver),pooled100,True,6.6220703125,1.808024,0,heavy,ok,10281.7158203125,6.44
+6.257823023945093,MDTraj + scikit-learn PCA (auto solver),pooled100,False,5.99072265625,1.808276,1,heavy,ok,10281.7158203125,6.45
+6.190226366976276,MDTraj + scikit-learn PCA (auto solver),pooled100,False,5.8310546875,1.807804,2,heavy,ok,10281.7158203125,6.39
+6.31649117404595,MDTraj + scikit-learn PCA (auto solver),pooled100,False,5.52392578125,1.80762,3,heavy,ok,10281.7158203125,6.52
+23.55918595404364,MDTraj + scikit-learn PCA (full solver),pooled100,True,5.623046875,3.49068,0,heavy,ok,10281.701171875,23.77
+24.655327189015225,MDTraj + scikit-learn PCA (full solver),pooled100,False,6.80419921875,3.491412,1,heavy,ok,10281.701171875,24.91
+23.538317101076245,MDTraj + scikit-learn PCA (full solver),pooled100,False,6.9375,3.490764,2,heavy,ok,10281.701171875,23.75
+24.97339844191447,MDTraj + scikit-learn PCA (full solver),pooled100,False,6.87158203125,3.490764,3,heavy,ok,10281.701171875,25.23
+116.44792500697076,GROMACS covar + anaeig,pooled100,True,7.36669921875,0.132648,0,heavy,ok,,123.17
+111.53877314599231,GROMACS covar + anaeig,pooled100,False,3.0859375,0.132496,1,heavy,ok,,117.83
+118.80158460582606,GROMACS covar + anaeig,pooled100,False,4.10205078125,0.132276,2,heavy,ok,,125.88
+118.78777589509264,GROMACS covar + anaeig,pooled100,False,4.89892578125,0.132264,3,heavy,ok,,125.13
+88.84190602810122,ConformAtlas 1.0.2 (released code),md1us4_1ps,False,3.53466796875,15.385532,0,calpha,ok,36186.42319698795,89.06
+81.29691799497232,ConformAtlas perf branch (Lanczos PCA),md1us4_1ps,False,2.625,12.679784,0,calpha,ok,36186.42319698795,81.54
+178.1664524800144,ConformAtlas streaming engine (released code),md1us4_1ps,False,3.25634765625,0.320848,0,calpha,ok,36186.42319698791,178.35
+71.11270923004486,NumPy dense covariance + eigh,md1us4_1ps,False,6.7392578125,8.816468,0,calpha,ok,36186.42319698792,71.24
+447.97900229296647,MDAnalysis PCA,md1us4_1ps,False,3.9482421875,0.282012,0,calpha,ok,36186.45932236446,448.1
+73.5688398659695,ProDy PCA (coordinates read with MDAnalysis),md1us4_1ps,False,2.91796875,8.857272,0,calpha,ok,36186.423196987926,73.77
+69.60609191004187,MDTraj + scikit-learn PCA (auto solver),md1us4_1ps,False,2.87841796875,4.131108,0,calpha,ok,361.72186279296875,69.85
+83.33777993894182,MDTraj + scikit-learn PCA (full solver),md1us4_1ps,False,2.677734375,7.87306,0,calpha,ok,361.86474609375,83.57
+198.60068318108097,GROMACS covar + anaeig,md1us4_1ps,False,3.8310546875,0.072872,0,calpha,ok,,198.69
+594.6623079117853,ConformAtlas streaming engine (released code),md1us4_1ps,False,2.19970703125,0.971312,0,heavy,ok,280999.81852513505,594.83
+1583.910970651079,GROMACS covar + anaeig,md1us4_1ps,False,10.583984375,0.132708,0,heavy,ok,,1584.0

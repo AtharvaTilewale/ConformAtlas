@@ -124,6 +124,10 @@ def compute_convergence_diagnostics(
     frame_assignments_df: pd.DataFrame,
     n_modes: int = 10,
     fractions: tuple[int, ...] = (25, 50, 75, 100),
+    cv_source: pd.DataFrame | None = None,
+    cv_columns: tuple[str, str] = ("PC1", "PC2"),
+    weights: np.ndarray | None = None,
+    cv_labels: tuple[str, str] | None = None,
 ) -> ConvergenceResults:
     """Run sampling / convergence diagnostics across all replicates.
 
@@ -142,7 +146,15 @@ def compute_convergence_diagnostics(
       100 % entry is computed like the others and equals 1 by construction; it is
       kept as the end point of the curve.
     * ``population_stability`` evaluates state populations on the first f % of
-      every replicate (true cumulative simulation time, not table order).
+      every replicate (true cumulative simulation time, not table order), weighted
+      by ``weights`` (per frame of ``frame_assignments_df``) when given.
+    * The statistical inefficiency g and N_eff are computed on the two coordinates
+      that span the landscape: columns ``cv_columns`` of ``cv_source`` (default:
+      PC1/PC2 of ``projections_df``), reported under ``cv_labels`` (default: the
+      column names). They also set the bootstrap block length.
+    * The cosine content (Hess 2002) is defined for one continuous trajectory, so it
+      is computed per replicate; ``cosine_content`` holds the largest value over
+      replicates for each PC and ``cosine_content_per_replicate`` the individual ones.
     """
     have_coords = bool(coords_dict)
     coords_dict = coords_dict or {}
@@ -197,34 +209,53 @@ def compute_convergence_diagnostics(
     # ---- Statistical inefficiency / effective sample size -------------------
     ineff: dict[str, dict[str, float]] = {}
     n_eff: dict[str, float] = {}
-    if "replicate" in projections_df.columns:
-        for rep, rep_df in projections_df.groupby("replicate", sort=False):
+    g_df = projections_df if cv_source is None else cv_source
+    labels = tuple(cv_labels) if cv_labels is not None else tuple(cv_columns)
+    if "replicate" in g_df.columns:
+        for rep, rep_df in g_df.groupby("replicate", sort=False):
             entry = {}
-            for col in ("PC1", "PC2"):
+            for col, lab in zip(cv_columns, labels):
                 if col in rep_df.columns:
-                    entry[col] = statistical_inefficiency(rep_df[col].to_numpy())
+                    entry[lab] = statistical_inefficiency(rep_df[col].to_numpy())
             ineff[str(rep)] = entry
             g_max = max(entry.values()) if entry else 1.0
             n_eff[str(rep)] = len(rep_df) / g_max
     total_n_eff = float(sum(n_eff.values())) if n_eff else float(len(projections_df))
 
-    # ---- Cosine content of the leading projections --------------------------
+    # ---- Cosine content of the leading projections (per replicate) ----------
     cosine_dict: dict[int, float] = {}
+    cosine_per_rep: dict[str, dict[str, float]] = {}
+    groups = (
+        list(projections_df.groupby("replicate", sort=False))
+        if "replicate" in projections_df.columns
+        else [("all", projections_df)]
+    )
+    for rep, rep_df in groups:
+        entry = {}
+        for i in range(1, 6):
+            col = f"PC{i}"
+            if col in rep_df.columns and len(rep_df) >= 2:
+                entry[col] = calculate_cosine_content(rep_df[col].to_numpy(), period_k=1)
+        cosine_per_rep[str(rep)] = entry
     for i in range(1, 6):
-        col = f"PC{i}"
-        if col in projections_df.columns:
-            cosine_dict[i] = calculate_cosine_content(projections_df[col].to_numpy(), period_k=1)
+        vals = [e[f"PC{i}"] for e in cosine_per_rep.values() if f"PC{i}" in e]
+        if vals:
+            cosine_dict[i] = float(max(vals))
 
     # ---- State population stability (cumulative time per replicate) ---------
     pop_stability_records = []
     major_states = [st for st in frame_assignments_df["state"].unique() if st != "Unassigned"]
+    fa_w = frame_assignments_df
+    if weights is not None:
+        fa_w = frame_assignments_df.assign(_weight=np.asarray(weights, dtype=float))
     for frac in fractions:
-        subset = _cumulative_fraction_per_replicate(frame_assignments_df, frac / 100.0)
+        subset = _cumulative_fraction_per_replicate(fa_w, frac / 100.0)
         tot_sub = len(subset)
         row = {"Fraction_Percent": int(frac), "Frames": tot_sub}
+        w_sub = subset["_weight"].to_numpy() if weights is not None else np.ones(tot_sub)
         for st in major_states:
-            st_cnt = int(np.sum(subset["state"] == st))
-            row[st] = (st_cnt / tot_sub) * 100.0 if tot_sub else float("nan")
+            in_st = (subset["state"] == st).to_numpy()
+            row[st] = 100.0 * w_sub[in_st].sum() / w_sub.sum() if w_sub.sum() > 0 else float("nan")
         pop_stability_records.append(row)
     pop_stability_df = pd.DataFrame(pop_stability_records)
 
@@ -265,7 +296,8 @@ def compute_convergence_diagnostics(
 
     if n_eff:
         notes.append(
-            f"Effective number of independent samples along PC1/PC2: {total_n_eff:.0f} of "
+            f"Effective number of independent samples along the landscape coordinates "
+            f"({'/'.join(labels)}): {total_n_eff:.0f} of "
             f"{len(projections_df)} frames (statistical inefficiency "
             + ", ".join(f"{r}: g={max(v.values()):.1f}" for r, v in ineff.items())
             + " frames)."
@@ -286,7 +318,9 @@ def compute_convergence_diagnostics(
         notes.append(
             "Subspace-overlap diagnostics (RMSIP) need the fitted coordinates and are not "
             "available for this run (GROMACS PCA backend, streaming engine or re-analysis of "
-            "stored results); the verdict rests on N_eff and cosine content only."
+            "stored results). The verdict requires a half-vs-half RMSIP, so without it the "
+            "assessment cannot exceed 'Insufficient evidence'; N_eff and cosine content are "
+            "reported for information."
         )
     else:
         notes.append("Half-vs-half RMSIP could not be evaluated (too few frames).")
@@ -323,6 +357,7 @@ def compute_convergence_diagnostics(
         rmsip_halves_per_replicate=per_rep_halves,
         statistical_inefficiency=ineff,
         n_eff=n_eff,
+        cosine_content_per_replicate=cosine_per_rep,
     )
 
 
@@ -352,8 +387,20 @@ def save_convergence_results(conv: ConvergenceResults, output_dir: str | Path) -
     pd.DataFrame(rmsip_rows).to_csv(conv_dir / "rmsip.csv", index=False)
 
     # cosine_content.csv
+    # Cosine_Content is the largest per-replicate value; with several replicates the
+    # individual values follow in one column per replicate
+    per_rep = (
+        conv.cosine_content_per_replicate if len(conv.cosine_content_per_replicate) > 1 else {}
+    )
     cosine_df = pd.DataFrame(
-        [{"PC": f"PC{pc}", "Cosine_Content": val} for pc, val in conv.cosine_content.items()]
+        [
+            {
+                "PC": f"PC{pc}",
+                "Cosine_Content": val,
+                **{rep: e.get(f"PC{pc}", np.nan) for rep, e in per_rep.items()},
+            }
+            for pc, val in conv.cosine_content.items()
+        ]
     )
     cosine_df.to_csv(conv_dir / "cosine_content.csv", index=False)
 

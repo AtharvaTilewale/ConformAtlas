@@ -12,9 +12,10 @@ Three entry points:
   an addition for programmatic reuse.
 * :func:`load_results_dir` — rebuild an ``AnalysisResults`` from an existing
   results directory (``pca/``, ``fel/``, ``states/``, ``statistics/``,
-  ``convergence/``, ``kinetics/``, ``run_metadata.json``). Eigenvectors are not
-  written by the pipeline, so ``pca.eigenvectors`` is empty after this route;
-  everything needed to re-bin or re-segment the landscape is recovered.
+  ``convergence/``, ``kinetics/``, ``run_metadata.json``). ``pca.eigenvectors``
+  is read from ``pca/eigenvectors.npy`` when the run wrote it (in-memory engine
+  with Cartesian PCA) and is empty otherwise; everything needed to re-bin or
+  re-segment the landscape is recovered.
 * :func:`rebin` — recompute the free-energy landscape, basins, barriers and
   population statistics from the stored collective variables with new ``bins``
   / ``smooth_sigma`` without touching the PCA. Validated to equal a fresh run
@@ -448,9 +449,10 @@ def load_results_dir(path: str | Path) -> AnalysisResults:
         cumulative = ev["CumulativeVariance_Percent"].to_numpy(dtype=float)
     else:
         eigenvalues = explained = cumulative = np.array([])
+    evec_file = root / "pca" / "eigenvectors.npy"
     pca = PCAResults(
         eigenvalues=eigenvalues,
-        eigenvectors=np.empty((0, 0)),
+        eigenvectors=np.load(evec_file) if evec_file.is_file() else np.empty((0, 0)),
         explained_variance=explained,
         cumulative_variance=cumulative,
         projections=proj,
@@ -540,6 +542,11 @@ def load_results_dir(path: str | Path) -> AnalysisResults:
         if cos is not None
         else {}
     )
+    cos_per_rep: dict[str, dict[str, float]] = {}
+    if cos is not None:
+        for c in cos.columns:
+            if c not in ("PC", "Cosine_Content"):
+                cos_per_rep[str(c)] = {str(r["PC"]): float(r[c]) for _, r in cos.iterrows()}
     prog = _read_csv(conv_dir / "progressive_overlap.csv")
     progressive = (
         {int(r["Fraction_Percent"]): float(r["Subspace_RMSIP"]) for _, r in prog.iterrows()}
@@ -565,6 +572,7 @@ def load_results_dir(path: str | Path) -> AnalysisResults:
         statistical_inefficiency=ineff,
         n_eff=n_eff,
         equilibration=_read_csv(conv_dir / "equilibration.csv"),
+        cosine_content_per_replicate=cos_per_rep,
     )
 
     # ---- statistics / extras ------------------------------------------------

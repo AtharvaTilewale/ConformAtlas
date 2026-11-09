@@ -16,17 +16,16 @@ builds a pure-Python `noarch: python` package from the PyPI source distribution.
   conda-forge, plus a smoke test of the installed CLI (`--version`, `--help`,
   `doctor`, then `example` and `analyze` on the package's own synthetic dataset).
 
-## Submission status
+## Feedstock
 
-Submitted as https://github.com/conda-forge/staged-recipes/pull/35139. After the
-merge, the feedstock `conda-forge/conformatlas-feedstock` is created and the
-maintainers listed under `extra: recipe-maintainers` are invited to it.
+The recipe was accepted in conda-forge/staged-recipes#35139 (merged 2026-10-20); the
+package is built by https://github.com/conda-forge/conformatlas-feedstock.
 
 ## Releasing a new version
 
 1. Publish the new version on PyPI (a GitHub release triggers `publish.yml`).
-2. After the merge of the first submission, the conda-forge bot opens a pull
-   request in the feedstock that updates `version` and `sha256`. Check that the
+2. The conda-forge bot opens a pull request in the feedstock that updates
+   `version` and `sha256`. Check that the
    dependency list still matches `pyproject.toml`, wait for CI and merge.
 3. Keep `recipe.yaml` in this directory in step with the feedstock; the test
    `test_conda_recipe_dependencies_match_pyproject` checks the dependency list

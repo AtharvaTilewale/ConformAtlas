@@ -15,6 +15,7 @@ existing output directory (rebin / resegment / MSM) without reading trajectories
 from __future__ import annotations
 
 import datetime
+import gc
 import logging
 import shutil
 import sys
@@ -402,12 +403,40 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
         gmx_version = gmx_runner.version
         echo(f"GROMACS found: {gmx_runner.gmx_path} ({gmx_version})")
     except Exception as e:
-        if config.fel_backend == "gromacs" or config.pca_backend == "gromacs":
+        if config.pca_backend == "gromacs":
             raise RuntimeError(f"GROMACS backend requested but no executable found: {e}") from e
+
+    if config.fel_backend == "gromacs":
+        msg = (
+            "--fel-backend gromacs is deprecated and has no effect: the free-energy landscape "
+            "is always computed in Python (the same estimator as gmx sham, see docs/methods.md). "
+            "The option will be removed in 2.0."
+        )
+        warnings_.append(msg)
+        echo(f"  WARNING: {msg}")
 
     use_python = HAS_MDANALYSIS and config.pca_backend != "gromacs"
     if not use_python and gmx_runner is None:
         raise RuntimeError("Either MDAnalysis or GROMACS must be installed.")
+    if not use_python:
+        # gmx trjcat/covar/anaeig are run on the complete trajectories, so a frame
+        # selection would be recorded in run_metadata.json without being applied
+        unsupported = [
+            name
+            for name, used in (
+                ("-b/--begin", config.begin_ps is not None),
+                ("-e/--end", config.end_ps is not None),
+                ("--stride", config.stride > 1),
+                ("--equilibration auto", config.equilibration == "auto"),
+            )
+            if used
+        ]
+        if unsupported:
+            raise ValueError(
+                f"{', '.join(unsupported)} cannot be used with --pca-backend gromacs: the GROMACS "
+                "backend analyses every frame of every trajectory. Pre-filter the trajectories "
+                "(gmx trjconv -b/-e/-skip) or use the Python backend."
+            )
     if config.pca_backend == "python" and not HAS_MDANALYSIS:
         raise MissingDependencyError(
             "MDAnalysis",
@@ -576,6 +605,13 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
         for rep_id in rep_ids:
             t = times_dict[rep_id]
             echo(f"  • {rep_id}: {len(t)} frames kept ({t[0]:.0f}-{t[-1]:.0f} ps)")
+        n_kept = sum(len(t) for t in times_dict.values())
+        if n_kept < 2:
+            raise ValueError(
+                f"Only {n_kept} frame in total falls in the time window "
+                f"[{config.begin_ps}, {config.end_ps}] ps with stride {config.stride}; "
+                "at least 2 frames are needed. Widen -b/-e or reduce --stride."
+            )
 
     # -------------------------------------------------------- equilibration
     # Stage A: fit-group RMSD (or Rg without superposition), (default observable).
@@ -616,10 +652,14 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
                 echo(f"  NOTE: {msg}")
         if use_streaming and config.equilibration == "auto" and any(t0_stage_a.values()):
             # Re-read with a per-replicate production start so the covariance excludes the transient.
-            begin_map = {
-                rep: float(times_dict[rep][t0]) for rep, t0 in t0_stage_a.items() if t0 > 0
-            }
+            # every replicate gets its own start: replicates without a transient keep the
+            # first frame of the requested window (-b), not frame 0 of the file
+            begin_map = {rep: float(times_dict[rep][t0_stage_a.get(rep, 0)]) for rep in times_dict}
             echo("  • Streaming engine: re-reading from the production start of each replicate")
+            # release the memory map of pca/projections.npy first: Windows cannot
+            # rewrite a file that is still mapped
+            del spca
+            gc.collect()
             spca = _stream(begin_map)
             times_dict = dict(spca.times)
             fit_rmsd_dict = dict(spca.fit_rmsd)
@@ -627,6 +667,11 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
         warnings_.append(
             "Equilibration detection needs the fit-group RMSD with the streaming engine; "
             "run with --fit or --engine memory to detect the transient."
+        )
+    if not use_python:
+        warnings_.append(
+            "Equilibration detection is not run with the GROMACS PCA backend; the initial "
+            "transient was not assessed (use the Python backend to detect it)."
         )
 
     # ------------------------------------------------------- decomposition
@@ -691,7 +736,11 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
                     f"(t0 = {times_dict[rep][t0]:.0f} ps); refitting the decomposition"
                 )
             if use_streaming:
-                begin_map = {rep: float(times_dict[rep][t0]) for rep, t0 in extra.items()}
+                begin_map = {rep: float(times_dict[rep][extra.get(rep, 0)]) for rep in times_dict}
+                # release the memory map of pca/projections.npy first: Windows cannot
+                # rewrite a file that is still mapped
+                del spca
+                gc.collect()
                 spca = _stream(begin_map)
                 times_dict = dict(spca.times)
                 fit_rmsd_dict = dict(spca.fit_rmsd)
@@ -803,8 +852,17 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
 
     # -------------------------------------------------------- convergence
     echo("Step 5: Sampling and convergence diagnostics")
+    # g and N_eff on the two coordinates that span the landscape (they also set the
+    # bootstrap block length); PC landscapes keep their PC labels
     conv = compute_convergence_diagnostics(
-        feature_dict or None, projections, frame_assignments, n_modes=config.convergence_modes
+        feature_dict or None,
+        projections,
+        frame_assignments,
+        n_modes=config.convergence_modes,
+        cv_source=cv_df,
+        cv_columns=("CV1", "CV2"),
+        cv_labels=tuple(f"PC{i}" for i in config.fel_pcs) if config.cv == "pc" else None,
+        weights=weights,
     )
     conv.equilibration = equil_df
     save_convergence_results(conv, out_dir)
@@ -857,7 +915,14 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
 
     # ------------------------------------------------------------- MSM
     msm_res = None
-    if config.msm and states:
+    if config.msm and states and weights is not None:
+        msg = (
+            "MSM skipped: per-frame weights indicate biased sampling, whose time ordering is "
+            "not physical (the same reason the lag-one kinetics are skipped)."
+        )
+        warnings_.append(msg)
+        echo(f"  WARNING: {msg}")
+    elif config.msm and states:
         msm_res = _run_msm(config, frame_assignments, states, dt_ps, out_dir, extras, echo)
 
     # --------------------------------------------------------- structures
@@ -1001,6 +1066,7 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
         "tica_lag_frames": config.tica_lag if config.pca_type == "tica" else None,
         "pca_weighting": config.pca_weighting,
         "pca_backend": "python" if use_python else "gromacs",
+        "fel_backend": "python",
         "engine": "streaming" if use_streaming else ("memory" if use_python else "gromacs"),
         "precision": config.precision if use_streaming else "float64",
         "n_workers": config.n_workers if use_streaming else 1,
@@ -1895,8 +1961,18 @@ def _run_from_results(config: AnalysisConfig, echo: Echo) -> AnalysisResults:
 
     # ---- convergence (projection-based parts recomputed; RMSIP needs coordinates) -----
     echo("Step 3: Sampling diagnostics from the stored projections")
+    stored_pcs = cv_meta.get("fel_pcs", list(config.fel_pcs))
     conv = compute_convergence_diagnostics(
-        None, proj, frame_assignments, n_modes=config.convergence_modes
+        None,
+        proj,
+        frame_assignments,
+        n_modes=config.convergence_modes,
+        cv_source=frame_assignments,
+        cv_columns=("CV1", "CV2"),
+        cv_labels=tuple(f"PC{i}" for i in stored_pcs)
+        if cv_meta.get("mode", "pc") == "pc"
+        else None,
+        weights=weights,
     )
     conv.equilibration = base.convergence.equilibration
     # keep the coordinate-based numbers of the original run, which binning does not change
@@ -1954,7 +2030,14 @@ def _run_from_results(config: AnalysisConfig, echo: Echo) -> AnalysisResults:
     save_uncertainty_results(summary_pop_df, detailed_pop_df, out_dir)
     kinetics = _run_kinetics(frame_assignments, states, weights, dt_ps, out_dir, extras, echo)
     msm_res = None
-    if config.msm and states:
+    if config.msm and states and weights is not None:
+        msg = (
+            "MSM skipped: per-frame weights indicate biased sampling, whose time ordering is "
+            "not physical (the same reason the lag-one kinetics are skipped)."
+        )
+        warnings_.append(msg)
+        echo(f"  WARNING: {msg}")
+    elif config.msm and states:
         msm_res = _run_msm(config, frame_assignments, states, dt_ps, out_dir, extras, echo)
 
     # ---- representative structures (only when the inputs still exist) ------

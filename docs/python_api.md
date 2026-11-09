@@ -4,8 +4,8 @@ The command line is a thin wrapper around library functions. Everything
 `conformatlas analyze` does is available as
 `conformatlas.pipeline.run_analysis(config)`, and the individual steps (PCA,
 landscape, basins, bootstrap, kinetics, convergence) are plain functions on NumPy
-arrays that can be used on their own. The generated reference for every module is
-in [API Reference](api.rst); this page explains how the pieces fit together.
+arrays that can be used on their own. The generated reference for the library modules is
+in [API Reference](api.rst) (the CLI, report and plotting internals are not included); this page explains how the pieces fit together.
 
 ```{contents}
 :local:
@@ -21,17 +21,17 @@ from conformatlas.models import AnalysisConfig
 from conformatlas.pipeline import run_analysis
 
 cfg = AnalysisConfig(
-    topology="tests/data/h1n1_ca/neuraminidase_ca.pdb",
-    trajectories=["tests/data/h1n1_ca/neuraminidase_ca.xtc"],
+    topology="tests/data/adk_ca/adk_ap5_ca.pdb",
+    trajectories=["tests/data/adk_ca/adk_ap5_ca.xtc"],
     temperature=300.0,
-    index_file="tests/data/h1n1_ca/index.ndx",
+    index_file="tests/data/adk_ca/index.ndx",
     lsq_group="C-alpha",
     cov_group="C-alpha",
-    lig_group="ZMR",
+    lig_group="AP5",
     bins=12,
     n_bootstrap=50,
     output_dir=Path("tutorial/api_run"),
-    system_name="NA-zanamivir",
+    system_name="ADK-Ap5A",
 )
 results = run_analysis(cfg)
 
@@ -43,10 +43,9 @@ print(sorted(p.name for p in results.output_dir.iterdir() if p.is_dir()))
 ```
 
 ```text
-[25.9 12.1]
-State A 46.9 0.63
-State B 39.5 -0.0
-Insufficient evidence 3.1
+[46.9 15. ]
+State A 91.4 -0.0
+Good evidence of stability 68.5
 ['convergence', 'descriptors', 'fel', 'figures', 'kinetics', 'pca', 'states', 'statistics']
 ```
 
@@ -95,7 +94,7 @@ Python.
 | `convergence` | `ConvergenceResults` | `rmsip_halves`, `progressive_overlap`, `cosine_content`, `population_stability`, `statistical_inefficiency`, `n_eff`, `equilibration`, `sampling_assessment`, `assessment_notes` |
 | `replicate_statistics` | DataFrame | Population mean, block SD/SEM, CI per state (`statistics/state_populations.csv`) |
 | `run_metadata` | dict | Contents of `run_metadata.json` |
-| `extras` | dict | Objects not covered above; keys present today: `bootstrap` (`BootstrapResult` with `fe_std`, `fe_ci_low`, `fe_ci_high`, `state_table`, `barrier_table`, `block_lengths`), `barriers` (DataFrame), `kinetics` (dict of DataFrames), `descriptors` (dict of DataFrames), `state_summary` (DataFrame), `tica_timescales_ps` (array, TICA only) |
+| `extras` | dict | Objects not covered above; keys present today: `bootstrap` (`BootstrapResult` with `fe_std`, `fe_ci_low`, `fe_ci_high`, `state_table`, `barrier_table`, `block_lengths`), `barriers` (DataFrame), `kinetics` (dict of DataFrames), `descriptors` (dict of DataFrames), `state_summary` (DataFrame), `basin_map` (2-D integer array), `msm` (`MSMResult`, with `--msm`), `tica_timescales_ps` (array, TICA only) |
 | `warnings` | `list[str]` | Warnings emitted during the run (also in `run_metadata.json`) |
 | `output_dir` | `Path` | Where everything was written |
 
@@ -135,7 +134,7 @@ validation suite tests against independent implementations
 | TICA | `pca.compute_tica(coords_dict, lag=10, n_components=10, weighting="equal-replicate")`, `pca.implied_timescales(eigenvalues, lag_frames, dt_ps)` | deeptime, AR(1) theory |
 | Dihedral features | `features.stream_backbone_dihedrals(topology_path, trajectory_path, selection="protein", stride=1, begin_ps=None, end_ps=None)` → features, times, feature table | MDAnalysis Ramachandran |
 | Landscape | `fel.calculate_fel(pc1, pc2, temperature=300.0, bins=64, smooth_sigma=0.0, x_range=None, y_range=None, weights=None)` → `FELGrid`; `fel.choose_bins(cv1, cv2)` (Freedman–Diaconis, 16–128) | Exact Gaussian, `gmx sham` |
-| Basins | `basins.detect_energy_basins(fel_grid, projections, min_state_population=0.05, max_states=10, min_barrier=None, weights=None)` → states, unassigned fraction, frame assignments, basin map; `basins.compute_state_barriers(basin_labels, free_energy, states)` | Analytic double well |
+| Basins | `basins.detect_energy_basins(fel_grid, projections, min_state_population=0.05, max_states=10, min_peak_distance=3, min_barrier=None, weights=None, cv_columns=("PC1", "PC2"))` → states, unassigned fraction, frame assignments, basin map; `basins.compute_state_barriers(basin_labels, free_energy, states)` | Analytic double well |
 | Time series | `timeseries.statistical_inefficiency(x, mintime=3, fast=False)`, `timeseries.effective_sample_size(x)`, `timeseries.detect_equilibration(x, nskip=1, max_discard=0.9)`, `timeseries.block_length_from_g(g, n, min_blocks=5)` | pymbar |
 | Bootstrap | `bootstrap.bootstrap_landscape(cv1, cv2, replicate_ids, fel_grid, basin_labels, states, block_lengths, n_boot=200, weights=None, seed=0)` → `BootstrapResult` | Coverage on known Markov systems |
 | Kinetics | `kinetics.compute_state_kinetics(frame_assignments, state_labels, dt_ps=None)` (lag-1 counts within replicates) | Known Markov chain |
@@ -223,15 +222,15 @@ api.plot_landscape(source, ax=None,
 
 Type annotations (omitted above): paths are `str | Path`; `data` is an `Ensemble` or a mapping replicate → `(n_frames, n_atoms, 3)` array; `source` of `landscape` is a `PCAResults`, a projections DataFrame or an `AnalysisResults`; `source` of `plot_landscape` is a `Landscape`, `FELGrid` or `AnalysisResults`.
 
-Run on the neuraminidase fixture (81 frames, 387 Cα atoms, 250 ps between frames):
+Run on the ADK regression fixture `tests/data/adk_ca` (105 frames 9.6 ns apart, 214 Cα atoms plus 57 Ap5A atoms whose coordinates are synthetic):
 
 ```python
 from conformatlas import api
 
 ens = api.load_trajectories(
-    "tests/data/h1n1_ca/neuraminidase_ca.pdb",
-    ["tests/data/h1n1_ca/neuraminidase_ca.xtc"],
-    group="C-alpha", index_file="tests/data/h1n1_ca/index.ndx",
+    "tests/data/adk_ca/adk_ap5_ca.pdb",
+    ["tests/data/adk_ca/adk_ap5_ca.xtc"],
+    group="C-alpha", index_file="tests/data/adk_ca/index.ndx",
 )
 pcs = api.pca(ens, n_components=10)
 land = api.landscape(pcs, temperature=300.0, bins=12)
@@ -244,9 +243,9 @@ print(sorted(kin))
 ```
 
 ```text
-81 387 250.0
-[26.  12.3]
-[('State A', 44.4), ('State B', 28.4), ('State C', 12.3), ('State D', 8.6)]
+105 214 9600.0
+[47.7 14.6]
+[('State A', 92.4)]
 ['dt_ps', 'dwell_summary', 'dwell_times', 'mfpt', 'summary', 'transition_counts', 'transition_counts_per_replicate', 'transition_matrix']
 ```
 
@@ -254,7 +253,7 @@ print(sorted(kin))
 matplotlib axis and returns `(fig, ax, mappable)`; `conformatlas.plotting.figure_style(...)`
 is a context manager for the colormap, font scale, dpi and formats used by all
 figure functions. The executed notebook
-`examples/notebooks/neuraminidase_walkthrough.ipynb` walks through the same
+`examples/notebooks/adk_walkthrough.ipynb` (adenylate kinase, 4,187 frames) walks through the same
 chain.
 
 ## Results container: `conformatlas.results_io`
@@ -262,7 +261,7 @@ chain.
 `save_results(results, path)` writes one HDF5 file (h5py; `conformatlas[hdf5]`)
 holding the complete `AnalysisResults`; `load_results(path)` is its inverse.
 `load_results_dir(path)` rebuilds the object from a results *directory*
-(eigenvectors are then empty because the pipeline does not write them) and is
+(`pca.eigenvectors` is read from `pca/eigenvectors.npy` when the run wrote it, i.e. with the in-memory engine and Cartesian PCA, and is empty otherwise) and is
 what `conformatlas analyze --from` uses. `rebin(results, bins, smooth_sigma,
 *, min_state_population=None, max_states=None, min_barrier=None, weights=None,
 temperature=None)` recomputes the landscape, basins, barriers and population
@@ -277,9 +276,9 @@ from conformatlas import api
 from conformatlas.results_io import load_results, rebin, save_results
 
 res = api.analyze(
-    "tests/data/h1n1_ca/neuraminidase_ca.pdb",
-    ["tests/data/h1n1_ca/neuraminidase_ca.xtc"],
-    output_dir="tutorial/api_io", index_file="tests/data/h1n1_ca/index.ndx",
+    "tests/data/adk_ca/adk_ap5_ca.pdb",
+    ["tests/data/adk_ca/adk_ap5_ca.xtc"],
+    output_dir="tutorial/api_io", index_file="tests/data/adk_ca/index.ndx",
     lsq_group="C-alpha", cov_group="C-alpha", bins=12, n_bootstrap=0, interactive=False,
 )
 path = save_results(res, "tutorial/api_io/results.h5")
@@ -293,8 +292,8 @@ print(sorted(fine.extras))
 
 ```text
 (12, 12) True
-[('State A', 44.4), ('State B', 28.4), ('State C', 12.3), ('State D', 8.6)]
-[('State A', 46.9), ('State B', 40.7), ('State C', 12.3)]
+[('State A', 92.4)]
+[('State A', 99.0)]
 ['barriers', 'basin_map', 'descriptors']
 ```
 
@@ -324,7 +323,7 @@ from conformatlas.streaming import streaming_pca
 from conformatlas.pca import compute_cartesian_pca
 from conformatlas.trajectory import stream_trajectory_coordinates
 
-top, trj = "tests/data/h1n1_ca/neuraminidase_ca.pdb", "tests/data/h1n1_ca/neuraminidase_ca.xtc"
+top, trj = "tests/data/adk_ca/adk_ap5_ca.pdb", "tests/data/adk_ca/adk_ap5_ca.xtc"
 idx = mda.Universe(top).select_atoms("name CA").indices
 res = streaming_pca(top, {"Rep_1": trj}, idx, n_components=5, chunk_size=32, quiet=True)
 coords, times = stream_trajectory_coordinates(top, trj, atom_indices=idx)
@@ -335,8 +334,8 @@ print(type(res.to_pca_results()).__name__)
 ```
 
 ```text
-{'Rep_1': 81} (81, 5) float64
-True [26.  12.3]
+{'Rep_1': 105} (105, 5) float64
+True [47.7 14.6]
 PCAResults
 ```
 
@@ -363,15 +362,15 @@ normalisation) and against the in-memory path on a sliced run.
 import MDAnalysis as mda
 from conformatlas.mda_analysis import ConformAtlasPCA
 
-u = mda.Universe("tests/data/h1n1_ca/neuraminidase_ca.pdb", "tests/data/h1n1_ca/neuraminidase_ca.xtc")
+u = mda.Universe("tests/data/adk_ca/adk_ap5_ca.pdb", "tests/data/adk_ca/adk_ap5_ca.xtc")
 pca = ConformAtlasPCA(u.select_atoms("name CA"), n_components=5).run(step=2)
 print(pca.results.n_frames, pca.results.projections.shape)
 print(pca.results.explained_variance[:3].round(1), pca.results.eigenvalues[:2].round(2))
 ```
 
 ```text
-41 (41, 5)
-[26.5 13.   7.9] [103.29  50.8 ]
+53 (53, 5)
+[50.3 13.   9.6] [489.73 126.52]
 ```
 
 ## Reweighting: `conformatlas.reweighting`
@@ -440,13 +439,13 @@ from conformatlas.residue_analysis import (atom_table_from_universe, binding_sit
                                            contact_persistence, dccm, ligand_residue_contacts)
 from conformatlas.trajectory import stream_trajectory_coordinates
 
-top, trj = "tests/data/h1n1_ca/neuraminidase_ca.pdb", "tests/data/h1n1_ca/neuraminidase_ca.xtc"
+top, trj = "tests/data/adk_ca/adk_ap5_ca.pdb", "tests/data/adk_ca/adk_ap5_ca.xtc"
 ca = mda.Universe(top).select_atoms("name CA")
 coords, times = stream_trajectory_coordinates(top, trj, atom_indices=ca.indices)
 C = dccm(coords)
 C_res, table = collapse_to_residues(C, atom_table_from_universe(ca))
 print(C.shape, C_res.shape, round(float(C.diagonal().mean()), 3), round(float(C.min()), 2))
-contacts = ligand_residue_contacts(top, trj, "resname ZMR", cutoff=4.5)
+contacts = ligand_residue_contacts(top, trj, "resname AP5", cutoff=4.5)
 pers = contact_persistence(contacts)
 site = binding_site_residues(pers, threshold=0.5)
 print(pers.columns.tolist())
@@ -454,11 +453,20 @@ print(site[["residue_number", "residue_name", "persistence_all"]].round(2).to_st
 ```
 
 ```text
-(387, 387) (387, 387) 1.0 -0.64
+(214, 214) (214, 214) 1.0 -0.82
 ['chain', 'residue_number', 'residue_name', 'n_atoms', 'persistence_all', 'mean_min_distance_all', 'max_persistence']
  residue_number residue_name  persistence_all
-             70          ASP             0.96
-             71          ARG             0.94
+              8          ALA             0.60
+              9          PRO             0.99
+             10          GLY             1.00
+             11          ALA             0.93
+             12          GLY             1.00
+             13          LYS             1.00
+             14          GLY             0.98
+             85          GLY             0.99
+             86          PHE             0.98
+             88          ARG             0.83
+            198          GLY             0.57
 ```
 
 (The fixture carries only Cα atoms of the protein, so contacts are counted

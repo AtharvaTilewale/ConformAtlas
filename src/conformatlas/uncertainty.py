@@ -38,14 +38,22 @@ def compute_replicate_statistics(
         # Multiple independent replicates available
         uncertainty_type = "between-replicate"
         rep_pop_records = []
+        w_all = None if weights is None else np.asarray(weights, dtype=float)
+        rep_col = frame_assignments_df["replicate"].to_numpy()
+        state_col = frame_assignments_df["state"].to_numpy()
 
         for rep in reps:
-            rep_df = frame_assignments_df[frame_assignments_df["replicate"] == rep]
-            n_rep_frames = len(rep_df)
+            mask = rep_col == rep
+            n_rep_frames = int(mask.sum())
             row = {"Replicate": rep, "Total_Frames": n_rep_frames}
+            w_r = None if w_all is None else w_all[mask]
             for st in states:
-                st_count = np.sum(rep_df["state"] == st)
-                row[st] = (st_count / n_rep_frames) * 100.0 if n_rep_frames > 0 else 0.0
+                in_st = state_col[mask] == st
+                if w_r is not None:
+                    # weighted fraction of this replicate's frames (reweighted ensembles)
+                    row[st] = 100.0 * w_r[in_st].sum() / w_r.sum() if w_r.sum() > 0 else 0.0
+                else:
+                    row[st] = (in_st.sum() / n_rep_frames) * 100.0 if n_rep_frames > 0 else 0.0
             rep_pop_records.append(row)
 
         detailed_df = pd.DataFrame(rep_pop_records)
@@ -91,7 +99,7 @@ def compute_replicate_statistics(
         return summary_df, detailed_df, uncertainty_type
 
     else:
-        # Single replicate: perform intra-trajectory block analysis (e.g. 5 blocks)
+        # Single replicate: intra-trajectory block analysis (3-10 blocks of >= 10 g frames)
         uncertainty_type = "intra-trajectory-block"
         total_frames = len(frame_assignments_df)
         if statistical_inefficiency is not None and statistical_inefficiency > 0:
@@ -99,6 +107,8 @@ def compute_replicate_statistics(
             n_blocks = int(np.clip(total_frames // max(min_block, 1), 3, 10))
         else:
             n_blocks = 5
+        # never more blocks than frames: an empty block would enter as 0 % for every state
+        n_blocks = max(1, min(n_blocks, total_frames))
         block_size = max(1, total_frames // n_blocks)
 
         block_pop_records = []

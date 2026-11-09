@@ -12,7 +12,11 @@ import matplotlib
 import numpy as np
 import pandas as pd
 
-matplotlib.use("Agg")  # Headless backend
+# Headless (Agg) for the CLI and scripts. A notebook backend chosen by the user
+# (matplotlib-inline, ipympl: "module://...") is kept so that figures still display
+# after ConformAtlas is imported; the raw rcParam is read so that no backend is resolved.
+if not str(dict.__getitem__(matplotlib.rcParams, "backend")).startswith("module://"):
+    matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from matplotlib.collections import LineCollection
@@ -648,6 +652,27 @@ def plot_fel_2d(
     return out_path
 
 
+def _surface_window(
+    X: np.ndarray, Y: np.ndarray, Z: np.ndarray, ceiling: float, pad: int = 1
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Grid for a 3D free-energy surface: cropped to the bounding box of the sampled
+    (finite) bins plus ``pad`` bins, unsampled bins left as NaN (not drawn) and sampled
+    values clipped to ``ceiling`` (the z-limit and top of the colour scale).
+
+    Earlier versions drew unsampled bins as a flat plateau at the ceiling, which
+    dominated the view whenever the sampled region was a small part of the grid.
+    """
+    finite = np.isfinite(Z)
+    if not finite.any():
+        return X, Y, Z
+    rows = np.where(finite.any(axis=1))[0]
+    cols = np.where(finite.any(axis=0))[0]
+    r0, r1 = max(rows[0] - pad, 0), min(rows[-1] + pad, Z.shape[0] - 1) + 1
+    c0, c1 = max(cols[0] - pad, 0), min(cols[-1] + pad, Z.shape[1] - 1) + 1
+    Zw = np.minimum(Z[r0:r1, c0:c1], ceiling)
+    return X[r0:r1, c0:c1], Y[r0:r1, c0:c1], Zw
+
+
 def plot_fel_3d(
     fel_grid: FELGrid,
     out_path: str | Path = "figures/fel_3d.png",
@@ -665,10 +690,10 @@ def plot_fel_3d(
     valid_z = Z[~np.isnan(Z)]
     vmax = min(np.percentile(valid_z, 98), 35.0) if len(valid_z) > 0 else 25.0
 
-    # Replace NaNs for smooth surface edge without tearing
-    Z_3d = np.where(np.isnan(Z), vmax * 1.05, Z)
+    # Unsampled bins are not drawn (NaN); sampled values are clipped to the z-limit.
+    X3, Y3, Z_3d = _surface_window(X, Y, Z, vmax)
     surf = ax.plot_surface(
-        X, Y, Z_3d, cmap=landscape_cmap(), edgecolor="none", alpha=0.92, vmin=0, vmax=vmax
+        X3, Y3, Z_3d, cmap=landscape_cmap(), edgecolor="none", alpha=0.92, vmin=0, vmax=vmax
     )
 
     ax.set_zlim(0, vmax)
@@ -747,9 +772,9 @@ def plot_fel(
 
     # Right: 3D Surface
     ax2 = fig.add_subplot(gs[1], projection="3d")
-    Z_3d = np.where(np.isnan(Z), vmax * 1.05, Z)
+    X3, Y3, Z_3d = _surface_window(X, Y, Z, vmax)
     surf = ax2.plot_surface(
-        X, Y, Z_3d, cmap=landscape_cmap(), edgecolor="none", alpha=0.9, vmin=0, vmax=vmax
+        X3, Y3, Z_3d, cmap=landscape_cmap(), edgecolor="none", alpha=0.9, vmin=0, vmax=vmax
     )
     ax2.set_zlim(0, vmax)
     ax2.set_xlabel(CV_SHORT[0], labelpad=8)

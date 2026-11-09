@@ -1,0 +1,163 @@
+{
+  "pmf_grid": {
+    "NMP_deg": [
+      35.0,
+      79.0
+    ],
+    "LID_deg": [
+      95.0,
+      155.0
+    ],
+    "step_deg": 2.0
+  },
+  "G3a": {
+    "points": {
+      "4AKE": {
+        "theta_NMP": 73.77042290939185,
+        "theta_LID": 146.22385877774354,
+        "pmf_kJ_mol": 44.71920160861852,
+        "backbone_variant_angles": [
+          73.78369114814888,
+          146.15756003376762
+        ],
+        "pass": false
+      },
+      "1AKE": {
+        "theta_NMP": 45.1363843618206,
+        "theta_LID": 106.40339193982985,
+        "pmf_kJ_mol": 16.64725982412233,
+        "backbone_variant_angles": [
+          45.10546234452456,
+          106.3194499375521
+        ],
+        "pass": false
+      }
+    },
+    "gate_kJ_mol": 10.0,
+    "pass": false
+  },
+  "trajectory_angles": {
+    "NMP_deg": {
+      "min": 38.64066386636701,
+      "max": 96.41906783175585,
+      "mean": 76.07147196624466
+    },
+    "LID_deg": {
+      "min": 111.4182724457187,
+      "max": 173.16189143200623,
+      "mean": 147.7366046189361
+    },
+    "backbone_variant_max_abs_diff_deg": [
+      0.17316322803145567,
+      0.42501292785524925
+    ],
+    "first_frame": [
+      52.45550285432717,
+      113.52462464482205
+    ]
+  },
+  "trajectory_drift_informational": {
+    "block_mean_NMP_deg": [
+      67.7,
+      76.2,
+      73.5,
+      76.4,
+      76.4,
+      77.9,
+      77.1,
+      77.9,
+      79.4,
+      78.2
+    ],
+    "block_mean_LID_deg": [
+      147.3,
+      149.4,
+      147.8,
+      150.2,
+      145.3,
+      147.2,
+      146.6,
+      148.5,
+      147.2,
+      148.0
+    ],
+    "block_ns": 100.6
+  },
+  "pmf_local_minima_informational": {
+    "minima_(NMP_deg,LID_deg,kJ_mol)": [
+      [
+        35.0,
+        119.0,
+        0.0
+      ],
+      [
+        37.0,
+        125.0,
+        3.8
+      ],
+      [
+        47.0,
+        125.0,
+        6.3
+      ],
+      [
+        47.0,
+        131.0,
+        6.3
+      ],
+      [
+        49.0,
+        121.0,
+        6.7
+      ],
+      [
+        47.0,
+        95.0,
+        7.8
+      ],
+      [
+        35.0,
+        107.0,
+        7.9
+      ],
+      [
+        35.0,
+        101.0,
+        9.7
+      ]
+    ]
+  },
+  "G3b": {
+    "frames_inside_grid": 3901,
+    "frames_total": 4187,
+    "registered_kB": {
+      "occupied_in_both": 269,
+      "occupied_in_one_only": 0,
+      "max_abs_diff_kJ_mol": 2.411590571682609e-08,
+      "gate_kJ_mol": 1e-09,
+      "pass": false
+    },
+    "exact_SI_kB_diagnosis_only": {
+      "occupied_in_both": 269,
+      "occupied_in_one_only": 0,
+      "max_abs_diff_kJ_mol": 2.0530777078420215e-10
+    }
+  },
+  "G3c_informational": {
+    "bins_occupied_in_trajectory": 269,
+    "bins_compared_(occupied_and_finite_in_PMF)": 198,
+    "spearman_rho": -0.44012395307404106,
+    "spearman_p": 8.693162833986093e-11,
+    "trajectory_minimum_deg_(NMP,LID)": [
+      77.0,
+      149.0
+    ],
+    "published_minimum_deg_(NMP,LID)": [
+      35.0,
+      119.0
+    ],
+    "minimum_separation_deg": 51.61395160225576,
+    "note": "published PMF: implicit-solvent umbrella sampling (2009); trajectory: explicit-water CHARMM27; not expected to agree quantitatively"
+  },
+  "kB_registered": 0.0083144626
+}

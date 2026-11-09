@@ -28,6 +28,7 @@ from conformatlas.models import (
     TrajectoryInfo,
 )
 from conformatlas.report import (
+    _rmsip_wording,
     binomial_se_percent,
     external_resource_urls,
     interpretive_sentences,
@@ -261,8 +262,46 @@ def test_error_helpers(tmp_path):
     )
     assert selection_error_group(ValueError("other")) is None
     ndx = tmp_path / "i.ndx"
-    ndx.write_text("[ C-alpha ]\n1 2 3\n[ ZMR ]\n4 5\n", encoding="utf-8")
+    ndx.write_text("[ C-alpha ]\n1 2 3\n[ AP5 ]\n4 5\n", encoding="utf-8")
     names, source = available_groups(None, ndx)
-    assert names[:2] == ["C-alpha", "ZMR"] and "Backbone" in names and "i.ndx" in source
+    assert names[:2] == ["C-alpha", "AP5"] and "Backbone" in names and "i.ndx" in source
     ug = UnknownGroupError("Foo", names, source)
-    assert "Foo" in str(ug) and "ZMR" in str(ug)
+    assert "Foo" in str(ug) and "AP5" in str(ug)
+
+
+def test_rmsip_not_computed_is_not_reported_as_low_overlap(tmp_path):
+    # streaming engine / GROMACS backend / --from: no coordinates, RMSIP = NaN
+    out = interpretive_sentences(_results(tmp_path, rmsip=float("nan")))
+    text = " ".join(out["convergence"])
+    assert "not computed" in text
+    assert "low overlap" not in text and "still changing" not in text
+    assert _rmsip_wording(float("nan")) == "undetermined"
+
+
+def test_single_trajectory_block_ci_is_not_called_between_replicate(tmp_path):
+    res = _results(tmp_path, with_boot=False)
+    res.replicate_statistics = res.replicate_statistics.assign(
+        Uncertainty_Type="intra-trajectory-block"
+    )
+    sa = [s for s in interpretive_sentences(res)["populations"] if "State A" in s][0]
+    assert "intra-trajectory block CI" in sa and "between-replicate" not in sa
+
+
+def test_not_shown_quotes_analysed_time_and_msm(tmp_path):
+    res = _results(tmp_path)
+    # analysed window shorter than the files (e.g. -b or equilibration): 500-990 ps per replicate
+    fa = res.frame_assignments
+    res.frame_assignments = fa[fa["time_ps"] >= 500.0].reset_index(drop=True)
+    ns = interpretive_sentences(res)["not_shown"][0]
+    assert "0.98 ns of analysed sampling" in ns
+    assert "no Markov-state model was validated here" in ns
+
+    class _MSM:
+        lag = 5
+        ck_summary = {"passed": True}
+
+    res.extras["msm"] = _MSM()
+    ns = interpretive_sentences(res)["not_shown"][0]
+    assert "Markov state model was built at a lag of 5 frames" in ns
+    assert "Chapman–Kolmogorov test passed" in ns
+    assert "no Markov-state model was validated here" not in ns

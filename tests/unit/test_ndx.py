@@ -20,18 +20,18 @@ def test_parse_ndx_groups_are_zero_based_and_ordered(tmp_path):
 
 def test_lookup_is_case_and_space_tolerant(tmp_path):
     p = tmp_path / "index.ndx"
-    p.write_text("[ Protein_ZMR ]\n1 2\n[ C-alpha ]\n1\n", encoding="utf-8")
+    p.write_text("[ Protein_AP5 ]\n1 2\n[ C-alpha ]\n1\n", encoding="utf-8")
     groups = parse_ndx(p)
     assert lookup_group(groups, "c-alpha") is not None
-    assert lookup_group(groups, "protein_zmr") is not None
+    assert lookup_group(groups, "protein_ap5") is not None
     assert lookup_group(groups, "Backbone") is None
 
 
 def test_duplicate_group_names_keep_first(tmp_path):
     p = tmp_path / "index.ndx"
-    p.write_text("[ ZMR ]\n1 2 3\n[ ZMR ]\n9\n", encoding="utf-8")
+    p.write_text("[ AP5 ]\n1 2 3\n[ AP5 ]\n9\n", encoding="utf-8")
     groups = parse_ndx(p)
-    np.testing.assert_array_equal(groups["ZMR"], [0, 1, 2])
+    np.testing.assert_array_equal(groups["AP5"], [0, 1, 2])
 
 
 def test_missing_file_raises(tmp_path):

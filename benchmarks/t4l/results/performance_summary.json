@@ -1,0 +1,292 @@
+[
+ {
+  "config": "ConformAtlas 1.0.2 (released code)",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 4.796088283183053,
+  "wall_seconds": 4.99,
+  "peak_rss_gb": 0.962012
+ },
+ {
+  "config": "ConformAtlas perf branch (Lanczos PCA)",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 4.80010969704017,
+  "wall_seconds": 5.01,
+  "peak_rss_gb": 0.866044
+ },
+ {
+  "config": "ConformAtlas streaming engine (released code)",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 10.743516513844952,
+  "wall_seconds": 10.95,
+  "peak_rss_gb": 0.215076
+ },
+ {
+  "config": "NumPy dense covariance + eigh",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 4.234796636039391,
+  "wall_seconds": 4.36,
+  "peak_rss_gb": 0.610288
+ },
+ {
+  "config": "MDAnalysis PCA",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 22.824065412860364,
+  "wall_seconds": 22.95,
+  "peak_rss_gb": 0.145408
+ },
+ {
+  "config": "ProDy PCA (coordinates read with MDAnalysis)",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 4.653589874040335,
+  "wall_seconds": 4.83,
+  "peak_rss_gb": 0.654664
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (auto solver)",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 4.711110466858372,
+  "wall_seconds": 4.97,
+  "peak_rss_gb": 0.425088
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (full solver)",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 5.097112433984876,
+  "wall_seconds": 5.35,
+  "peak_rss_gb": 0.618028
+ },
+ {
+  "config": "GROMACS covar + anaeig",
+  "dataset": "pooled100",
+  "selection": "calpha",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 9.925321662100032,
+  "wall_seconds": 16.29,
+  "peak_rss_gb": 0.029732
+ },
+ {
+  "config": "ConformAtlas 1.0.2 (released code)",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 12.661347546847537,
+  "wall_seconds": 12.85,
+  "peak_rss_gb": 6.855956
+ },
+ {
+  "config": "ConformAtlas perf branch (Lanczos PCA)",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 9.498847589828074,
+  "wall_seconds": 9.69,
+  "peak_rss_gb": 4.840064
+ },
+ {
+  "config": "ConformAtlas streaming engine (released code)",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 35.476045762887225,
+  "wall_seconds": 35.69,
+  "peak_rss_gb": 1.411208
+ },
+ {
+  "config": "NumPy dense covariance + eigh",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 12.181525147985667,
+  "wall_seconds": 12.32,
+  "peak_rss_gb": 3.758756
+ },
+ {
+  "config": "MDAnalysis PCA",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 1166.6394341990817,
+  "wall_seconds": 1166.75,
+  "peak_rss_gb": 0.971912
+ },
+ {
+  "config": "ProDy PCA (coordinates read with MDAnalysis)",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 9.709117932943627,
+  "wall_seconds": 9.88,
+  "peak_rss_gb": 3.43136
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (auto solver)",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 6.257823023945093,
+  "wall_seconds": 6.45,
+  "peak_rss_gb": 1.807804
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (full solver)",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 24.655327189015225,
+  "wall_seconds": 24.91,
+  "peak_rss_gb": 3.490764
+ },
+ {
+  "config": "GROMACS covar + anaeig",
+  "dataset": "pooled100",
+  "selection": "heavy",
+  "n_ok_runs": 3,
+  "status": "ok",
+  "compute_seconds": 118.78777589509264,
+  "wall_seconds": 125.13,
+  "peak_rss_gb": 0.132276
+ },
+ {
+  "config": "ConformAtlas 1.0.2 (released code)",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 88.84190602810122,
+  "wall_seconds": 89.06,
+  "peak_rss_gb": 15.385532
+ },
+ {
+  "config": "ConformAtlas perf branch (Lanczos PCA)",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 81.29691799497232,
+  "wall_seconds": 81.54,
+  "peak_rss_gb": 12.679784
+ },
+ {
+  "config": "ConformAtlas streaming engine (released code)",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 178.1664524800144,
+  "wall_seconds": 178.35,
+  "peak_rss_gb": 0.320848
+ },
+ {
+  "config": "NumPy dense covariance + eigh",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 71.11270923004486,
+  "wall_seconds": 71.24,
+  "peak_rss_gb": 8.816468
+ },
+ {
+  "config": "MDAnalysis PCA",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 447.97900229296647,
+  "wall_seconds": 448.1,
+  "peak_rss_gb": 0.282012
+ },
+ {
+  "config": "ProDy PCA (coordinates read with MDAnalysis)",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 73.5688398659695,
+  "wall_seconds": 73.77,
+  "peak_rss_gb": 8.857272
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (auto solver)",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 69.60609191004187,
+  "wall_seconds": 69.85,
+  "peak_rss_gb": 4.131108
+ },
+ {
+  "config": "MDTraj + scikit-learn PCA (full solver)",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 83.33777993894182,
+  "wall_seconds": 83.57,
+  "peak_rss_gb": 7.87306
+ },
+ {
+  "config": "GROMACS covar + anaeig",
+  "dataset": "md1us4_1ps",
+  "selection": "calpha",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 198.60068318108097,
+  "wall_seconds": 198.69,
+  "peak_rss_gb": 0.072872
+ },
+ {
+  "config": "ConformAtlas streaming engine (released code)",
+  "dataset": "md1us4_1ps",
+  "selection": "heavy",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 594.6623079117853,
+  "wall_seconds": 594.83,
+  "peak_rss_gb": 0.971312
+ },
+ {
+  "config": "GROMACS covar + anaeig",
+  "dataset": "md1us4_1ps",
+  "selection": "heavy",
+  "n_ok_runs": 1,
+  "status": "ok",
+  "compute_seconds": 1583.910970651079,
+  "wall_seconds": 1584.0,
+  "peak_rss_gb": 0.132708
+ }
+]

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath("../src"))
 import conformatlas
 
 project = "ConformAtlas"
-author = "Atharva Tilewale"
+author = "Atharva Tilewale and Dhaval Patel"
 copyright = f"2024-{datetime.now().year}, {author} and ConformAtlas Contributors"
 version = conformatlas.__version__
 release = conformatlas.__version__

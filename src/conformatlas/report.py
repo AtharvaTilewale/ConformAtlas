@@ -127,6 +127,8 @@ def _fmt(v: float, nd: int = 1) -> str:
 
 
 def _rmsip_wording(r: float) -> str:
+    if not np.isfinite(r):
+        return "undetermined"
     if r >= RMSIP_HIGH:
         return "high"
     if r >= RMSIP_MODERATE:
@@ -182,7 +184,14 @@ def interpretive_sentences(results: AnalysisResults) -> dict[str, Any]:
             if use_boot
             else ("CI_95_Lower", "CI_95_Upper")
         )
-        kind = "block-bootstrap" if use_boot else "between-replicate"
+        if use_boot:
+            kind = "block-bootstrap"
+        elif "Uncertainty_Type" in pop_df.columns and str(
+            pop_df["Uncertainty_Type"].iloc[0]
+        ).startswith("intra"):
+            kind = "intra-trajectory block"
+        else:
+            kind = "between-replicate"
         for _, r in pop_df.iterrows():
             mean = float(r["Mean_Population_Percent"])
             lo, hi = float(r[lo_col]), float(r[hi_col])
@@ -252,17 +261,25 @@ def interpretive_sentences(results: AnalysisResults) -> dict[str, Any]:
     r = float(conv.rmsip_halves)
     values["rmsip_halves"] = r
     word = _rmsip_wording(r)
-    out["convergence"].append(
-        f"The RMSIP between the essential subspaces of the first and second halves of the sampling is "
-        f"{_fmt(r, 2)}, i.e. {word} overlap (heuristic: ≥ {RMSIP_HIGH:.2f} high, "
-        f"{RMSIP_MODERATE:.2f}–{RMSIP_HIGH:.2f} moderate, < {RMSIP_MODERATE:.2f} low). "
-        + (
-            "The dominant motions are reproducible between the two halves."
-            if word == "high"
-            else "The dominant motions are still changing with simulation time: the leading PCs, and "
-            "therefore the axes of the landscape, would move if the simulation were extended."
+    if not np.isfinite(r):
+        out["convergence"].append(
+            "The half-vs-half RMSIP was not computed for this run (no fitted coordinates: "
+            "streaming engine, GROMACS backend or --from re-analysis), so the convergence of the "
+            "essential subspace is not assessed."
         )
-    )
+    else:
+        out["convergence"].append(
+            f"The RMSIP between the essential subspaces of the first and second halves of the "
+            f"sampling is {_fmt(r, 2)}, i.e. {word} overlap (heuristic: ≥ {RMSIP_HIGH:.2f} high, "
+            f"{RMSIP_MODERATE:.2f}–{RMSIP_HIGH:.2f} moderate, < {RMSIP_MODERATE:.2f} low). "
+            + (
+                "The dominant motions are reproducible between the two halves."
+                if word == "high"
+                else "The dominant motions are still changing with simulation time: the leading "
+                "PCs, and therefore the axes of the landscape, would move if the simulation were "
+                "extended."
+            )
+        )
     if conv.rmsip_halves_per_replicate:
         items = sorted(conv.rmsip_halves_per_replicate.items(), key=lambda kv: kv[1])
         values["rmsip_per_replicate"] = {k: float(v) for k, v in items}
@@ -346,19 +363,45 @@ def interpretive_sentences(results: AnalysisResults) -> dict[str, Any]:
                 f"the remaining {_fmt(100 - tot)} % is projected away, so two basins can be one state "
                 "and one basin can hide several."
             )
-    total_ns = (
-        sum(max(t.end_time_ps - t.start_time_ps, 0.0) for t in results.trajectories_info) / 1000.0
-    )
+    # sampling behind the landscape: the analysed frames (after -b/-e, stride and
+    # equilibration), not the length of the input files
+    fa = results.frame_assignments
+    total_ns = 0.0
+    if fa is not None and len(fa) and "time_ps" in fa.columns:
+        rep_key = fa["replicate"] if "replicate" in fa.columns else pd.Series(0, index=fa.index)
+        for _, t in fa["time_ps"].groupby(rep_key, sort=False):
+            tt = t.to_numpy(dtype=float)
+            # same convention as the trajectory length: last minus first analysed frame
+            total_ns += (float(tt.max()) - float(tt.min())) / 1000.0
+    else:
+        total_ns = (
+            sum(max(t.end_time_ps - t.start_time_ps, 0.0) for t in results.trajectories_info)
+            / 1000.0
+        )
     values["total_sampling_ns"] = total_ns
+    msm = (results.extras or {}).get("msm")
+    if msm is not None:
+        ck_ok = bool(getattr(msm, "ck_summary", {}).get("passed"))
+        rates_txt = (
+            f"(3) Rates: a Markov state model was built at a lag of {msm.lag} frames "
+            f"(Chapman–Kolmogorov test {'passed' if ck_ok else 'failed'}; see msm/); check that the "
+            "implied timescales are independent of the lag before using its rates. Lag-one "
+            "mean first-passage times between the landscape states remain indicative only. "
+        )
+    else:
+        rates_txt = (
+            "(3) Rates: transition counts and lag-one Markov mean first-passage times are "
+            "indicative only; no Markov-state model was validated here. "
+        )
     out["not_shown"] = [
         "What this report does not show. (1) States that were never visited in "
-        f"{_fmt(total_ns, 2)} ns of total sampling: a free-energy landscape only describes the region "
+        f"{_fmt(total_ns, 2)} ns of analysed sampling: a free-energy landscape only describes the region "
         "the trajectories explored, and a missing basin is indistinguishable from a high-energy one."
         + ev_txt
         + " (2) Absolute free energies: ΔG is relative to the most populated bin and depends on the bin "
-        "width and on the two chosen coordinates. (3) Rates: transition counts and lag-one Markov "
-        "mean first-passage times are indicative only; no Markov-state model was validated here. "
-        "(4) Convergence: the RMSIP, cosine-content and population-stability diagnostics are necessary "
+        "width and on the two chosen coordinates. "
+        + rates_txt
+        + "(4) Convergence: the RMSIP, cosine-content and population-stability diagnostics are necessary "
         "but not sufficient conditions; a trapped simulation can pass all of them. (5) Thermodynamic "
         "relevance of the states: watershed basins are features of the projected histogram, not "
         "necessarily kinetically distinct conformations."

@@ -20,22 +20,26 @@ in two passes over each trajectory:
 
    The per-replicate sums about the replicate mean are shifted to the pooled
    mean with the identity Σ_i (x_i − μ)(x_i − μ)ᵀ = M2_k + n_k (μ_k − μ)(μ_k − μ)ᵀ.
-2. **Pass 2 – projections.** The eigenvectors of C are computed with
-   ``numpy.linalg.eigh``; every trajectory is read again in chunks and the
+2. **Pass 2 – projections.** The leading eigenvectors of C are computed with
+   ARPACK (Lanczos) for large ``D`` and with ``numpy.linalg.eigh`` otherwise
+   (see :func:`eigendecompose_covariance`); every trajectory is read again in chunks and the
    centred frames are projected onto the leading components. Projections can
    be written to a memory-mapped ``.npy`` file so that very long trajectories
    never require an in-memory projection table either.
 
 Memory: the accumulator holds one ``D × D`` float64 matrix per replicate being
 processed (``D = 3 × n_atoms``), i.e. 8·D² bytes, plus one chunk of frames. With
-``n_workers > 1`` each worker holds its own matrix. The eigendecomposition of the
-``D × D`` covariance is O(D³); for selections above roughly 7,000 atoms
-(D ≈ 20,000; 3.2 GB per matrix) use a coarser selection or the in-memory path,
-which switches to the dual (SVD) route when frames are fewer than coordinates.
+``n_workers > 1`` each worker holds its own matrix. A full eigendecomposition of
+the ``D × D`` covariance is O(D³); the leading-eigenpair solver replaces it by
+matrix-vector products (O(D²) each), so the cost is dominated by accumulating
+the covariance. For selections above roughly 7,000 atoms (D ≈ 20,000; 3.2 GB per
+matrix) the accumulator itself becomes large: use a coarser selection or the
+in-memory path, which works on the Gram matrix when frames are fewer than
+coordinates.
 
 Numerical equivalence with the in-memory path is validated in
 ``validation/checks_performance.py`` (eigenvalues, eigenvectors and projections
-agree to rtol 1e-8 on the bundled demo and the neuraminidase fixture for both
+agree to rtol 1e-8 on the bundled demo and the ADK fixture for both
 weightings). Frames are quantised to float32 before accumulation, exactly as the
 in-memory path stores them, so both paths see identical input numbers.
 
@@ -59,6 +63,7 @@ import numpy as np
 import pandas as pd
 
 from conformatlas.models import PCAResults
+from conformatlas.pca import _canonical_signs, leading_eigenpairs, use_truncated_solver
 from conformatlas.progress import ProgressReporter
 from conformatlas.superpose import rmsd, superpose_frame
 
@@ -186,12 +191,19 @@ def combine_replicate_moments(
     else:
         mean = sum(m.n * m.mean for m in live) / n_total
     cov = np.zeros((n_dims, n_dims), dtype=np.float64)
+    buf = np.empty_like(cov)  # one reusable D x D scratch matrix instead of several temporaries
     for m in live:
         w = 1.0 / (k * m.n) if weighting == "equal-replicate" else 1.0 / n_total
         delta = m.mean - mean
-        cov += w * (m.m2 + m.n * np.outer(delta, delta))
-    cov = 0.5 * (cov + cov.T)
-    return mean, cov
+        np.multiply(m.m2, w, out=buf)
+        cov += buf
+        np.outer(delta, delta, out=buf)
+        buf *= w * m.n
+        cov += buf
+    del buf
+    sym = cov + cov.T
+    sym *= 0.5
+    return mean, sym
 
 
 def eigendecompose_covariance(
@@ -203,6 +215,16 @@ def eigendecompose_covariance(
     clipped at zero, explained variance is relative to the trace, and the leading
     ``n_components`` are returned.
     """
+    k_top = min(int(n_components), cov.shape[0])
+    if use_truncated_solver(cov.shape[0], k_top):
+        res = leading_eigenpairs(cov, k_top)
+        if res is not None:
+            top_evals, top_evecs = res
+            total_var = float(np.trace(cov))
+            top_explained = (
+                100.0 * top_evals / total_var if total_var > 0 else np.zeros_like(top_evals)
+            )
+            return top_evals, _canonical_signs(top_evecs), top_explained, np.cumsum(top_explained)
     evals, evecs = np.linalg.eigh(cov)
     evals = np.maximum(evals[::-1], 0.0)
     evecs = evecs[:, ::-1]
@@ -210,7 +232,7 @@ def eigendecompose_covariance(
     explained = 100.0 * evals / total if total > 0 else np.zeros_like(evals)
     cumulative = np.cumsum(explained)
     k = min(int(n_components), len(evals))
-    return evals[:k], evecs[:, :k], explained[:k], cumulative[:k]
+    return evals[:k], _canonical_signs(evecs[:, :k]), explained[:k], cumulative[:k]
 
 
 # =============================================================================

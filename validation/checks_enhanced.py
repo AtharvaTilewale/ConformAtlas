@@ -181,16 +181,11 @@ def sample_static_bias(
 
 
 def _find_plumed() -> str | None:
-    exe = shutil.which("plumed")
-    if exe:
-        return exe
-    for cand in (
-        Path.home() / ".claude-science/conda/envs/plumed-ref/bin/plumed",
-        Path("/usr/local/bin/plumed"),
-    ):
-        if cand.exists():
-            return str(cand)
-    return None
+    """PLUMED executable: $PLUMED, else ``plumed`` on PATH."""
+    env = os.environ.get("PLUMED")
+    if env and Path(env).exists():
+        return env
+    return shutil.which("plumed")
 
 
 def _pmf_deviation(pmf_df, f_true, mask):
@@ -646,12 +641,12 @@ def check_contacts(record, ROOT: Path):
 
     from conformatlas.residue_analysis import contact_persistence, ligand_residue_contacts
 
-    top = ROOT / "tests/data/h1n1_ca/neuraminidase_ca.pdb"
-    trj = ROOT / "tests/data/h1n1_ca/neuraminidase_ca.xtc"
-    res = ligand_residue_contacts(top, trj, "resname ZMR", "protein", cutoff=4.5, use_pbc=False)
+    top = ROOT / "tests/data/adk_ca/adk_ap5_ca.pdb"
+    trj = ROOT / "tests/data/adk_ca/adk_ap5_ca.xtc"
+    res = ligand_residue_contacts(top, trj, "resname AP5", "protein", cutoff=4.5, use_pbc=False)
     # brute-force numpy minimum distances, no PBC
     u = mda.Universe(str(top), str(trj))
-    lig = u.select_atoms("resname ZMR and not name H*")
+    lig = u.select_atoms("resname AP5 and not name H*")
     prot = u.select_atoms("protein and not name H*")
     resids = prot.resids
     uniq = list(dict.fromkeys(resids.tolist()))
@@ -664,7 +659,7 @@ def check_contacts(record, ROOT: Path):
         mism += int(np.sum((md < 4.5) != res.contacts[k]))
     record(
         "Residues",
-        "Ligand-residue minimum distances vs brute-force numpy (neuraminidase fixture)",
+        "Ligand-residue minimum distances vs brute-force numpy (ADK fixture, synthetic Ap5A)",
         err < 1e-4 and mism == 0,
         f"max |dd| = {err:.1e} A, {mism} contact mismatches over {res.contacts.shape[0]} frames x {len(uniq)} residues",
         "0",
@@ -673,7 +668,7 @@ def check_contacts(record, ROOT: Path):
     )
     # MDAnalysis distance_array with the triclinic box: contacts of a compact
     # complex must not depend on the minimum-image convention
-    res_pbc = ligand_residue_contacts(top, trj, "resname ZMR", "protein", cutoff=4.5, use_pbc=True)
+    res_pbc = ligand_residue_contacts(top, trj, "resname AP5", "protein", cutoff=4.5, use_pbc=True)
     same = int(np.sum(res_pbc.contacts != res.contacts))
     record(
         "Residues",
@@ -732,13 +727,14 @@ def check_dihedrals(record, ROOT: Path, tmp: Path):
         "1e-5 rad (MDAnalysis evaluates in float32)",
         "MDAnalysis.lib.distances.calc_dihedrals",
     )
-    gro = Path.home() / "Downloads/H1N1_ZAN/md_0_1.gro"
+    # all-atom structure: heavy atoms of the open crystal structure 4AKE, chain A
+    gro = ROOT / "tests/data/adk_ca/4ake_A.pdb"
     if not gro.exists():
         record(
             "Dihedrals",
             "chi1/chi2 vs MDAnalysis Janin",
             True,
-            "H1N1 all-atom structure not available",
+            "4AKE all-atom structure not available",
             "-",
             "-",
             "MDAnalysis Janin",
@@ -765,7 +761,7 @@ def check_dihedrals(record, ROOT: Path, tmp: Path):
     d2 = float(np.abs(wrap(chi2 - ja[:, 1])).max())
     record(
         "Dihedrals",
-        "chi1/chi2 vs MDAnalysis Janin (neuraminidase, all-atom)",
+        "chi1/chi2 vs MDAnalysis Janin (adenylate kinase 4AKE, heavy atoms)",
         d1 < 1e-9 and d2 < 1e-9,
         f"max |dchi1| = {d1:.1e}, max |dchi2| = {d2:.1e} deg over {len(jres)} residues",
         "0",

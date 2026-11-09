@@ -1,10 +1,19 @@
 """Statistics for multi-system comparisons on a shared landscape.
 
-* per-system block bootstrap of state populations and ΔG grids
-  (populations differences with confidence intervals, ΔΔG maps with
-  standard deviations, state ΔΔG with confidence intervals);
-* Welch's t-test on per-replicate populations (when every system has at
-  least two replicates);
+* per-system bootstrap of state populations and ΔG grids (population
+  differences with confidence intervals, ΔΔG maps with standard deviations,
+  state ΔΔG with confidence intervals). By default the bootstrap is
+  hierarchical: replicates are resampled with replacement and frames are
+  then block-resampled inside each drawn replicate, so the intervals include
+  the variation between independent simulations. ``level="frame"`` keeps the
+  within-replicate block bootstrap of 1.0.x, which describes the uncertainty
+  given these particular trajectories only;
+* Welch's t-test and its 95 % confidence interval on per-replicate
+  populations (when every system has at least two replicates). This is the
+  primary between-condition test: the replicates are the independent units;
+* a replicate-heterogeneity ratio per system and state (between-replicate SD
+  of the population over the within-replicate block-bootstrap SE), which flags
+  systems whose replicates disagree far more than frame-level noise explains;
 * landscape overlap metrics between systems (Bhattacharyya coefficient,
   Jensen–Shannon divergence) computed from the sampled probability
   densities on the shared grid;
@@ -15,6 +24,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -39,6 +49,19 @@ class SystemBootstrap:
     fe_grids: np.ndarray  # (n_boot, ny, nx), kJ/mol
     block_lengths: dict[str, int] = field(default_factory=dict)
     n_frames: int = 0
+    level: str = "frame"  # resampling actually used: 'replicate' or 'frame'
+    n_replicates: int = 1
+    # per-replicate within-replicate block-bootstrap populations, (n_boot, n_states) each
+    replicate_populations: dict[str, np.ndarray] = field(default_factory=dict)
+
+
+BOOTSTRAP_LEVELS = ("replicate", "frame")
+
+#: Between-replicate SD / within-replicate bootstrap SE above which replicates are
+#: reported as disagreeing. Under homogeneous sampling the ratio is about 1; the
+#: margin allows for the noise of an SD estimated from a few replicates and for the
+#: mild anti-conservatism of the block bootstrap.
+HETEROGENEITY_RATIO_WARN = 2.0
 
 
 def system_block_lengths(
@@ -62,8 +85,27 @@ def bootstrap_system(
     n_boot: int,
     rng: np.random.Generator,
     columns: tuple[str, str] = ("PC1", "PC2"),
+    level: str = "replicate",
 ) -> SystemBootstrap:
-    """Circular block bootstrap of one system's frames on the shared grid."""
+    """Bootstrap of one system's frames on the shared grid.
+
+    ``level="replicate"`` (default): each resample draws as many replicates as the
+    system has, with replacement, and block-resamples the frames of every drawn
+    replicate (a fresh circular block resample per draw). This two-stage
+    (hierarchical) bootstrap includes the between-replicate variance. A system with
+    a single replicate falls back to the frame level, which is recorded in
+    :attr:`SystemBootstrap.level`.
+
+    ``level="frame"``: circular block bootstrap within every replicate, all
+    replicates kept (the 1.0.x behaviour; identical random-number stream). Its
+    intervals describe the uncertainty given these trajectories, not the spread
+    between independent simulations.
+
+    Per-replicate populations of the within-replicate resamples are kept in
+    :attr:`SystemBootstrap.replicate_populations` for the heterogeneity ratio.
+    """
+    if level not in BOOTSTRAP_LEVELS:
+        raise ValueError(f"level must be one of {BOOTSTRAP_LEVELS} (got {level!r})")
     cv1 = projections[columns[0]].to_numpy(dtype=np.float64)
     cv2 = projections[columns[1]].to_numpy(dtype=np.float64)
     reps = projections["replicate"].to_numpy()
@@ -85,15 +127,38 @@ def bootstrap_system(
         [fel_grid.y_edges[0], fel_grid.y_edges[-1]],
     ]
 
+    rep_names = list(rep_index)
+    n_rep = len(rep_names)
+    used_level = "replicate" if (level == "replicate" and n_rep >= 2) else "frame"
+
     pops = np.full((n_boot, len(major)), np.nan)
     mins = np.full((n_boot, len(major)), np.nan)
     grids = np.full((n_boot, ny, nx), np.nan)
+    rep_pops = {str(r): np.full((n_boot, len(major)), np.nan) for r in rep_names}
+
+    def _within(rep) -> np.ndarray:
+        idx = rep_index[rep]
+        return idx[circular_block_indices(len(idx), block_lengths.get(str(rep), 1), rng)]
+
     for b in range(n_boot):
-        picks = [
-            idx[circular_block_indices(len(idx), block_lengths.get(str(rep), 1), rng)]
-            for rep, idx in rep_index.items()
-        ]
-        sel = np.concatenate(picks)
+        picks = [_within(rep) for rep in rep_names]
+        for rep, pk in zip(rep_names, picks):
+            fbr = frame_basin[pk]
+            for k, bid in enumerate(basin_ids):
+                rep_pops[str(rep)][b, k] = np.mean(fbr == bid)
+        if used_level == "replicate":
+            draws = rng.integers(0, n_rep, size=n_rep)
+            seen: set[int] = set()
+            stage2 = []
+            for j in draws:
+                j = int(j)
+                # first draw of a replicate reuses its within-replicate resample,
+                # repeated draws get an independent one
+                stage2.append(picks[j] if j not in seen else _within(rep_names[j]))
+                seen.add(j)
+            sel = np.concatenate(stage2)
+        else:
+            sel = np.concatenate(picks)
         hist, _, _ = np.histogram2d(
             cv1[sel], cv2[sel], bins=[fel_grid.x_edges, fel_grid.y_edges], range=hist_range
         )
@@ -104,7 +169,7 @@ def bootstrap_system(
             pops[b, k] = np.mean(fb == bid)
             vals = fe[masks[k]]
             mins[b, k] = np.nanmin(vals) if np.any(np.isfinite(vals)) else np.nan
-    return SystemBootstrap(name, pops, mins, grids, block_lengths, n)
+    return SystemBootstrap(name, pops, mins, grids, block_lengths, n, used_level, n_rep, rep_pops)
 
 
 def _ci(samples: np.ndarray, level: float = 0.95) -> tuple[float, float]:
@@ -125,6 +190,56 @@ def _bootstrap_p_value(diff_samples: np.ndarray) -> float:
     return float(min(1.0, max(2.0 * frac, 1.0 / s.size)))
 
 
+def welch_interval(
+    b: np.ndarray, a: np.ndarray, level: float = 0.95
+) -> tuple[float, float, float, float]:
+    """Difference of means ``mean(b) - mean(a)`` with its Welch–Satterthwaite
+    confidence interval; returns ``(diff, low, high, df)``.
+
+    Same statistic and degrees of freedom as ``scipy.stats.ttest_ind(b, a,
+    equal_var=False)``. Needs at least two values in each group; when both sample
+    variances are zero the interval collapses to the difference and ``df`` is NaN.
+    """
+    from scipy import stats as sps
+
+    a = np.asarray(a, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+    na, nb = len(a), len(b)
+    if na < 2 or nb < 2:
+        return float("nan"), float("nan"), float("nan"), float("nan")
+    va, vb = np.var(a, ddof=1) / na, np.var(b, ddof=1) / nb
+    diff = float(np.mean(b) - np.mean(a))
+    se2 = va + vb
+    if se2 <= 0:
+        return diff, diff, diff, float("nan")
+    df = se2**2 / (va**2 / (na - 1) + vb**2 / (nb - 1))
+    half = float(sps.t.ppf(0.5 + level / 2.0, df) * np.sqrt(se2))
+    return diff, diff - half, diff + half, float(df)
+
+
+def heterogeneity_ratio(observed: np.ndarray, within_samples: list[np.ndarray]) -> float:
+    """Between-replicate SD of a population over the RMS within-replicate
+    bootstrap SE.
+
+    ``observed``: per-replicate populations; ``within_samples``: each replicate's
+    within-replicate block-bootstrap populations (same units). About 1 when the
+    replicates sample one distribution; large when they disagree (e.g. trapped in
+    different states). ``inf`` when the replicates differ but none fluctuates
+    within itself; NaN for fewer than two replicates or no variation at all.
+    """
+    obs = np.asarray(observed, dtype=np.float64)
+    if obs.size < 2:
+        return float("nan")
+    between = float(np.std(obs, ddof=1))
+    se2 = [np.nanvar(w, ddof=1) for w in within_samples if np.sum(np.isfinite(w)) > 1]
+    within = float(np.sqrt(np.mean(se2))) if se2 else float("nan")
+    if not np.isfinite(within):
+        return float("nan")
+    if within == 0.0:
+        return float("inf") if between > 0.0 else float("nan")
+    return between / within
+
+
 def population_difference_table(
     states: list[BasinState],
     frame_assignments: pd.DataFrame,
@@ -132,8 +247,14 @@ def population_difference_table(
     reference: str,
     boots: dict[str, SystemBootstrap],
 ) -> pd.DataFrame:
-    """Per-state populations for every system, replicate-level spread, and the
-    difference to the reference system with bootstrap CI / p-value and Welch's t."""
+    """Per-state populations for every system, replicate-level spread and
+    heterogeneity ratio, and the difference to the reference system with the
+    bootstrap CI / p-value and Welch's t-test with its 95 % interval.
+
+    The Welch columns treat replicates as the independent units and are the
+    primary test between conditions. ``*_Welch_Diff_Percent`` is the difference
+    of the per-replicate mean populations, which equals the frame-pooled
+    ``*_minus_*_Percent`` only when all replicates have the same length."""
     try:
         from scipy import stats as sps
     except Exception:  # pragma: no cover
@@ -158,10 +279,26 @@ def population_difference_table(
             row[f"{name}_Replicate_SD_Percent"] = (
                 float(np.std(per_rep, ddof=1)) if len(per_rep) > 1 else np.nan
             )
+            row[f"{name}_Replicate_Min_Percent"] = (
+                float(np.min(per_rep)) if len(per_rep) else np.nan
+            )
+            row[f"{name}_Replicate_Max_Percent"] = (
+                float(np.max(per_rep)) if len(per_rep) else np.nan
+            )
+            row[f"{name}_N_Replicates"] = len(per_rep)
             if name in boots:
-                lo, hi = _ci(100.0 * boots[name].populations[:, k])
+                bs = boots[name]
+                lo, hi = _ci(100.0 * bs.populations[:, k])
                 row[f"{name}_CI95_Low_Percent"] = lo
                 row[f"{name}_CI95_High_Percent"] = hi
+                row[f"{name}_Bootstrap_Level"] = bs.level
+                reps_order = s_frames.groupby("replicate", sort=False).size().index
+                within = [
+                    100.0 * bs.replicate_populations[str(r)][:, k]
+                    for r in reps_order
+                    if str(r) in bs.replicate_populations
+                ]
+                row[f"{name}_Replicate_Heterogeneity_Ratio"] = heterogeneity_ratio(per_rep, within)
         for name in system_names:
             if name == reference:
                 continue
@@ -179,10 +316,19 @@ def population_difference_table(
                 row[f"{name}_minus_{reference}_Welch_t"] = float(t.statistic)
                 row[f"{name}_minus_{reference}_Welch_p"] = float(t.pvalue)
                 row[f"{name}_minus_{reference}_Welch_df"] = f"{len(b)} vs {len(a)} replicates"
+                wd, wlo, whi, wdf = welch_interval(b, a)
+                # a population difference lies in [-100, 100] percentage points; with
+                # very few replicates the t interval can exceed that range
+                row[f"{name}_minus_{reference}_Welch_Diff_Percent"] = wd
+                row[f"{name}_minus_{reference}_Welch_CI95_Low"] = max(wlo, -100.0)
+                row[f"{name}_minus_{reference}_Welch_CI95_High"] = min(whi, 100.0)
+                row[f"{name}_minus_{reference}_Welch_dof"] = wdf
             else:
                 row[f"{name}_minus_{reference}_Welch_t"] = np.nan
                 row[f"{name}_minus_{reference}_Welch_p"] = np.nan
                 row[f"{name}_minus_{reference}_Welch_df"] = "n/a (<2 replicates)"
+                for col in ("Welch_Diff_Percent", "Welch_CI95_Low", "Welch_CI95_High", "Welch_dof"):
+                    row[f"{name}_minus_{reference}_{col}"] = np.nan
         if len(system_names) == 2:
             other = [n for n in system_names if n != reference][0]
             row["Difference_Percent"] = row[f"{other}_minus_{reference}_Percent"]
@@ -238,7 +384,9 @@ def ddg_map(
     if boot_ref is not None and boot_sys is not None:
         n = min(len(boot_ref.fe_grids), len(boot_sys.fe_grids))
         diffs = boot_sys.fe_grids[:n] - boot_ref.fe_grids[:n]
-        with np.errstate(all="ignore"):
+        # bins never sampled in any resample give all-NaN columns (NaN SD, masked below)
+        with np.errstate(all="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
             sd = np.nanstd(diffs, axis=0)
         sd[np.isnan(ddg)] = np.nan
     return ddg, sd
@@ -317,3 +465,54 @@ def subspace_overlap_matrix(eigvecs: dict[str, np.ndarray], n_modes: int = 10) -
     df = pd.DataFrame(mat, index=names, columns=names)
     df.index.name = f"RMSIP_top{k}"
     return df
+
+
+def comparison_warnings(
+    pop_table: pd.DataFrame,
+    system_names: list[str],
+    reference: str,
+    boots: dict[str, SystemBootstrap],
+    ratio_threshold: float = HETEROGENEITY_RATIO_WARN,
+) -> list[str]:
+    """Plain-language cautions for a population-comparison table.
+
+    * a system with one replicate: its intervals reflect within-trajectory
+      sampling only and no between-condition test is possible;
+    * a system whose replicates disagree (heterogeneity ratio above
+      ``ratio_threshold``) for some state;
+    * frame-level bootstrap selected while replicates are available.
+    """
+    out: list[str] = []
+    for name in system_names:
+        ncol = f"{name}_N_Replicates"
+        n_rep = int(pop_table[ncol].iloc[0]) if ncol in pop_table and len(pop_table) else 0
+        if n_rep == 1:
+            out.append(
+                f"{name} has a single replicate: its intervals describe the uncertainty "
+                "given this one trajectory, not the spread between independent simulations, "
+                "and no replicate-level test against other systems is possible."
+            )
+        b = boots.get(name)
+        if b is not None and b.level == "frame" and b.n_replicates >= 2:
+            out.append(
+                f"{name}: bootstrap_level is 'frame', so its intervals omit the "
+                "between-replicate variance; use the Welch columns for between-condition claims."
+            )
+        rcol = f"{name}_Replicate_Heterogeneity_Ratio"
+        if rcol not in pop_table:
+            continue
+        for _, row in pop_table.iterrows():
+            r = row[rcol]
+            if np.isnan(r) or r <= ratio_threshold:
+                continue
+            ratio_txt = "inf" if not np.isfinite(r) else f"{r:.1f}"
+            out.append(
+                f"{name}, {row['State']}: replicates disagree (per-replicate population "
+                f"{row[f'{name}_Replicate_Min_Percent']:.1f}-"
+                f"{row[f'{name}_Replicate_Max_Percent']:.1f} %, between-replicate SD "
+                f"{ratio_txt}x the within-replicate bootstrap SE). The trajectories have not "
+                "sampled a common distribution; population differences involving this system "
+                "should be judged by the replicate-level (Welch) test and may change with "
+                "more or longer simulations."
+            )
+    return out

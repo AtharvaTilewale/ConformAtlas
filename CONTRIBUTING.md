@@ -27,7 +27,7 @@ The user-facing extras are `pdf` (WeasyPrint), `interactive` (plotly), `hdf5`
 the `sum_hills` cross-check of the metadynamics bias; the check is skipped
 without it.
 
-GROMACS (`gmx` on `PATH`, 2021 or newer) is needed for the GROMACS backend tests and
+GROMACS (`gmx` on `PATH`; tested with 2024.4 and 2026.3) is needed for the GROMACS backend tests and
 for the `gmx covar`/`anaeig`/`sham`/`gyrate` validation rows; those tests and rows are
 skipped when it is absent.
 
@@ -35,7 +35,8 @@ skipped when it is absent.
 
 - Python ≥ 3.10, type hints on public functions, NumPy-style docstrings.
 - Units: Å, ps, kJ/mol; `R = 0.008314462618 kJ/(mol K)` (`conformatlas.utils.R_GAS_CONSTANT`).
-  The GROMACS backend converts nm → Å at the parsing boundary.
+  The GROMACS backend (`--pca-backend gromacs`) keeps GROMACS units: its projections and
+  eigenvalues are in nm / nm²; label axes from the recorded unit rather than assuming Å.
 - State every assumption a function makes in its docstring (equal-weight replicates,
   lag-time Markovianity, reversibility, fixed basin labels in the bootstrap, …).
 - No placeholders, mocks or TODO stubs in shipped code. If something cannot be
@@ -56,15 +57,15 @@ Both must pass; CI runs `ruff check` and `ruff format --check`.
 ### Tests
 
 ```bash
-pytest -q                               # unit + integration (integration tests need MDAnalysis)
+pytest -q                               # unit + integration tests
 pytest -q -m "not slow"                 # skip the slow ones
 pytest --cov=conformatlas --cov-report=term-missing
 ```
 
 Unit tests live in `tests/unit/test_<module>.py`, integration tests in
-`tests/integration/`. Tests on real data use the 190 kB neuraminidase fixture
-`tests/data/h1n1_ca/` (Cα + ligand heavy atoms, 81 frames); do not add large binary
-files to the repository.
+`tests/integration/`. Tests on real data use the 280 kB adenylate kinase fixture
+`tests/data/adk_ca/` (Cα + synthetic Ap5A ligand, 105 frames; built by
+`examples/adk/make_adk_data.py`); do not add large binary files to the repository.
 
 ### Documentation
 
@@ -74,7 +75,7 @@ python -m sphinx -W -b html docs docs/_build/html
 
 `-W` turns warnings into errors and is what CI runs. Pages are Markdown (MyST) under
 `docs/`; add new pages to the toctree in `docs/index.rst`. Numbers quoted in
-`docs/tutorial_neuraminidase.md` are re-derived from the tutorial's output files by
+`docs/tutorial_adk.md` are re-derived from the tutorial's output files by
 `validation/checks_docs.py`; if you change a default that changes those numbers,
 re-run the tutorial and update the text.
 
@@ -139,8 +140,8 @@ check. The pattern:
   ([Keep a Changelog](https://keepachangelog.com/) format).
 - Fill in the pull-request template; the "validated vs heuristic" section is
   mandatory for numerical changes.
-- CI must be green: ruff, pytest on Linux and macOS for Python 3.10–3.12, package
-  build, and the Sphinx `-W` build.
+- CI must be green: ruff, pytest on Linux and macOS for Python 3.10–3.12 and on
+  Windows for Python 3.12, package build, and the Sphinx `-W` build.
 
 ## Reporting bugs and asking questions
 

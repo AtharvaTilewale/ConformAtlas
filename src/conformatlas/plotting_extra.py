@@ -11,7 +11,11 @@ import matplotlib
 import numpy as np
 import pandas as pd
 
-matplotlib.use("Agg")
+# Headless (Agg) for the CLI and scripts. A notebook backend chosen by the user
+# (matplotlib-inline, ipympl: "module://...") is kept so that figures still display
+# after ConformAtlas is imported; the raw rcParam is read so that no backend is resolved.
+if not str(dict.__getitem__(matplotlib.rcParams, "backend")).startswith("module://"):
+    matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from conformatlas.bootstrap import circular_block_indices  # noqa: E402

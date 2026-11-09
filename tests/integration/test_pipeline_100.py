@@ -1,6 +1,6 @@
 """End-to-end coverage of the analysis paths added in 1.0.0.
 
-One full `analyze` run on the bundled Cα neuraminidase + zanamivir fixture
+One full `analyze` run on the bundled ADK fixture (Cα + synthetic Ap5A)
 exercises MSM construction, resegment bootstrap, CV-based equilibration
 detection, residue analysis, the HDF5 container and provenance; a second run
 re-analyses it with ``--from``; a third repeats the PCA with the streaming
@@ -22,17 +22,17 @@ import conformatlas
 from conformatlas.cli import main
 
 ROOT = Path(__file__).resolve().parents[2]
-H1N1 = ROOT / "tests" / "data" / "h1n1_ca"
+ADK = ROOT / "tests" / "data" / "adk_ca"
 HAS_H5PY = importlib.util.find_spec("h5py") is not None
 
 BASE = [
     "analyze",
     "-s",
-    str(H1N1 / "neuraminidase_ca.pdb"),
+    str(ADK / "adk_ap5_ca.pdb"),
     "-f",
-    str(H1N1 / "neuraminidase_ca.xtc"),
+    str(ADK / "adk_ap5_ca.xtc"),
     "-n",
-    str(H1N1 / "index.ndx"),
+    str(ADK / "index.ndx"),
     "-T",
     "300",
     "--bins",
@@ -56,7 +56,7 @@ def full_run(tmp_path_factory):
         [
             *BASE,
             "--lig",
-            "ZMR",
+            "AP5",
             "--bootstrap",
             "10",
             "--bootstrap-mode",

@@ -429,7 +429,7 @@ def main(ctx, structure, trajectory, temperature, output, quiet):
     "lig_group",
     type=str,
     default=None,
-    help="Ligand residue/group name (e.g. ZMR, ATP): added to the analysis group and given its own RMSD.",
+    help="Ligand residue/group name (e.g. AP5, ATP): added to the analysis group and given its own RMSD.",
 )
 @click.option(
     "--pca-type",
@@ -443,7 +443,8 @@ def main(ctx, structure, trajectory, temperature, output, quiet):
     "--pca-backend",
     type=click.Choice(["auto", "python", "gromacs"]),
     default=None,
-    help="auto/python: in-memory MDAnalysis route (Å); gromacs: gmx covar/anaeig (nm).",
+    help="auto/python: in-memory MDAnalysis route (Å); gromacs: gmx covar/anaeig (nm) on every "
+    "frame (not combinable with -b/-e, --stride or --equilibration auto).",
 )
 @click.option(
     "--cv",
@@ -535,7 +536,7 @@ def main(ctx, structure, trajectory, temperature, output, quiet):
     "--fel-backend",
     type=click.Choice(["python", "gromacs"]),
     default=None,
-    help="FEL backend (python default).",
+    help="Deprecated, no effect: the landscape is always computed in Python (to be removed in 2.0).",
 )
 @click.option("--gmx-command", type=str, default=None, help="Path to a GROMACS executable.")
 @click.option(
@@ -807,6 +808,13 @@ def analyze(ctx, config_file, **options):
     default=None,
     help="'resegment' re-runs the watershed on every pooled-landscape resample; default fixed (YAML: bootstrap_mode).",
 )
+@click.option(
+    "--bootstrap-level",
+    type=click.Choice(["replicate", "frame"]),
+    default=None,
+    help="'replicate' (default) resamples replicates and then frame blocks, so intervals include "
+    "the spread between simulations; 'frame' resamples within replicates only (YAML: bootstrap_level).",
+)
 @_style_options
 @click.pass_context
 def compare(ctx, config_file, output_dir, **options):
@@ -830,6 +838,7 @@ def compare(ctx, config_file, output_dir, **options):
         "interactive",
         "plotly_js",
         "bootstrap_mode",
+        "bootstrap_level",
     ):
         if options.get(key) is not None:
             setattr(comp_config, key, options[key])
@@ -1403,13 +1412,33 @@ def init_config(config_type, out_file):
     show_default=True,
     help="Output directory to generate example files.",
 )
-def example(output_dir):
-    """Generate a lightweight example dataset and comparison YAML configuration."""
+@click.option(
+    "--replicates",
+    "n_replicates",
+    type=click.IntRange(min=1),
+    default=2,
+    show_default=True,
+    help="Trajectories per system (WT and MUT).",
+)
+@click.option(
+    "--frames",
+    "n_frames",
+    type=click.IntRange(min=2),
+    default=100,
+    show_default=True,
+    help="Frames per trajectory (10 ps apart).",
+)
+def example(output_dir, n_replicates, n_frames):
+    """Generate a synthetic WT/MUT example dataset and comparison YAML configuration.
+
+    The populations are known exactly (WT 65 % State A, MUT 30 % State A), so the
+    comparison has a true difference of -35 percentage points.
+    """
     from conformatlas.examples_gen import generate_mini_example_dataset
 
     p = Path(output_dir)
     try:
-        generate_mini_example_dataset(p)
+        generate_mini_example_dataset(p, n_replicates=n_replicates, n_frames=n_frames)
     except ConformAtlasError as e:
         fail(str(e), e.exit_code)
     click.echo(f"{GREEN}✔ Example dataset created in: {p.resolve()}{NC}")

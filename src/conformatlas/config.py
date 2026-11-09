@@ -20,11 +20,51 @@ def load_yaml_config(config_path: str | Path) -> dict[str, Any]:
     return data
 
 
+_COMPARE_TOP_KEYS = frozenset(
+    {
+        "project", "temperature", "output_dir", "pca", "systems", "bins", "smooth_sigma",
+        "begin_ps", "end_ps", "index_file", "n_bootstrap", "seed", "min_state_population",
+        "max_states", "min_barrier", "stride", "bootstrap_mode", "bootstrap_level",
+        "pca_weighting", "reference_system", "fig_format", "colormap", "font_scale",
+        "fig_dpi", "interactive", "plotly_js",
+    }
+)  # fmt: skip
+_COMPARE_PCA_KEYS = frozenset(
+    {
+        "fit_group", "analysis_group", "reference", "reference_system", "components", "fit",
+        "mass_weighted_fit", "weighting",
+    }
+)  # fmt: skip
+_COMPARE_SYSTEM_KEYS = frozenset({"name", "topology", "trajectories"})
+
+
+def _reject_unknown(keys, allowed, where: str, path: Path) -> None:
+    unknown = sorted(str(k) for k in keys if k not in allowed)
+    if unknown:
+        also = f" (also: {', '.join(unknown[1:])})" if len(unknown) > 1 else ""
+        raise ValueError(
+            f"Unknown key '{unknown[0]}' {where} in {path.name}{also}; "
+            f"allowed: {', '.join(sorted(allowed))}"
+        )
+
+
 def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
-    """Parse a YAML comparison configuration into a typed ComparisonConfig."""
+    """Parse a YAML comparison configuration into a typed ComparisonConfig.
+
+    Unknown or misspelled keys raise ``ValueError`` (as for ``analyze``) instead of
+    being ignored; ``pca.reference`` and the PCA weighting are validated here.
+    """
     config_file = Path(config_path).resolve()
     config_dir = config_file.parent
     data = load_yaml_config(config_file)
+    _reject_unknown(data.keys(), _COMPARE_TOP_KEYS, "at the top level", config_file)
+    if not isinstance(data.get("pca") or {}, dict):
+        raise ValueError(f"'pca' must be a mapping in {config_file.name}")
+    _reject_unknown((data.get("pca") or {}).keys(), _COMPARE_PCA_KEYS, "under 'pca'", config_file)
+    for s_raw in data.get("systems") or []:
+        if not isinstance(s_raw, dict):
+            raise ValueError(f"Each entry of 'systems' must be a mapping in {config_file.name}")
+        _reject_unknown(s_raw.keys(), _COMPARE_SYSTEM_KEYS, "in a system entry", config_file)
     project = data.get("project", "Comparison_Project")
     temperature = float(data.get("temperature", 300.0))
     raw_output = data.get("output_dir", f"Outputs/{project}")
@@ -32,11 +72,32 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
     if not output_dir.is_absolute():
         output_dir = (config_dir / output_dir).resolve()
 
-    pca_dict = data.get("pca", {})
+    pca_dict = data.get("pca") or {}
     fit_group = pca_dict.get("fit_group", "Backbone")
     analysis_group = pca_dict.get("analysis_group", "Backbone")
-    reference = pca_dict.get("reference", "combined")
+    reference = str(pca_dict.get("reference", "combined"))
+    if reference not in ("combined", "reference-system"):
+        raise ValueError(
+            f"pca.reference must be 'combined' or 'reference-system' (got '{reference}') "
+            f"in {config_file.name}"
+        )
     reference_system = pca_dict.get("reference_system", None)
+    top_ref = data.get("reference_system", None)
+    if top_ref is not None and reference_system is not None and top_ref != reference_system:
+        raise ValueError(
+            f"reference_system is given twice with different values ('{top_ref}' at the top "
+            f"level, '{reference_system}' under 'pca') in {config_file.name}"
+        )
+    reference_system = reference_system if reference_system is not None else top_ref
+    if "pca_weighting" in data and "weighting" in pca_dict:
+        if data["pca_weighting"] != pca_dict["weighting"]:
+            raise ValueError(f"pca_weighting and pca.weighting disagree in {config_file.name}")
+    pca_weighting = str(data.get("pca_weighting", pca_dict.get("weighting", "equal-replicate")))
+    if pca_weighting not in ("equal-replicate", "frames"):
+        raise ValueError(
+            f"pca_weighting must be 'equal-replicate' or 'frames' (got '{pca_weighting}') "
+            f"in {config_file.name}"
+        )
     components = int(pca_dict.get("components", 10))
     fit = bool(pca_dict.get("fit", True))
     mass_weighted_fit = bool(pca_dict.get("mass_weighted_fit", False))
@@ -55,6 +116,7 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
     min_barrier = float(min_barrier_raw) if min_barrier_raw is not None else None
     stride = int(data.get("stride", 1))
     bootstrap_mode = str(data.get("bootstrap_mode", "fixed"))
+    bootstrap_level = str(data.get("bootstrap_level", "replicate"))
     fig_format = data.get("fig_format", None)
     colormap = data.get("colormap", None)
     font_scale = data.get("font_scale", None)
@@ -97,6 +159,7 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
         analysis_group=analysis_group,
         reference=reference,
         reference_system=reference_system,
+        pca_weighting=pca_weighting,
         components=components,
         bins=bins,
         smooth_sigma=smooth_sigma,
@@ -112,6 +175,7 @@ def parse_comparison_config(config_path: str | Path) -> ComparisonConfig:
         n_bootstrap=n_bootstrap,
         seed=seed,
         bootstrap_mode=bootstrap_mode,
+        bootstrap_level=bootstrap_level,
         fig_format=fig_format,
         colormap=colormap,
         font_scale=None if font_scale is None else float(font_scale),
@@ -127,7 +191,7 @@ def generate_example_config(config_type: str = "compare") -> str:
         return """# ConformAtlas WT vs Mutant Comparison Configuration
 project: WT_vs_Mutant
 
-temperature: 300.0  # Kelvin (mandatory, > 0)
+temperature: 300.0  # Kelvin (> 0; default 300 if omitted). Give the simulation temperature.
 output_dir: Outputs/comparison
 
 pca:
@@ -135,6 +199,7 @@ pca:
   analysis_group: Backbone
   reference: combined       # Options: 'combined' or 'reference-system'
   reference_system: WT      # Required if reference is 'reference-system'
+  weighting: equal-replicate  # equal-replicate (every replicate weighs the same) | frames
   components: 10
   fit: true                 # superpose frames on fit_group before PCA (false only for pre-fitted trajectories)
   mass_weighted_fit: false
@@ -149,6 +214,7 @@ end_ps: null
 index_file: null            # GROMACS .ndx for group names
 n_bootstrap: 200
 bootstrap_mode: fixed       # fixed | resegment (re-run the watershed on every resample)
+bootstrap_level: replicate  # replicate (resample replicates, then frame blocks) | frame
 stride: 1                   # Frame stride
 
 # Figures and report (optional; defaults keep png / turbo / 1.0 / 300 dpi)
@@ -180,7 +246,7 @@ systems:
 # line override values given here.
 system_name: WT
 topology: topology.gro        # .gro/.pdb also serves as superposition reference; .tpr uses frame 0
-temperature: 300.0            # Kelvin (mandatory, > 0)
+temperature: 300.0            # Kelvin (> 0; default 300 if omitted)
 output_dir: Outputs/WT
 
 trajectories:
@@ -198,7 +264,7 @@ stride: 1
 index_file: null              # index.ndx
 lsq_group: Backbone           # fit group
 cov_group: Backbone           # analysis group
-lig_group: null               # e.g. ZMR / ATP: added to the analysis group, own RMSD reported
+lig_group: null               # e.g. AP5 / ATP: added to the analysis group, own RMSD reported
 fit: true                     # superpose on lsq_group before PCA (false only for pre-fitted trajectories)
 mass_weighted_fit: false
 
@@ -243,7 +309,7 @@ msm_ck_k: 5                   # Chapman-Kolmogorov multiples of the lag
 
 # Residue-level analyses
 residue_analysis: false       # DCCM, per-residue state differences, ligand contacts (residues/)
-ligand_selection: null        # MDAnalysis selection, e.g. "resname ZMR"; null = from lig_group
+ligand_selection: null        # MDAnalysis selection, e.g. "resname AP5"; null = from lig_group
 contact_cutoff: 4.5           # Å, heavy atoms
 dihedral_set: backbone        # backbone | backbone+chi | chi | nucleic (pca_type: dihedral)
 

@@ -273,7 +273,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
 
     from conformatlas.features import stream_backbone_dihedrals
 
-    fx = ROOT / "tests" / "data" / "h1n1_ca"
+    fx = ROOT / "tests" / "data" / "adk_ca"
     demo = ROOT / "examples" / "demo_dataset" / "WT"
     u = mda.Universe(str(demo / "topology.pdb"), str(demo / "rep1.xtc"))
     try:
@@ -321,7 +321,7 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
     from conformatlas.descriptors import radius_of_gyration, rmsd_series, rmsf_per_atom
     from conformatlas.trajectory import load_reference_coordinates, stream_trajectory_coordinates
 
-    topo, traj = fx / "neuraminidase_ca.pdb", fx / "neuraminidase_ca.xtc"
+    topo, traj = fx / "adk_ap5_ca.pdb", fx / "adk_ap5_ca.xtc"
     u = mda.Universe(str(topo), str(traj))
     ca = u.select_atoms("name CA")
     idx = ca.indices.tolist()
@@ -371,9 +371,13 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
     if gmx:
         d = tmp / "gyr"
         d.mkdir(exist_ok=True)
+        # Cα only, as a GROMACS selection: the group name "C-alpha" is a syntax error for
+        # the selection parser of current GROMACS, and the fallback (all atoms) brings in
+        # ligand masses that GROMACS guesses from atom names (PA, PB -> Pa, Pb) while
+        # MDAnalysis uses the element column
         r = subprocess.run(
             [gmx, "gyrate", "-s", str(topo), "-f", str(traj), "-o", "g.xvg"],
-            input="C-alpha\n",
+            input="name CA\n",
             text=True,
             capture_output=True,
             cwd=d,
@@ -561,13 +565,23 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
                 "≥ 95 % of bins; median < XPM level step",
                 "GROMACS sham",
             )
+            # bins ConformAtlas leaves undefined: sham writes one constant fill value there,
+            # at or above its highest sampled ΔG; a few bins differ only because a single
+            # frame on a shared bin edge is binned to the neighbour (see the row above)
+            vals, counts = np.unique(np.round(G[~m], 4), return_counts=True)
+            fill = float(vals[np.argmax(counts)]) if len(vals) else float("nan")
+            n_fill = int(counts.max()) if len(counts) else 0
+            sham_sampled = G[np.abs(G - fill) > step / 2]  # bins sham itself sampled
+            g_sampled_max = float(sham_sampled.max()) if sham_sampled.size else float("nan")
             record(
                 "FEL",
-                "unsampled bins: sham = max sampled ΔG, ConformAtlas = NaN (deliberate difference)",
-                True,
-                f"sham fills with {np.unique(G[~m]).round(2).tolist()}",
-                "NaN",
-                "informational",
+                "unsampled bins: sham writes one constant fill value at or above the highest "
+                "sampled ΔG, ConformAtlas = NaN (deliberate difference)",
+                bool(len(vals)) and fill >= g_sampled_max - step and n_fill >= int((~m).sum()) - 3,
+                f"fill {fill:.2f} kJ/mol in {n_fill}/{int((~m).sum())} empty bins; highest sampled "
+                f"ΔG {g_sampled_max:.2f} kJ/mol",
+                "NaN in ConformAtlas",
+                "fill ≥ highest sampled ΔG; ≤ 3 edge-frame bins differ",
                 "GROMACS sham",
             )
         else:
@@ -732,18 +746,148 @@ def run_part2(tmp: Path, truth, record, ROOT: Path, KB: float):
         "≥ 0.88",
         "same null experiment",
     )
-    # Welch's t agrees with scipy (identical call) — check the table against scipy directly
-    a = np.array([65.0, 70.0])
-    b = np.array([40.0, 46.0])
-    tt = ttest_ind(b, a, equal_var=False)
+    # Null with heterogeneous replicates (thresholds fixed before the first run):
+    # both systems come from ONE slow two-state process (mean dwell 1000 frames,
+    # 3000 frames per replicate), so single replicates are often trapped in one
+    # state and replicate populations scatter widely, as in real µs simulations.
+    # 3 replicates per system. The replicate-level bootstrap and Welch's t must stay
+    # near nominal; the frame-level bootstrap is expected to fail (it omits the
+    # between-replicate variance), which is the documented reason for the default.
+    P_slow = np.array([[0.999, 0.001], [0.001, 0.999]])
+    het = {"replicate": [0, 0], "frame": [0, 0], "welch": [0, 0]}
+    rng_het = np.random.default_rng(11)  # own stream: later checks keep their draws
+    for e in range(100):
+        rows = []
+        for sysname in ("A", "B"):
+            for rep in ("1", "2", "3"):
+                s = _markov_chain(n_frames, P_slow, rng_het, s0=int(rng_het.random() < 0.5))
+                xy = centres[s] + rng_het.normal(0, 0.5, size=(n_frames, 2))
+                rows.append(
+                    pd.DataFrame(
+                        {
+                            "system": sysname,
+                            "replicate": f"{sysname}_Rep{rep}",
+                            "frame": np.arange(n_frames),
+                            "time_ps": np.arange(n_frames, dtype=float),
+                            "PC1": xy[:, 0],
+                            "PC2": xy[:, 1],
+                        }
+                    )
+                )
+        df = pd.concat(rows, ignore_index=True)
+        fel = calculate_fel(df["PC1"].to_numpy(), df["PC2"].to_numpy(), temperature=300.0, bins=24)
+        states, _, assign, labels = detect_energy_basins(fel, df, min_state_population=0.05)
+        if len(states) != 2:
+            continue
+        for lev in ("replicate", "frame"):
+            rb = np.random.default_rng(5000 + e)
+            boots = {
+                nm: bootstrap_system(
+                    nm, df[df["system"] == nm], fel, labels, states, 200, rb, level=lev
+                )
+                for nm in ("A", "B")
+            }
+            tbl = population_difference_table(states, assign, ["A", "B"], "A", boots)
+            lo, hi = tbl["B_minus_A_CI95_Low"].iloc[0], tbl["B_minus_A_CI95_High"].iloc[0]
+            het[lev][0] += not (lo <= 0 <= hi)
+            het[lev][1] += 1
+            if lev == "replicate":
+                wp = tbl["B_minus_A_Welch_p"].iloc[0]
+                if np.isfinite(wp):
+                    het["welch"][0] += wp < 0.05
+                    het["welch"][1] += 1
+    fpr = {k: v[0] / v[1] for k, v in het.items() if v[1]}
     record(
         "Comparison",
-        "Welch's t-test matches scipy.stats.ttest_ind(equal_var=False)",
-        True,
-        f"t = {tt.statistic:.3f}, p = {tt.pvalue:.3f}",
-        "same call",
-        "identity",
-        "SciPy (the table calls this function)",
+        f"heterogeneous replicates: replicate-level bootstrap CI excludes 0 under the null "
+        f"(3 vs 3 replicates, {het['replicate'][1]} trials)",
+        fpr["replicate"] <= 0.15,
+        f"{fpr['replicate']:.3f}",
+        "0.05",
+        "≤ 0.15",
+        "two systems from one slow Markov process",
+    )
+    record(
+        "Comparison",
+        f"heterogeneous replicates: Welch's t rejects under the null at α = 0.05 "
+        f"({het['welch'][1]} trials)",
+        fpr["welch"] <= 0.10,
+        f"{fpr['welch']:.3f}",
+        "0.05",
+        "≤ 0.10",
+        "same null experiment",
+    )
+    record(
+        "Comparison",
+        "heterogeneous replicates: frame-level bootstrap (bootstrap_level: frame) is "
+        "anti-conservative, as documented",
+        fpr["frame"] > 0.15,
+        f"{fpr['frame']:.3f}",
+        "> 0.15 (omits between-replicate variance)",
+        "> 0.15",
+        "same null experiment; documents why 'replicate' is the default",
+    )
+    # Welch interval: same statistic and degrees of freedom as scipy
+    from conformatlas.comparison_stats import welch_interval
+
+    wa = np.array([65.0, 70.0, 61.0])
+    wb = np.array([40.0, 46.0, 55.0, 49.0])
+    wd, wlo, whi, wdf = welch_interval(wb, wa)
+    tt = ttest_ind(wb, wa, equal_var=False)
+    se = np.sqrt(wa.var(ddof=1) / 3 + wb.var(ddof=1) / 4)
+    t_back = wd / se
+    ok_ci = abs(t_back - tt.statistic) < 1e-12
+    if hasattr(tt, "confidence_interval"):
+        ci = tt.confidence_interval(0.95)
+        ok_ci = ok_ci and abs(ci.low - wlo) < 1e-10 and abs(ci.high - whi) < 1e-10
+        ok_ci = ok_ci and abs(getattr(tt, "df", wdf) - wdf) < 1e-10
+    record(
+        "Comparison",
+        "Welch 95 % interval and Welch–Satterthwaite df match SciPy",
+        ok_ci,
+        f"[{wlo:.4f}, {whi:.4f}], df {wdf:.4f}",
+        "scipy ttest_ind(...).confidence_interval",
+        "1e-10",
+        "SciPy",
+    )
+    # Welch columns of the comparison table: per-replicate populations are built by
+    # population_difference_table from a frame table; compare with SciPy on the
+    # populations computed independently here
+    from conformatlas.comparison_stats import population_difference_table
+    from conformatlas.models import BasinState
+
+    rng_w = np.random.default_rng(11)
+    pops = {"WT": [0.65, 0.70, 0.61], "MUT": [0.40, 0.46, 0.55, 0.49]}
+    rows_w = []
+    indep = {}
+    for sysname, plist in pops.items():
+        indep[sysname] = []
+        for r_i, p_a in enumerate(plist):
+            n_fr = 200 + 37 * r_i  # unequal replicate lengths
+            lab = np.where(rng_w.random(n_fr) < p_a, "State A", "State B")
+            indep[sysname].append(100.0 * np.mean(lab == "State A"))
+            rows_w += [(sysname, f"Rep_{r_i + 1}", s_) for s_ in lab]
+    fa_w = pd.DataFrame(rows_w, columns=["system", "replicate", "state"])
+    st_w = [
+        BasinState(1, "State A", 0.5, 0.0, 0.0, 0.0, "Rep_1", 0, 0.0, 0.1, basin_id=1),
+        BasinState(2, "State B", 0.5, 1.0, 0.0, 0.0, "Rep_1", 1, 1.0, 0.1, basin_id=2),
+    ]
+    tab_w = population_difference_table(st_w, fa_w, ["WT", "MUT"], "WT", {}).set_index("State")
+    tt = ttest_ind(indep["MUT"], indep["WT"], equal_var=False)
+    got_t = float(tab_w.loc["State A", "MUT_minus_WT_Welch_t"])
+    got_p = float(tab_w.loc["State A", "MUT_minus_WT_Welch_p"])
+    got_d = float(tab_w.loc["State A", "MUT_minus_WT_Welch_Diff_Percent"])
+    ref_d = float(np.mean(indep["MUT"]) - np.mean(indep["WT"]))
+    err_w = max(abs(got_t - tt.statistic), abs(got_p - tt.pvalue), abs(got_d - ref_d))
+    record(
+        "Comparison",
+        "Welch t, p and mean difference of the comparison table match SciPy on "
+        "independently computed per-replicate populations (3 vs 4 replicates, unequal lengths)",
+        err_w < 1e-10,
+        f"t = {got_t:.4f}, p = {got_p:.4f}, Δ = {got_d:.3f} pp; max |Δ| vs SciPy {err_w:.1e}",
+        f"t = {tt.statistic:.4f}, p = {tt.pvalue:.4f}, Δ = {ref_d:.3f} pp",
+        "1e-10",
+        "scipy.stats.ttest_ind(equal_var=False)",
     )
     record(
         "Comparison",

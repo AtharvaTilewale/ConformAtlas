@@ -25,7 +25,7 @@ from conformatlas.streaming import (
 HAS_MDA = importlib.util.find_spec("MDAnalysis") is not None
 ROOT = Path(__file__).resolve().parents[2]
 DEMO = ROOT / "examples" / "demo_dataset" / "WT"
-H1N1 = ROOT / "tests" / "data" / "h1n1_ca"
+ADK = ROOT / "tests" / "data" / "adk_ca"
 
 
 # --------------------------------------------------------------------------- accumulator
@@ -206,13 +206,13 @@ def test_frame_chunks_concatenate_to_stream_trajectory_coordinates():
     from conformatlas.streaming import iter_frame_chunks
     from conformatlas.trajectory import resolve_selection_indices, stream_trajectory_coordinates
 
-    top, traj = H1N1 / "neuraminidase_ca.pdb", H1N1 / "neuraminidase_ca.xtc"
+    top, traj = ADK / "adk_ap5_ca.pdb", ADK / "adk_ap5_ca.xtc"
     idx = resolve_selection_indices(top, "name CA")
     ref_c, ref_t, ref_r = stream_trajectory_coordinates(
-        top, traj, atom_indices=idx, stride=2, begin_ps=1000, end_ps=15000, return_fit_rmsd=True
+        top, traj, atom_indices=idx, stride=2, begin_ps=50000, end_ps=700000, return_fit_rmsd=True
     )
     chunks = list(
-        iter_frame_chunks(top, traj, idx, stride=2, begin_ps=1000, end_ps=15000, chunk_size=5)
+        iter_frame_chunks(top, traj, idx, stride=2, begin_ps=50000, end_ps=700000, chunk_size=5)
     )
     c = np.concatenate([x[0] for x in chunks])
     t = np.concatenate([x[1] for x in chunks])
@@ -231,7 +231,7 @@ def test_mda_analysis_class_matches_in_memory():
     from conformatlas.mda_analysis import ConformAtlasPCA
     from conformatlas.trajectory import stream_trajectory_coordinates
 
-    top, traj = H1N1 / "neuraminidase_ca.pdb", H1N1 / "neuraminidase_ca.xtc"
+    top, traj = ADK / "adk_ap5_ca.pdb", ADK / "adk_ap5_ca.xtc"
     u = mda.Universe(str(top), str(traj))
     ca = u.select_atoms("name CA")
     u.trajectory[0]

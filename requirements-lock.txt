@@ -1,5 +1,5 @@
-# Exact versions of the development environment in which ConformAtlas 1.0.0 was
-# developed, tested and validated (python 3.11.16, Linux x86_64, 2026-10-10).
+# Exact versions of the development environment in which ConformAtlas 1.0.2 and the
+# [Unreleased] changes were developed, tested and validated (python 3.11.16, Linux x86_64, 2026-11-08).
 # Generated with: .venv/bin/pip freeze --exclude-editable  (conformatlas itself is installed editable).
 # Install with:   pip install -r requirements-lock.txt && pip install -e .
 # This is a reproducibility record, not a dependency specification: the

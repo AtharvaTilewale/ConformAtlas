@@ -51,11 +51,15 @@ conformatlas compare \
 ```
 
 
-## Real-protein regression dataset
+## Adenylate kinase (`adk/`)
 
-`tests/data/h1n1_ca/` contains a reduced copy of a 20 ns GROMACS simulation of influenza A/H1N1 neuraminidase bound to zanamivir (ZMR): Cα atoms plus ligand heavy atoms (411 atoms), 81 frames at 250 ps spacing, a matching PDB and an index file with `C-alpha` and `ZMR` groups. It exercises the ligand, index-file, time-window, bootstrap and alternative-CV code paths in the integration tests and is small enough to run every analysis mode in seconds:
+The Cα atoms of a published 1 µs equilibrium simulation of apo *E. coli* adenylate kinase (Seyler & Beckstein, figshare, doi:10.6084/m9.figshare.5108170, CC BY 4.0): 4,187 frames, domain angles per frame, and the open (4AKE) and closed (1AKE) crystal structures. Used by the [tutorial](../docs/tutorial_adk.md) and the executed notebook [`notebooks/adk_walkthrough.ipynb`](notebooks/adk_walkthrough.ipynb); see [`adk/README.md`](adk/README.md) for provenance and `adk/make_adk_data.py` to rebuild it.
 
 ```bash
-conformatlas analyze -s tests/data/h1n1_ca/neuraminidase_ca.pdb -f tests/data/h1n1_ca/neuraminidase_ca.xtc \
-    -n tests/data/h1n1_ca/index.ndx --cov-group C-alpha --lsq-group C-alpha --lig ZMR -T 300 -o na_test
+conformatlas analyze -s examples/adk/adk_ca.pdb -f examples/adk/adk_ca.xtc -n examples/adk/index.ndx \
+    -l C-alpha -c C-alpha -T 300 --bins 30 --bootstrap 200 --msm -o adk_results
 ```
+
+## Regression fixture
+
+`tests/data/adk_ca/` holds every 40th frame of the same trajectory (105 frames) with an Ap5A ligand whose coordinates are synthetic (placed from 1AKE), plus the heavy atoms of 4AKE. The integration tests use it for the ligand, index-file, time-window, bootstrap and alternative-CV code paths.

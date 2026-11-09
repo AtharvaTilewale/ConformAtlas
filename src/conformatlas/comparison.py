@@ -12,6 +12,7 @@ from conformatlas.basins import detect_energy_basins, save_basin_results
 from conformatlas.comparison_stats import (
     SystemBootstrap,
     bootstrap_system,
+    comparison_warnings,
     ddg_map,
     ddg_map_table,
     landscape_overlap_table,
@@ -293,10 +294,22 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         for name in system_names:
             s_df = master_projections[master_projections["system"] == name]
             boots[name] = bootstrap_system(
-                name, s_df, global_fel, basin_map, states, config.n_bootstrap, rng
+                name,
+                s_df,
+                global_fel,
+                basin_map,
+                states,
+                config.n_bootstrap,
+                rng,
+                level=config.bootstrap_level,
+            )
+            how = (
+                f"replicates resampled ({boots[name].n_replicates}), then frame blocks"
+                if boots[name].level == "replicate"
+                else "frame blocks within replicates"
             )
             logger.info(
-                f"Block bootstrap for {name}: {config.n_bootstrap} resamples, "
+                f"Bootstrap for {name}: {config.n_bootstrap} resamples, {how}; "
                 f"block lengths {boots[name].block_lengths}"
             )
 
@@ -358,6 +371,9 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         states, frame_assignments, system_names, reference_name, boots
     )
     pop_comp_df.to_csv(comp_dir / "state_population_comparison.csv", index=False)
+    comparison_notes = comparison_warnings(pop_comp_df, system_names, reference_name, boots)
+    for note in comparison_notes:
+        logger.warning(note)
 
     state_fe_df = state_free_energy_table(states, basin_map, system_fels, reference_name, boots)
     state_fe_df.to_csv(comp_dir / "state_free_energy_comparison.csv", index=False)
@@ -416,6 +432,10 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         "end_ps": config.end_ps,
         "n_bootstrap": int(config.n_bootstrap),
         "bootstrap_mode": config.bootstrap_mode,
+        "bootstrap_level": config.bootstrap_level,
+        "bootstrap_level_used": {n: b.level for n, b in boots.items()},
+        "primary_test": "Welch t-test on per-replicate populations (replicates are the units)",
+        "warnings": comparison_notes,
         "seed": int(config.seed),
         "environment": collect_environment(config.gmx_command),
         "states": [
@@ -443,6 +463,7 @@ def run_condition_comparison(config: ComparisonConfig) -> dict[str, Any]:
         "landscape_overlap": overlap_df,
         "subspace_overlap": subspace_df,
         "bootstraps": boots,
+        "warnings": comparison_notes,
         "resegment_tables": resegment_tables,
         "reference_system": reference_name,
         "bins": bins,
