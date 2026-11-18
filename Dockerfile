@@ -5,7 +5,7 @@ ARG BASE_IMAGE=python:3.11-slim
 FROM ${BASE_IMAGE}
 
 # Release of ConformAtlas installed from PyPI (override with --build-arg).
-ARG CONFORMATLAS_VERSION=1.0.2
+ARG CONFORMATLAS_VERSION=1.0.3
 ARG BASE_IMAGE
 
 LABEL org.opencontainers.image.title="ConformAtlas" \

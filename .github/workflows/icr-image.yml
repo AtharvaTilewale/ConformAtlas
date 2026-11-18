@@ -20,7 +20,7 @@ on:
       version:
         description: "ConformAtlas release on PyPI to package"
         required: true
-        default: "1.0.2"
+        default: "1.0.3"
       project:
         description: "ICR project to push to"
         required: true
@@ -48,8 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE: registry.icecloud.in/atharva16atgbu-${{ inputs.project || 'private' }}/conformatlas
-      VERSION: ${{ inputs.version || '1.0.2' }}
-      BUILD_TAG: ${{ inputs.version || '1.0.2' }}-${{ github.run_number }}
+      VERSION: ${{ inputs.version || '1.0.3' }}
+      BUILD_TAG: ${{ inputs.version || '1.0.3' }}-${{ github.run_number }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
