@@ -29,16 +29,20 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends tini \
  && rm -rf /var/lib/apt/lists/*
 
-# Dependency versions are constrained to the environment ConformAtlas was
-# validated in (requirements-lock.txt); packages ConformAtlas does not need are
-# ignored. pip, setuptools and wheel are removed afterwards: they are only
-# needed to install, and their bundled copies carry most fixable CVEs.
+# The numerical stack that determines results is pinned to the versions
+# ConformAtlas was validated with (taken from requirements-lock.txt). Other
+# dependencies (pillow, filelock, ...) float to current releases so security
+# fixes are picked up. pip, setuptools and wheel are removed afterwards: they
+# are only needed to install, and their bundled copies carry fixable CVEs.
 COPY requirements-lock.txt /tmp/requirements-lock.txt
-RUN pip install --no-cache-dir -c /tmp/requirements-lock.txt \
+RUN grep -iE '^(numpy|scipy|pandas|MDAnalysis|scikit-image|matplotlib)==' \
+        /tmp/requirements-lock.txt > /tmp/constraints.txt \
+ && cat /tmp/constraints.txt \
+ && pip install --no-cache-dir -c /tmp/constraints.txt \
         "conformatlas[interactive,hdf5,progress]==${CONFORMATLAS_VERSION}" \
  && conformatlas --version \
  && python -m pip uninstall -y pip setuptools wheel \
- && rm -rf /tmp/requirements-lock.txt /usr/local/lib/python3*/ensurepip/_bundled \
+ && rm -rf /tmp/requirements-lock.txt /tmp/constraints.txt /usr/local/lib/python3*/ensurepip/_bundled \
  && useradd --create-home --uid 1000 conformatlas \
  && mkdir -p /data && chown conformatlas:conformatlas /data
 
