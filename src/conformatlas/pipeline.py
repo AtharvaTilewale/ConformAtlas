@@ -1066,6 +1066,7 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
                 mass_weighted=config.mass_weighted_fit,
                 weights=weights,
                 figure_dir=out_dir / "figures",
+                times_by_replicate=times_dict or None,
             )
             extras["residue_files"] = residue_files
             echo(f"  • {len(residue_files)} residue-level output file(s) in residues/")

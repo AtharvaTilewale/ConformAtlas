@@ -530,7 +530,11 @@ def implied_timescales_scan(
         for i in range(n_timescales):
             row[f"ts_{i + 1}"] = float(ts[i]) if i < len(ts) else np.nan
         rows.append(row)
-    return pd.DataFrame(rows)
+    columns = ["lag_frames", "lag_ps", "n_active", "active_count_fraction"] + [
+        f"ts_{i + 1}" for i in range(n_timescales)
+    ]
+    # Keep the columns when every lag failed, so callers can test ``its.empty``.
+    return pd.DataFrame(rows, columns=columns)
 
 
 def suggest_markov_lag(
@@ -545,6 +549,19 @@ def suggest_markov_lag(
     plateau is found); it never changes the model lag. This is a heuristic
     (UNVERIFIED beyond its definition) - inspect the plot.
     """
+    if its.empty or "lag_frames" not in its.columns:
+        return {
+            "suggested_lag_frames": None,
+            "plateau_found": False,
+            "rel_tol": rel_tol,
+            "relative_changes": pd.DataFrame(
+                columns=["lag_frames", "next_lag_frames", "max_rel_change", "n_resolved"]
+            ),
+            "note": (
+                "No lag in the implied-timescale scan gave a valid MSM (fewer than two "
+                "microstates in the largest connected set at every scanned lag)."
+            ),
+        }
     cols = [c for c in its.columns if c.startswith("ts_")]
     if n_timescales is not None:
         cols = cols[: int(n_timescales)]

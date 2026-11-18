@@ -335,3 +335,29 @@ def test_build_and_save_msm(tmp_path):
     assert res_rs.clustering.method == "regular-space"
     with pytest.raises(ValueError):
         M.build_msm(df, ["PC1", "PC2"], lag=5, clustering="regular-space")
+
+
+def test_empty_implied_timescale_scan_is_reported_cleanly():
+    """No scanned lag gives a valid MSM: a clear error, not KeyError: 'lag_frames'."""
+    from conformatlas.msm import build_msm, implied_timescales_scan, suggest_markov_lag
+
+    # A one-way drift never returns, so every connected set is a single microstate.
+    dtraj = [np.arange(30)]
+    its = implied_timescales_scan(dtraj, [1, 2, 4], n_states=30)
+    assert its.empty and "lag_frames" in its.columns
+    rep = suggest_markov_lag(its)
+    assert rep["suggested_lag_frames"] is None and not rep["plateau_found"]
+    assert "No lag in the implied-timescale scan" in rep["note"]
+    assert suggest_markov_lag(pd.DataFrame())["plateau_found"] is False
+
+    n = 60
+    proj = pd.DataFrame(
+        {
+            "replicate": ["r1"] * n,
+            "frame": np.arange(n),
+            "time_ps": np.arange(n, dtype=float),
+            "PC1": np.linspace(0.0, 10.0, n),
+        }
+    )
+    with pytest.raises(ValueError, match="microstates"):
+        build_msm(proj, ["PC1"], lag=2, n_clusters=6)
