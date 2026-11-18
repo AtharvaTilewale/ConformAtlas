@@ -16,7 +16,7 @@ on:
       tag:
         description: "Image tag to test"
         required: true
-        default: "1.0.2-4"
+        default: "1.0.3"
       project:
         description: "ICR project"
         required: true
