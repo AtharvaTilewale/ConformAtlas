@@ -31,6 +31,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash   # implies -eo pipefail, so a failing test fails its step despite | tee
+
 env:
   REGISTRY: registry.icecloud.in
   ICR_USER: atharva16atgbu
