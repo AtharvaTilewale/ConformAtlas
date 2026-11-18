@@ -1,13 +1,18 @@
 name: ICR image
 
 # Builds the ConformAtlas container image, smoke-tests it on the bundled demo
-# trajectories, and pushes it to the ICE Cloud Container Repository (ICR).
+# trajectories, scans it with Trivy, and pushes it to the ICE Cloud Container
+# Repository (ICR).
 #
 # One-time setup: Settings > Secrets and variables > Actions > New repository
 # secret, name ICR_CLI_SECRET, value = the CLI secret from
 # icecloud.in > Repository > Projects > ICR Credentials.
 #
-# Run: Actions > ICR image > Run workflow.
+# Run: Actions > ICR image > Run workflow. It also rebuilds monthly so Debian
+# security fixes reach the image without a manual run.
+#
+# Tags pushed: <version>-<build> (never overwritten), plus <version> and latest
+# which always point at the newest build.
 
 on:
   workflow_dispatch:
@@ -22,6 +27,12 @@ on:
         default: "private"
         type: choice
         options: [private, public]
+      base_image:
+        description: "Base image pinned by digest (python:3.11-slim@sha256:...). Empty = resolve current python:3.11-slim"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 3 1 * *"   # 03:17 UTC on the 1st of every month
 
 permissions:
   contents: read
@@ -29,13 +40,16 @@ permissions:
 env:
   REGISTRY: registry.icecloud.in
   ICR_USER: atharva16atgbu
+  BASE_TAG: python:3.11-slim
+  TRIVY_IMAGE: aquasec/trivy:0.72.0
 
 jobs:
   build-test-push:
     runs-on: ubuntu-latest
     env:
-      IMAGE: registry.icecloud.in/atharva16atgbu-${{ inputs.project }}/conformatlas
-      VERSION: ${{ inputs.version }}
+      IMAGE: registry.icecloud.in/atharva16atgbu-${{ inputs.project || 'private' }}/conformatlas
+      VERSION: ${{ inputs.version || '1.0.2' }}
+      BUILD_TAG: ${{ inputs.version || '1.0.2' }}-${{ github.run_number }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -50,19 +64,66 @@ jobs:
             exit 1
           fi
 
+      - name: Pin the base image digest
+        env:
+          BASE_INPUT: ${{ inputs.base_image }}
+        run: |
+          if [ -n "$BASE_INPUT" ]; then
+            base="$BASE_INPUT"
+          else
+            digest=$(docker buildx imagetools inspect "${BASE_TAG}" --format '{{json .Manifest}}' | jq -r .digest)
+            base="${BASE_TAG}@${digest}"
+          fi
+          case "$base" in *@sha256:*) ;; *) echo "::error::base image is not pinned by digest: $base"; exit 1;; esac
+          echo "BASE_IMAGE=$base" >> "$GITHUB_ENV"
+          echo "::notice title=Base image::$base"
+
       - name: Build image
         run: |
           docker build \
+            --pull \
+            --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             --build-arg CONFORMATLAS_VERSION="${VERSION}" \
-            -t "${IMAGE}:${VERSION}" -t "${IMAGE}:latest" .
+            -t "${IMAGE}:${BUILD_TAG}" -t "${IMAGE}:${VERSION}" -t "${IMAGE}:latest" .
           docker image ls "${IMAGE}"
 
       - name: Smoke test on the demo trajectories
         run: |
-          docker run --rm "${IMAGE}:${VERSION}" conformatlas --version
-          docker run --rm "${IMAGE}:${VERSION}" conformatlas doctor
-          docker run --rm -v "$PWD/examples/demo_dataset:/demo:ro" "${IMAGE}:${VERSION}" \
+          docker run --rm "${IMAGE}:${BUILD_TAG}" conformatlas --version
+          docker run --rm "${IMAGE}:${BUILD_TAG}" conformatlas doctor
+          docker run --rm -v "$PWD/examples/demo_dataset:/demo:ro" "${IMAGE}:${BUILD_TAG}" \
             sh -c 'conformatlas -q analyze -s /demo/WT/topology.pdb -f /demo/WT/rep1.xtc -f /demo/WT/rep2.xtc -T 300 -o /tmp/out && test -s /tmp/out/report.html && echo "report.html OK"'
+          # tini must forward SIGTERM so instances stop promptly
+          cid=$(docker run -d "${IMAGE}:${BUILD_TAG}")
+          start=$(date +%s); docker stop -t 20 "$cid" >/dev/null; took=$(( $(date +%s) - start ))
+          echo "container stopped in ${took}s"
+          [ "$took" -lt 10 ] || { echo "::error::container ignored SIGTERM (${took}s to stop)"; exit 1; }
+
+      - name: Vulnerability scan (full report)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "${TRIVY_IMAGE}" \
+            image --quiet --format table --severity HIGH,CRITICAL "${IMAGE}:${BUILD_TAG}" | tee trivy-report.txt
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "${TRIVY_IMAGE}" \
+            image --quiet --format json "${IMAGE}:${BUILD_TAG}" > trivy-report.json
+          jq -r '
+            [.Results[]?.Vulnerabilities[]?] as $v
+            | "total=\($v|length) fixable=\([$v[]|select(.FixedVersion != null and .FixedVersion != "")]|length) "
+              + "critical=\([$v[]|select(.Severity=="CRITICAL")]|length) high=\([$v[]|select(.Severity=="HIGH")]|length)"
+          ' trivy-report.json | tee trivy-summary.txt
+          echo "::notice title=Trivy::$(cat trivy-summary.txt)"
+
+      - name: Vulnerability gate (fixable HIGH/CRITICAL)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "${TRIVY_IMAGE}" \
+            image --quiet --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 "${IMAGE}:${BUILD_TAG}"
+
+      - name: Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ env.BUILD_TAG }}
+          path: trivy-*
+          if-no-files-found: ignore
 
       - name: Log in to ICR
         env:
@@ -76,9 +137,17 @@ jobs:
 
       - name: Push image
         run: |
+          docker push "${IMAGE}:${BUILD_TAG}"
           docker push "${IMAGE}:${VERSION}"
           docker push "${IMAGE}:latest"
-          echo "Pushed ${IMAGE}:${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Pushed \`${IMAGE}:${BUILD_TAG}\` (also tagged \`${VERSION}\` and \`latest\`)"
+            echo ""
+            echo "Base image: \`${BASE_IMAGE}\`"
+            echo ""
+            echo "Trivy: $(cat trivy-summary.txt)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Pushed::${IMAGE}:${BUILD_TAG}"
 
       - name: Log out
         if: always()

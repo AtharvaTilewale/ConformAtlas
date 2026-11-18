@@ -1,27 +1,51 @@
-FROM python:3.11-slim
+# Base image. The ICR workflow resolves this tag to an exact digest at build
+# time, passes it in as BASE_IMAGE=python:3.11-slim@sha256:..., and records it
+# in the image labels, so a build can be repeated on the identical base.
+ARG BASE_IMAGE=python:3.11-slim
+FROM ${BASE_IMAGE}
 
 # Release of ConformAtlas installed from PyPI (override with --build-arg).
 ARG CONFORMATLAS_VERSION=1.0.2
+ARG BASE_IMAGE
 
 LABEL org.opencontainers.image.title="ConformAtlas" \
       org.opencontainers.image.description="Mapping conformational landscapes from molecular simulations" \
       org.opencontainers.image.version="${CONFORMATLAS_VERSION}" \
       org.opencontainers.image.source="https://github.com/AtharvaTilewale/ConformAtlas" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.authors="Atharva Tilewale, Dhaval Patel"
+      org.opencontainers.image.authors="Atharva Tilewale, Dhaval Patel" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     MPLBACKEND=Agg
 
-RUN pip install --no-cache-dir "conformatlas[interactive,hdf5,progress]==${CONFORMATLAS_VERSION}" \
+# Debian security updates, plus tini so the container stops promptly.
+# hadolint ignore=DL3008
+RUN apt-get update \
+ && apt-get -y upgrade \
+ && apt-get install -y --no-install-recommends tini \
+ && rm -rf /var/lib/apt/lists/*
+
+# Dependency versions are constrained to the environment ConformAtlas was
+# validated in (requirements-lock.txt); packages ConformAtlas does not need are
+# ignored. pip, setuptools and wheel are removed afterwards: they are only
+# needed to install, and their bundled copies carry most fixable CVEs.
+COPY requirements-lock.txt /tmp/requirements-lock.txt
+RUN pip install --no-cache-dir -c /tmp/requirements-lock.txt \
+        "conformatlas[interactive,hdf5,progress]==${CONFORMATLAS_VERSION}" \
  && conformatlas --version \
+ && python -m pip uninstall -y pip setuptools wheel \
+ && rm -rf /tmp/requirements-lock.txt /usr/local/lib/python3*/ensurepip/_bundled \
  && useradd --create-home --uid 1000 conformatlas \
  && mkdir -p /data && chown conformatlas:conformatlas /data
 
 USER 1000
 WORKDIR /data
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Keeps an ICE Cloud instance running so users can open its terminal and run
 # `conformatlas analyze ...`. With plain Docker:
