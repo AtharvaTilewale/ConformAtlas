@@ -91,8 +91,11 @@ jobs:
         run: |
           docker run --rm "${IMAGE}:${BUILD_TAG}" conformatlas --version
           docker run --rm "${IMAGE}:${BUILD_TAG}" conformatlas doctor
-          docker run --rm -v "$PWD/examples/demo_dataset:/demo:ro" "${IMAGE}:${BUILD_TAG}" \
-            sh -c 'conformatlas -q analyze -s /demo/WT/topology.pdb -f /demo/WT/rep1.xtc -f /demo/WT/rep2.xtc -T 300 -o /tmp/out && test -s /tmp/out/report.html && echo "report.html OK"'
+          # Mimic an ICE Cloud private drive: owned by 100:100, mode 755.
+          mkdir -p drive && sudo chown 100:100 drive && sudo chmod 755 drive
+          docker run --rm -v "$PWD/examples/demo_dataset:/demo:ro" -v "$PWD/drive:/drive/user" "${IMAGE}:${BUILD_TAG}" \
+            sh -c 'conformatlas -q analyze -s /demo/WT/topology.pdb -f /demo/WT/rep1.xtc -f /demo/WT/rep2.xtc -T 300 -o /drive/user/out && test -s /drive/user/out/report.html && echo "report.html written to drive OK"'
+          sudo rm -rf drive
           # tini must forward SIGTERM so instances stop promptly
           cid=$(docker run -d "${IMAGE}:${BUILD_TAG}")
           start=$(date +%s); docker stop -t 20 "$cid" >/dev/null; took=$(( $(date +%s) - start ))

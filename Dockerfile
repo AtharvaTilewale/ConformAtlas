@@ -43,10 +43,14 @@ RUN grep -iE '^(numpy|scipy|pandas|MDAnalysis|scikit-image|matplotlib)==' \
  && conformatlas --version \
  && python -m pip uninstall -y pip setuptools wheel \
  && rm -rf /tmp/requirements-lock.txt /tmp/constraints.txt /usr/local/lib/python3*/ensurepip/_bundled \
- && useradd --create-home --uid 1000 conformatlas \
- && mkdir -p /data && chown conformatlas:conformatlas /data
+ && useradd --no-log-init --create-home --uid 100 --gid users conformatlas \
+ && mkdir -p /data && chown conformatlas:users /data
 
-USER 1000
+# ICE Cloud mounts each user's drive at /drive/<username>, owned by 100:100
+# (group "users") with mode 755, and replaces the start command with its own
+# web terminal, so the image's default user is who you are in the terminal.
+# Running as 100:100 lets ConformAtlas write results to the persistent drive.
+USER 100:100
 WORKDIR /data
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
