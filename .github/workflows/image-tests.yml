@@ -1,0 +1,149 @@
+name: Image tests
+
+# Tests a ConformAtlas image that is already in ICR, inside the image itself:
+#   1. the full pytest suite of the matching release tag (test-only packages are
+#      mounted read-only; the image's own packages are what get tested)
+#   2. end-to-end command-line tests (docker/image-tests/run_e2e.sh)
+#   3. a long trajectory under a 4 GB memory limit and 2 CPUs, like an ICE Cloud
+#      instance with 2 vCPU / 4 GB
+# Everything runs as uid/gid 100:100, the user ICE Cloud runs the image as.
+#
+# Run: Actions > Image tests > Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to test"
+        required: true
+        default: "1.0.2-4"
+      project:
+        description: "ICR project"
+        required: true
+        default: "private"
+        type: choice
+        options: [private, public]
+      large_frames:
+        description: "Frames in the long-trajectory memory test (AdK, 3341 atoms)"
+        required: true
+        default: "20000"
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: registry.icecloud.in
+  ICR_USER: atharva16atgbu
+  IMAGE: registry.icecloud.in/atharva16atgbu-${{ inputs.project }}/conformatlas:${{ inputs.tag }}
+
+jobs:
+  image-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Pull the image from ICR
+        env:
+          ICR_CLI_SECRET: ${{ secrets.ICR_CLI_SECRET }}
+        run: |
+          echo "$ICR_CLI_SECRET" | docker login "${REGISTRY}" -u "${ICR_USER}" --password-stdin
+          docker pull "${IMAGE}"
+          docker logout "${REGISTRY}"
+          docker image inspect "${IMAGE}" --format 'digest: {{index .RepoDigests 0}}  user: {{.Config.User}}'
+
+      - name: Prepare release checkout, test data and test-only packages
+        run: |
+          set -euo pipefail
+          mkdir -p work
+          VERSION=$(docker run --rm "${IMAGE}" python -c "import conformatlas; print(conformatlas.__version__)")
+          MDA_VERSION=$(docker run --rm "${IMAGE}" python -c "import MDAnalysis; print(MDAnalysis.__version__)")
+          echo "ConformAtlas ${VERSION}, MDAnalysis ${MDA_VERSION}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+          # tests/ and validation/ exactly as released with this version
+          git fetch --depth 1 origin tag "v${VERSION}"
+          mkdir -p work/src && git archive "v${VERSION}" | tar -x -C work/src
+          cp -r docker/image-tests work/scripts
+
+          # Real trajectories and a GROMACS .tpr from MDAnalysis' own test data
+          pip download -q --no-deps -d /tmp/mdat "MDAnalysisTests==${MDA_VERSION}"
+          mkdir -p work/mda
+          tar -xzf /tmp/mdat/*.tar.gz -C /tmp/mdat
+          cp /tmp/mdat/*/MDAnalysisTests/data/{adk.psf,adk_dims.dcd,adk_oplsaa.tpr,adk_oplsaa.xtc} work/mda/
+
+          # Test-only packages for Python 3.11, constrained to the image's versions;
+          # anything the image already has is removed so the image's copy is tested.
+          docker run --rm "${IMAGE}" python -c "import importlib.metadata as m; print('\n'.join(f\"{d.metadata['Name']}=={d.version}\" for d in m.distributions()))" > image-freeze.txt
+          python -m pip install -q --target work/testdeps --python-version 3.11 --only-binary :all: \
+            --platform manylinux_2_28_x86_64 --platform manylinux2014_x86_64 \
+            -c image-freeze.txt pytest deeptime pymbar
+          python - <<'EOF'
+          import re, shutil
+          from pathlib import Path
+          norm = lambda n: re.sub(r"[-_.]+", "-", n).lower()
+          have = {norm(l.split("==")[0]) for l in Path("image-freeze.txt").read_text().split()}
+          root = Path("work/testdeps")
+          for di in root.glob("*.dist-info"):
+              name = norm(di.name.rsplit("-", 1)[0])
+              if name in have:
+                  for line in (di / "RECORD").read_text().splitlines():
+                      top = line.split(",")[0].split("/")[0]
+                      p = root / top
+                      if p.is_dir(): shutil.rmtree(p, ignore_errors=True)
+                      elif p.exists(): p.unlink()
+                  print("using image copy of", name)
+          EOF
+          sudo chown -R 100:100 work
+
+      - name: Pytest suite inside the image
+        run: |
+          docker run --rm --user 100:100 -v "$PWD/work:/work" -w /work/src \
+            -e PYTHONPATH=/work/testdeps -e MPLBACKEND=Agg "${IMAGE}" \
+            python -m pytest -p no:cacheprovider -q -rfEs --junitxml=/work/pytest.xml 2>&1 | tee pytest.log
+          tail -1 pytest.log | sed 's/^/::notice title=pytest::/'
+
+      - name: End-to-end command-line tests inside the image
+        run: |
+          docker run --rm --user 100:100 -v "$PWD/work:/work" "${IMAGE}" \
+            sh -c 'python /work/scripts/make_test_data.py /work/src /work/mda /work/data 0 && bash /work/scripts/run_e2e.sh /work/src /work/data /work/e2e /work/mda' 2>&1 | tee e2e.log
+          grep "summary:" e2e.log | sed 's/^=* */::notice title=e2e::/; s/ *=*$//'
+
+      - name: Long trajectory under 4 GB / 2 CPUs
+        env:
+          FRAMES: ${{ inputs.large_frames }}
+        run: |
+          set -o pipefail
+          docker run --rm --user 100:100 -v "$PWD/work:/work" "${IMAGE}" \
+            python /work/scripts/make_test_data.py /work/src /work/mda /work/large "${FRAMES}"
+          ls -la work/large/adk_long.xtc
+          for engine in auto memory; do
+            docker run --rm --user 100:100 --memory 4g --memory-swap 4g --cpus 2 -v "$PWD/work:/work" "${IMAGE}" \
+              sh -c "start=\$(date +%s); conformatlas analyze -s /work/large/adk.pdb -f /work/large/adk_long.xtc -T 300 -q --no-progress --engine ${engine} --bootstrap 50 --msm --msm-lag 10 -o /work/large/out_${engine}; rc=\$?; echo \"engine=${engine} exit=\$rc seconds=\$((\$(date +%s)-start)) peak_memory_MB=\$((\$(cat /sys/fs/cgroup/memory.peak)/1048576))\"; exit \$rc" \
+              2>&1 | tee "large_${engine}.log"
+            tail -1 "large_${engine}.log" | sed "s/^/::notice title=${FRAMES} frames::/"
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Image tests: \`${IMAGE}\`"
+            echo; echo "### pytest"; echo '```'; tail -15 pytest.log 2>/dev/null; echo '```'
+            echo; echo "### End-to-end"; echo '```'; sed -n '/summary:/,$p' e2e.log 2>/dev/null; echo '```'
+            echo; echo "### Long trajectory (${{ inputs.large_frames }} frames, 4 GB, 2 CPUs)"; echo '```'; tail -1 large_auto.log 2>/dev/null; tail -1 large_memory.log 2>/dev/null; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-tests-${{ inputs.tag }}
+          path: |
+            pytest.log
+            e2e.log
+            large_*.log
+            work/pytest.xml
+            work/e2e/*.log
+          if-no-files-found: ignore
