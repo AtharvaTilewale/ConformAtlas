@@ -750,7 +750,10 @@ def analyze(ctx, config_file, **options):
     def progress(msg: str) -> None:
         if msg.startswith("Step") or msg.startswith("Report"):
             echo(f"\n{CYAN}{msg}{NC}")
-        elif "WARNING" in msg or "NOTE" in msg:
+        elif "WARNING" in msg:
+            # stderr, so --quiet keeps it (e.g. a run that may be killed for lack of memory)
+            echo(f"{YELLOW}{msg}{NC}", err=True)
+        elif "NOTE" in msg:
             echo(f"{YELLOW}{msg}{NC}")
         else:
             echo(msg)

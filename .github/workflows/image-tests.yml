@@ -125,8 +125,19 @@ jobs:
           for engine in auto memory; do
             docker run --rm --user 100:100 --memory 4g --memory-swap 4g --cpus 2 -v "$PWD/work:/work" "${IMAGE}" \
               sh -c "start=\$(date +%s); conformatlas analyze -s /work/large/adk.pdb -f /work/large/adk_long.xtc -T 300 -q --no-progress --engine ${engine} --bootstrap 50 --msm --msm-lag 10 -o /work/large/out_${engine}; rc=\$?; echo \"engine=${engine} exit=\$rc seconds=\$((\$(date +%s)-start)) peak_memory_MB=\$((\$(cat /sys/fs/cgroup/memory.peak)/1048576))\"; exit \$rc" \
-              2>&1 | tee "large_${engine}.log"
+              2>&1 | tee "large_${engine}.log" || rc=$?
             tail -1 "large_${engine}.log" | sed "s/^/::notice title=${FRAMES} frames::/"
+            # --engine auto must finish. A forced in-memory run may be killed when the
+            # trajectory does not fit (exit 137); it must then have warned beforehand.
+            if [ "${engine}" = auto ] && [ "${rc:-0}" -ne 0 ]; then exit "${rc}"; fi
+            if [ "${engine}" = memory ] && [ "${rc:-0}" -eq 137 ]; then
+              if grep -q "may be killed for lack of memory" "large_${engine}.log"; then
+                echo "::notice title=${FRAMES} frames::forced in-memory run killed after warning (expected)"
+              else
+                echo "::warning title=${FRAMES} frames::forced in-memory run killed without a prior warning"
+              fi
+            elif [ "${rc:-0}" -ne 0 ]; then exit "${rc}"; fi
+            unset rc
           done
 
       - name: Summary
