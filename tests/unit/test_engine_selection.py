@@ -14,10 +14,12 @@ from conformatlas.trajectory import (
     _meminfo_available_bytes,
     available_memory_gb,
     estimate_peak_memory_gb,
+    estimate_streaming_peak_gb,
     suggest_stride,
 )
 
-# Measured peak RSS (GB) of in-memory runs, full-atom adenylate kinase.
+# Measured peak RSS (GB) of in-memory runs, full-atom adenylate kinase: Backbone
+# (642), C-alpha (214), and the first 1 500 / 2 500 atoms (covariance and SVD routes).
 MEASURED = [
     (5_000, 642, 0.842),
     (10_000, 642, 1.022),
@@ -25,6 +27,14 @@ MEASURED = [
     (40_000, 642, 3.019),
     (20_000, 214, 0.638),
     (80_000, 214, 2.095),
+    (8_000, 1_500, 2.882),
+    (3_000, 2_500, 2.834),
+]
+# Streaming engine: (frames, atoms, replicates, measured GB).
+MEASURED_STREAMING = [
+    (3_000, 1_500, 1, 1.115),
+    (3_000, 2_500, 1, 3.016),
+    (3_000, 2_500, 2, 3.469),
 ]
 
 
@@ -43,6 +53,19 @@ def test_peak_estimate_is_conservative(n_frames, n_atoms, measured):
     assert est <= measured + max(0.45, 0.25 * measured)  # not wildly pessimistic
 
 
+@pytest.mark.parametrize("n_frames,n_atoms,n_reps,measured", MEASURED_STREAMING)
+def test_streaming_estimate_is_conservative(n_frames, n_atoms, n_reps, measured):
+    est = estimate_streaming_peak_gb(n_frames, n_atoms, n_reps)
+    assert measured <= est <= measured + max(0.45, 0.25 * measured)
+
+
+def test_streaming_estimate_grows_with_replicates_workers_and_atoms():
+    base = estimate_streaming_peak_gb(1_000, 2_000, 1, 1)
+    assert estimate_streaming_peak_gb(1_000, 2_000, 2, 1) > base
+    assert estimate_streaming_peak_gb(1_000, 2_000, 1, 2) > base
+    assert estimate_streaming_peak_gb(1_000, 2_500, 1, 1) > base
+
+
 def test_peak_estimate_grows_with_frames_and_atoms():
     assert estimate_peak_memory_gb(2_000, 642) > estimate_peak_memory_gb(1_000, 642)
     assert estimate_peak_memory_gb(1_000, 700) > estimate_peak_memory_gb(1_000, 600)
@@ -54,6 +77,8 @@ def test_suggest_stride_fits_the_limit():
     assert estimate_peak_memory_gb(n // s, atoms) <= limit
     assert estimate_peak_memory_gb(n // (s - 1), atoms) > limit
     assert suggest_stride(1_000, 642, 50.0) == 1
+    # No stride helps when even one frame of the selection does not fit.
+    assert suggest_stride(1_000, 40_000, 0.5) is None
 
 
 # ------------------------------------------------------- available memory
@@ -165,7 +190,7 @@ def test_explicit_threshold_overrides_available_memory():
 def test_unknown_available_memory_uses_fallback():
     d = select_engine(_config(), 100_000, 642, available_gb=None)
     assert d.limit_gb == FALLBACK_STREAMING_THRESHOLD_GB
-    assert not d.use_streaming  # 7.3 GB estimate < 8 GB fallback
+    assert not d.use_streaming  # 7.5 GB estimate < 8 GB fallback
     d = select_engine(_config(), 200_000, 642, available_gb=None)
     assert d.use_streaming and "available memory unknown" in d.note
 
@@ -187,6 +212,45 @@ def test_forced_memory_engine_warns_and_suggests_streaming():
 def test_forced_streaming_engine():
     d = select_engine(_config(engine="streaming"), 1_000, 642, available_gb=64.0)
     assert d.use_streaming and d.note is None and d.warning is None
+
+
+def test_auto_keeps_memory_engine_when_streaming_matrices_are_larger():
+    # 1 500 frames x 20 000 atoms: streaming needs D x D matrices (D = 60 000,
+    # 28.8 GB each) while the in-memory SVD route needs far less.
+    d = select_engine(_config(), 1_500, 20_000, available_gb=4.0)
+    assert not d.use_streaming
+    assert d.stream_peak_gb > d.peak_gb
+    assert "smaller --cov-group" in d.warning and "--engine streaming" not in d.warning
+    # 500 frames x ~6 667 atoms (D = 20 000) with 2 GB available.
+    d = select_engine(_config(), 500, 6_667, available_gb=2.0)
+    assert not d.use_streaming
+
+
+def test_auto_streams_when_neither_fits_but_streaming_is_smaller():
+    d = select_engine(_config(), 400_000, 642, available_gb=1.0)
+    assert d.use_streaming and d.stream_peak_gb < d.peak_gb
+    assert d.note is not None and "streaming engine needs" in d.warning
+
+
+def test_forced_streaming_warns_about_large_matrices():
+    d = select_engine(_config(engine="streaming"), 1_500, 20_000, available_gb=4.0)
+    assert d.use_streaming
+    assert "60000 x 60000" in d.warning and "--engine memory" in d.warning
+
+
+def test_stride_suggestion_is_absolute():
+    # --stride 2 on 100 000 frames: 50 000 frames reach the engine. The suggestion
+    # must be a larger --stride that fits, not the current one again.
+    d = select_engine(_config(engine="memory", stride=2), 50_000, 642, available_gb=4.0)
+    suggested = int(d.warning.split("--stride ")[1].split()[0].rstrip(","))
+    assert suggested > 2
+    assert estimate_peak_memory_gb(100_000 // suggested, 642) <= 3.0
+    assert estimate_peak_memory_gb(100_000 // (suggested - 1), 642) > 3.0
+
+
+def test_no_stride_suggested_when_selection_alone_is_too_large():
+    d = select_engine(_config(engine="memory"), 1_000, 40_000, available_gb=0.6)
+    assert "--stride" not in d.warning and "smaller --cov-group" in d.warning
 
 
 # ---------------------------------------------------- frames and YAML key

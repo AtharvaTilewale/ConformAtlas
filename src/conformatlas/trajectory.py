@@ -622,23 +622,49 @@ def estimate_memory_gb(n_frames_total: int, n_atoms: int) -> float:
     return n_frames_total * n_atoms * 3 * 4 / 1e9
 
 
-#: Peak resident memory of an in-memory ``analyze`` run, modelled as
-#: ``BASE + n_frames * (PER_FRAME_BYTES + COORD_FACTOR * 12 * n_atoms)``:
-#: a fixed part (libraries, figures), per-frame arrays that do not depend on the
-#: selection (times, projections, descriptors), and copies of the float32
-#: coordinates. Measured peaks with ConformAtlas 1.0.2 (Python 3.11, numpy 2.4,
-#: MDAnalysis 2.10) on full-atom adenylate kinase, default options:
-#: Backbone (N, CA, C; 642 atoms) 0.84 / 1.02 / 1.69 / 3.02 GB at 5 000 /
-#: 10 000 / 20 000 / 40 000 frames; C-alpha (214 atoms) 0.64 / 2.10 GB at
-#: 20 000 / 80 000 frames. The model overestimates all of them (by 8-23 % for
-#: the runs above 1 GB, by up to 0.42 GB for the small ones), so 'auto' errs
-#: towards streaming.
+#: Peak resident memory of an ``analyze`` run, per engine. D = 3 * n_atoms is
+#: the number of coordinates; one D x D float64 matrix takes 8 D^2 bytes.
+#:
+#: In-memory engine::
+#:
+#:     BASE + N * (PER_FRAME_BYTES + COORD_FACTOR * 12 * n_atoms)
+#:          + COV_MATRICES * 8 D^2        if N >= D  (covariance + eigh)
+#:          + SVD_COPIES * 8 N D          if N <  D  (dual / SVD route)
+#:
+#: Streaming engine (N-independent apart from small per-frame arrays)::
+#:
+#:     BASE + N * PER_FRAME_BYTES
+#:          + 8 D^2 * (n_replicates + STREAM_MATRICES + STREAM_WORKER_MATRICES * (n_workers - 1))
+#:
+#: Measured peaks with ConformAtlas 1.0.2 (Python 3.11, numpy 2.4, MDAnalysis
+#: 2.10) on full-atom adenylate kinase, default options, all overestimated by
+#: the model (so 'auto' errs on the safe side):
+#:
+#: ========================  ==========  ======  ========  ========
+#: selection (atoms)         engine      frames  measured  model
+#: ========================  ==========  ======  ========  ========
+#: Backbone N,CA,C (642)     in-memory    5 000   0.84 GB   1.10 GB
+#: Backbone (642)            in-memory   10 000   1.02 GB   1.44 GB
+#: Backbone (642)            in-memory   20 000   1.69 GB   2.12 GB
+#: Backbone (642)            in-memory   40 000   3.02 GB   3.48 GB
+#: C-alpha (214)             in-memory   20 000   0.64 GB   1.08 GB
+#: C-alpha (214)             in-memory   80 000   2.10 GB   2.60 GB
+#: first 1 500 atoms         in-memory    8 000   2.88 GB   2.91 GB
+#: first 2 500 atoms         in-memory    3 000   2.83 GB   2.93 GB
+#: first 1 500 atoms         streaming    3 000   1.11 GB   1.53 GB
+#: first 2 500 atoms         streaming    3 000   3.02 GB   3.26 GB
+#: first 2 500 atoms, 2 rep  streaming    3 000   3.47 GB   3.71 GB
+#: ========================  ==========  ======  ========  ========
 IN_MEMORY_BASE_GB = 0.55
 IN_MEMORY_PER_FRAME_BYTES = 4_000
 IN_MEMORY_COORD_FACTOR = 8.3
+IN_MEMORY_COV_MATRICES = 7.0
+IN_MEMORY_SVD_COPIES = 9.0
+STREAM_MATRICES = 5.0
+STREAM_WORKER_MATRICES = 2.0
 
-#: ``--engine auto`` streams when the estimated in-memory peak exceeds this
-#: fraction of the memory available to the process.
+#: ``--engine auto`` uses the in-memory engine while its estimated peak stays
+#: below this fraction of the memory available to the process.
 AUTO_MEMORY_FRACTION = 0.75
 
 #: Threshold (estimated peak, GB) used when the available memory cannot be
@@ -649,14 +675,30 @@ FALLBACK_STREAMING_THRESHOLD_GB = 8.0
 _UNLIMITED_BYTES = 1 << 60
 
 
-def _in_memory_bytes_per_frame(n_atoms: int) -> float:
-    return IN_MEMORY_PER_FRAME_BYTES + IN_MEMORY_COORD_FACTOR * n_atoms * 3 * 4
-
-
 def estimate_peak_memory_gb(n_frames_total: int, n_atoms: int) -> float:
     """Estimated peak RAM (GB) of the in-memory engine for ``n_frames_total`` frames
     of ``n_atoms`` analysis atoms (model and measurements: ``IN_MEMORY_BASE_GB``)."""
-    return IN_MEMORY_BASE_GB + n_frames_total * _in_memory_bytes_per_frame(n_atoms) / 1e9
+    n, d = max(0, int(n_frames_total)), 3 * int(n_atoms)
+    per_frame = IN_MEMORY_PER_FRAME_BYTES + IN_MEMORY_COORD_FACTOR * 12 * n_atoms
+    pca = IN_MEMORY_COV_MATRICES * 8.0 * d * d if n >= d else IN_MEMORY_SVD_COPIES * 8.0 * n * d
+    return IN_MEMORY_BASE_GB + (n * per_frame + pca) / 1e9
+
+
+def estimate_streaming_peak_gb(
+    n_frames_total: int, n_atoms: int, n_replicates: int = 1, n_workers: int = 1
+) -> float:
+    """Estimated peak RAM (GB) of the streaming engine: one D x D scatter matrix per
+    replicate plus merge / eigendecomposition workspace (``IN_MEMORY_BASE_GB``)."""
+    d = 3 * int(n_atoms)
+    matrices = (
+        max(1, int(n_replicates))
+        + STREAM_MATRICES
+        + STREAM_WORKER_MATRICES * max(0, int(n_workers) - 1)
+    )
+    return (
+        IN_MEMORY_BASE_GB
+        + (max(0, int(n_frames_total)) * IN_MEMORY_PER_FRAME_BYTES + 8.0 * d * d * matrices) / 1e9
+    )
 
 
 def _read_int(path: Path) -> int | None:
@@ -761,12 +803,20 @@ def available_memory_gb(
     return min(candidates) / 1e9 if candidates else None
 
 
-def suggest_stride(n_frames_total: int, n_atoms: int, limit_gb: float) -> int:
-    """Smallest ``--stride`` that brings the estimated in-memory peak under ``limit_gb``."""
-    per_frame = _in_memory_bytes_per_frame(n_atoms) / 1e9
-    room = limit_gb - IN_MEMORY_BASE_GB
-    if per_frame <= 0 or n_frames_total <= 0:
+def suggest_stride(n_frames_total: int, n_atoms: int, limit_gb: float) -> int | None:
+    """Smallest extra frame-subsampling factor that brings the estimated in-memory
+    peak for ``n_frames_total`` frames under ``limit_gb``; None if no stride can
+    (the selection itself is too large). Multiply by the current ``--stride``."""
+    n = int(n_frames_total)
+    if n <= 1 or estimate_peak_memory_gb(n, n_atoms) <= limit_gb:
         return 1
-    if room <= per_frame:
-        return max(1, n_frames_total)
-    return max(1, int(np.ceil(n_frames_total * per_frame / room)))
+    if estimate_peak_memory_gb(1, n_atoms) > limit_gb:
+        return None
+    lo, hi = 1, n  # estimate(n // hi) fits, estimate(n // lo) does not
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if estimate_peak_memory_gb(n // mid, n_atoms) <= limit_gb:
+            hi = mid
+        else:
+            lo = mid
+    return hi
