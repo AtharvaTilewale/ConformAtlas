@@ -99,6 +99,26 @@ def test_quiet_suppresses_progress(monkeypatch, tmp_path):
     assert cli.is_quiet()
 
 
+def test_quiet_keeps_warnings_on_stderr(monkeypatch, tmp_path):
+    import conformatlas.pipeline
+
+    def run_analysis(cfg, echo=None):
+        echo("Step 1: Reading")
+        echo("  NOTE: switching to the streaming engine")
+        echo("  WARNING: the run may be killed for lack of memory")
+        raise SystemExit(0)
+
+    monkeypatch.setattr(conformatlas.pipeline, "run_analysis", run_analysis)
+    try:  # click < 8.2 mixes stderr into stdout unless asked not to
+        runner = CliRunner(mix_stderr=False)
+    except TypeError:
+        runner = CliRunner()
+    res = runner.invoke(main, _base(tmp_path / "o") + ["--quiet"])
+    assert "may be killed" in res.stderr
+    assert "Step 1" not in res.stdout and "NOTE" not in res.stdout
+    assert "WARNING" not in res.stdout
+
+
 # --------------------------------------------------------------------------- usage errors (exit 2)
 
 
