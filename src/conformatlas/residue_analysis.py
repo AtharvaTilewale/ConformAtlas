@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -325,6 +325,34 @@ class ContactResult:
     used_pbc: bool
 
 
+def _contacts_at_times(res: ContactResult, times_ps, replicate: str = "") -> ContactResult:
+    """Keep the frames of ``res`` whose times match ``times_ps`` (the frames the
+    main analysis kept). Times are matched within a quarter of the frame spacing."""
+    want = np.asarray(times_ps, dtype=float)
+    have = np.asarray(res.times, dtype=float)
+    if want.size == have.size and np.allclose(want, have, rtol=0.0, atol=1e-6):
+        return res
+    if want.size == 0:
+        idx = np.zeros(0, dtype=int)
+    else:
+        steps = np.diff(have)
+        tol = 0.25 * float(np.min(steps[steps > 0])) if np.any(steps > 0) else 1e-6
+        idx = np.clip(np.searchsorted(have, want), 0, max(0, have.size - 1))
+        prev = np.clip(idx - 1, 0, max(0, have.size - 1))
+        idx = np.where(np.abs(have[prev] - want) < np.abs(have[idx] - want), prev, idx)
+        if have.size == 0 or np.any(np.abs(have[idx] - want) > tol):
+            raise ValueError(
+                f"{replicate}: contact analysis has no frame at some analysed times; "
+                "use the same stride/time window as the main analysis."
+            )
+    return replace(
+        res,
+        contacts=res.contacts[idx],
+        min_distance=res.min_distance[idx],
+        times=have[idx],
+    )
+
+
 def _heavy(ag):
     try:
         return ag.select_atoms("not name H* and not type H")
@@ -580,6 +608,7 @@ def analyze_residues(
     persistence_threshold: float = 0.5,
     make_figures: bool = True,
     figure_dir: str | Path | None = None,
+    times_by_replicate: dict[str, np.ndarray] | None = None,
 ) -> dict[str, Path]:
     """Run every residue-level analysis and write ``residues/`` (+ figures).
 
@@ -590,6 +619,9 @@ def analyze_residues(
     (``conformatlas.trajectory.stream_trajectory_coordinates``). Contact analysis
     runs only when ``ligand_selection`` is given and reads the trajectories with
     the same ``stride``/time window so that frames line up with ``frame_assignments``.
+    ``times_by_replicate`` (``{replicate: times_ps}``) gives the frames the analysis
+    kept, e.g. after a per-replicate equilibration trim; contact frames are then
+    matched to them by time.
     """
     from conformatlas.trajectory import atom_info_for_indices, stream_trajectory_coordinates
 
@@ -657,6 +689,8 @@ def analyze_residues(
                     end_ps=end_ps,
                 )
             )
+            if times_by_replicate is not None and rep in times_by_replicate:
+                res_parts[-1] = _contacts_at_times(res_parts[-1], times_by_replicate[rep], rep)
         merged = ContactResult(
             contacts=np.concatenate([r.contacts for r in res_parts]),
             min_distance=np.concatenate([r.min_distance for r in res_parts]),

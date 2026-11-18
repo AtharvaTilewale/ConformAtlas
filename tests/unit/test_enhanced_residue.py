@@ -301,3 +301,46 @@ def test_per_state_dccm_file_names_have_no_spaces(tmp_path):
     names = sorted(p.name for p in (tmp_path / "residues").iterdir())
     assert names == ["dccm_state_A.npy", "dccm_state_B.npy"]
     assert written["dccm_State A"].name == "dccm_state_A.npy"
+
+
+def test_contacts_follow_a_per_replicate_equilibration_trim(tmp_path, contacts):
+    """With --equilibration auto the analysis drops each replicate's transient; the
+    ligand contacts must use the same frames (previously a frame-count mismatch)."""
+    import MDAnalysis as mda
+
+    from conformatlas.residue_analysis import _contacts_at_times, analyze_residues
+
+    u = mda.Universe(str(TOP))
+    ca = u.select_atoms("name CA").indices
+    t_all = np.asarray(contacts.times, dtype=float)
+    n = len(t_all)
+    t0 = n // 3
+    kept = t_all[t0:]
+    # Coordinates the pipeline would hold after the trim (stride 1, no fit).
+    traj = mda.Universe(str(TOP), str(TRJ))
+    coords = np.stack([traj.atoms.positions[ca].copy() for _ in traj.trajectory])[t0:]
+    fa = pd.DataFrame(
+        {
+            "replicate": ["rep1"] * len(kept),
+            "frame": np.arange(t0, n),
+            "state": ["S1" if i < len(kept) // 2 else "S2" for i in range(len(kept))],
+        }
+    )
+    kwargs = dict(
+        coords_by_replicate={"rep1": coords},
+        ligand_selection="resname ZMR",
+        make_figures=False,
+    )
+    with pytest.raises(ValueError, match="Contact analysis produced"):
+        analyze_residues(TOP, {"rep1": TRJ}, fa, tmp_path / "old", ca, **kwargs)
+    written = analyze_residues(
+        TOP, {"rep1": TRJ}, fa, tmp_path / "new", ca, times_by_replicate={"rep1": kept}, **kwargs
+    )
+    assert written["ligand_contacts_per_state"].exists()
+
+    sub = _contacts_at_times(contacts, kept, "rep1")
+    np.testing.assert_array_equal(sub.contacts, contacts.contacts[t0:])
+    np.testing.assert_allclose(sub.times, kept)
+    assert _contacts_at_times(contacts, t_all) is contacts
+    with pytest.raises(ValueError, match="no frame at some analysed times"):
+        _contacts_at_times(contacts, kept + 0.5 * float(np.diff(t_all)[0]), "rep1")
