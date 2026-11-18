@@ -228,6 +228,7 @@ The table lists every component of §15–§21 with its status. *Validated* mean
 | Dihedral angle, χ₁/χ₂, explicit φ/ψ | validated | hand geometry; `MDAnalysis.calc_dihedrals`, `Janin` (6·10⁻¹⁴°), `Ramachandran` (0°) |
 | Nucleic-acid torsions | validated on a constructed geometry | hand computation, 10⁻⁴°; CHARMM residue names untested on a real structure |
 | Chain-aware common-atom mapping | validated | constructed two-chain topology with repeated residue numbers, 24/24 atoms paired |
+| `--engine auto` choice: in-memory peak model (0.55 GB + 4 kB/frame + 8.3 × float32 coordinates), streaming above 75 % of the available memory (cgroup limit or MemAvailable) | heuristic / convention | engine choice only (both paths give identical PCA); the model is fitted to measured peaks on full-atom AdK (642 and 214 atoms, 5 000–80 000 frames) and overestimates each of them; unit tests in `tests/unit/test_engine_selection.py` |
 | Streaming covariance accumulator | validated | `numpy.cov`, chunked and merged, 2.6·10⁻¹³ abs |
 | Streaming PCA vs in-memory path | validated | eigenvalues / eigenvectors / projections ≤ 3·10⁻¹⁴ relative, both weightings, both routes; 2 workers + float32 memmap 3.2·10⁻⁸ |
 | `ConformAtlasPCA` (MDAnalysis AnalysisBase) | validated | `MDAnalysis.analysis.pca.PCA`, 9.4·10⁻⁹ relative after the (N−1)/N rescaling; sliced run vs in-memory 2·10⁻¹⁵ |
