@@ -252,6 +252,7 @@ engine: auto                  # auto | memory | streaming (chunked two-pass PCA,
 precision: float64            # float64 | float32 (stored projections, streaming engine)
 n_workers: 1                  # worker processes for the streaming engine (one per trajectory)
 chunk_size: 256               # frames per chunk (streaming engine)
+streaming_threshold_gb: null  # auto: stream above this estimated peak (GB); null = 75 % of available memory
 save_hdf5: false              # also write results.h5 (requires h5py)
 from_results: null            # existing output directory: rebin / resegment / MSM without trajectories
 
@@ -332,6 +333,7 @@ _ANALYZE_DEFAULTS = {
     "precision": "float64",
     "n_workers": 1,
     "chunk_size": 256,
+    "streaming_threshold_gb": None,
     "save_hdf5": False,
     "from_results": None,
     "progress": True,
@@ -555,6 +557,9 @@ def build_analysis_config(options: dict, config_file: str | Path | None = None):
         precision=merged["precision"],
         n_workers=int(merged["n_workers"]),
         chunk_size=int(merged["chunk_size"]),
+        streaming_threshold_gb=None
+        if merged["streaming_threshold_gb"] is None
+        else float(merged["streaming_threshold_gb"]),
         save_hdf5=bool(merged["save_hdf5"]),
         from_results=from_results,
         progress=bool(merged["progress"]),

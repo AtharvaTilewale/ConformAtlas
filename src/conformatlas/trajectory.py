@@ -620,3 +620,153 @@ def check_inputs(
 def estimate_memory_gb(n_frames_total: int, n_atoms: int) -> float:
     """RAM for holding float32 coordinates of all frames (GB)."""
     return n_frames_total * n_atoms * 3 * 4 / 1e9
+
+
+#: Peak resident memory of an in-memory ``analyze`` run, modelled as
+#: ``BASE + n_frames * (PER_FRAME_BYTES + COORD_FACTOR * 12 * n_atoms)``:
+#: a fixed part (libraries, figures), per-frame arrays that do not depend on the
+#: selection (times, projections, descriptors), and copies of the float32
+#: coordinates. Measured peaks with ConformAtlas 1.0.2 (Python 3.11, numpy 2.4,
+#: MDAnalysis 2.10) on full-atom adenylate kinase, default options:
+#: Backbone (N, CA, C; 642 atoms) 0.84 / 1.02 / 1.69 / 3.02 GB at 5 000 /
+#: 10 000 / 20 000 / 40 000 frames; C-alpha (214 atoms) 0.64 / 2.10 GB at
+#: 20 000 / 80 000 frames. The model overestimates all of them (by 8-23 % for
+#: the runs above 1 GB, by up to 0.42 GB for the small ones), so 'auto' errs
+#: towards streaming.
+IN_MEMORY_BASE_GB = 0.55
+IN_MEMORY_PER_FRAME_BYTES = 4_000
+IN_MEMORY_COORD_FACTOR = 8.3
+
+#: ``--engine auto`` streams when the estimated in-memory peak exceeds this
+#: fraction of the memory available to the process.
+AUTO_MEMORY_FRACTION = 0.75
+
+#: Threshold (estimated peak, GB) used when the available memory cannot be
+#: determined, e.g. on platforms without /proc.
+FALLBACK_STREAMING_THRESHOLD_GB = 8.0
+
+#: Limits above this are treated as "no limit" (cgroup v1 reports ~2**63).
+_UNLIMITED_BYTES = 1 << 60
+
+
+def _in_memory_bytes_per_frame(n_atoms: int) -> float:
+    return IN_MEMORY_PER_FRAME_BYTES + IN_MEMORY_COORD_FACTOR * n_atoms * 3 * 4
+
+
+def estimate_peak_memory_gb(n_frames_total: int, n_atoms: int) -> float:
+    """Estimated peak RAM (GB) of the in-memory engine for ``n_frames_total`` frames
+    of ``n_atoms`` analysis atoms (model and measurements: ``IN_MEMORY_BASE_GB``)."""
+    return IN_MEMORY_BASE_GB + n_frames_total * _in_memory_bytes_per_frame(n_atoms) / 1e9
+
+
+def _read_int(path: Path) -> int | None:
+    try:
+        text = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not text or text == "max":
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _own_cgroup_paths(proc_cgroup: Path) -> tuple[str | None, str | None]:
+    """This process's cgroup path for v2 (``0::path``) and for the v1 memory
+    controller, from ``/proc/self/cgroup`` (None where absent)."""
+    v2 = v1 = None
+    try:
+        lines = proc_cgroup.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None, None
+    for line in lines:
+        parts = line.split(":", 2)
+        if len(parts) != 3:
+            continue
+        hier, controllers, path = parts
+        if hier == "0" and controllers == "":
+            v2 = path
+        elif "memory" in controllers.split(","):
+            v1 = path
+    return v2, v1
+
+
+def _ancestors(base: Path, rel: str | None) -> list[Path]:
+    """``base/rel`` and each parent up to ``base`` (innermost first)."""
+    dirs = [base]
+    if rel and rel.strip("/"):
+        cur = base
+        for part in rel.strip("/").split("/"):
+            cur = cur / part
+            dirs.append(cur)
+    return dirs[::-1]
+
+
+def _cgroup_available_bytes(
+    cgroup_root: Path, proc_cgroup: Path = Path("/proc/self/cgroup")
+) -> int | None:
+    """Memory left under the tightest cgroup limit that applies to this process
+    (v2 ``memory.max`` or v1 ``memory.limit_in_bytes``, checked on the process's own
+    cgroup and every ancestor), or None when no limit is set. Inside a container the
+    process's cgroup is usually the root of the mounted hierarchy."""
+    v2_rel, v1_rel = _own_cgroup_paths(proc_cgroup)
+    layouts = (
+        (cgroup_root, v2_rel, "memory.max", "memory.current"),
+        (cgroup_root / "memory", v1_rel, "memory.limit_in_bytes", "memory.usage_in_bytes"),
+    )
+    best: int | None = None
+    for base, rel, limit_name, usage_name in layouts:
+        for d in _ancestors(base, rel):
+            limit = _read_int(d / limit_name)
+            if limit is None or limit >= _UNLIMITED_BYTES:
+                continue
+            headroom = max(0, limit - (_read_int(d / usage_name) or 0))
+            best = headroom if best is None else min(best, headroom)
+        if best is not None:
+            return best
+    return None
+
+
+def _meminfo_available_bytes(meminfo: Path) -> int | None:
+    try:
+        lines = meminfo.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        if line.startswith("MemAvailable:"):
+            parts = line.split()
+            try:
+                return int(parts[1]) * 1024
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+def available_memory_gb(
+    cgroup_root: str | Path = "/sys/fs/cgroup",
+    meminfo: str | Path = "/proc/meminfo",
+    proc_cgroup: str | Path = "/proc/self/cgroup",
+) -> float | None:
+    """Memory (GB) this process can still use: the smaller of the container
+    (cgroup) headroom and the host's ``MemAvailable``. None if neither is known."""
+    candidates = [
+        b
+        for b in (
+            _cgroup_available_bytes(Path(cgroup_root), Path(proc_cgroup)),
+            _meminfo_available_bytes(Path(meminfo)),
+        )
+        if b is not None
+    ]
+    return min(candidates) / 1e9 if candidates else None
+
+
+def suggest_stride(n_frames_total: int, n_atoms: int, limit_gb: float) -> int:
+    """Smallest ``--stride`` that brings the estimated in-memory peak under ``limit_gb``."""
+    per_frame = _in_memory_bytes_per_frame(n_atoms) / 1e9
+    room = limit_gb - IN_MEMORY_BASE_GB
+    if per_frame <= 0 or n_frames_total <= 0:
+        return 1
+    if room <= per_frame:
+        return max(1, n_frames_total)
+    return max(1, int(np.ceil(n_frames_total * per_frame / room)))
