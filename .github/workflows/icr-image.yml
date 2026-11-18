@@ -1,0 +1,85 @@
+name: ICR image
+
+# Builds the ConformAtlas container image, smoke-tests it on the bundled demo
+# trajectories, and pushes it to the ICE Cloud Container Repository (ICR).
+#
+# One-time setup: Settings > Secrets and variables > Actions > New repository
+# secret, name ICR_CLI_SECRET, value = the CLI secret from
+# icecloud.in > Repository > Projects > ICR Credentials.
+#
+# Run: Actions > ICR image > Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "ConformAtlas release on PyPI to package"
+        required: true
+        default: "1.0.2"
+      project:
+        description: "ICR project to push to"
+        required: true
+        default: "private"
+        type: choice
+        options: [private, public]
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: registry.icecloud.in
+  ICR_USER: atharva16atgbu
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: registry.icecloud.in/atharva16atgbu-${{ inputs.project }}/conformatlas
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check that the registry is reachable from GitHub
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://${REGISTRY}/v2/" || true)
+          echo "registry answered HTTP ${code}"
+          # 401 is the normal answer for an unauthenticated Docker registry.
+          if [ "$code" != "401" ] && [ "$code" != "200" ]; then
+            echo "::error::${REGISTRY} is not reachable from GitHub-hosted runners (HTTP ${code})."
+            exit 1
+          fi
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg CONFORMATLAS_VERSION="${VERSION}" \
+            -t "${IMAGE}:${VERSION}" -t "${IMAGE}:latest" .
+          docker image ls "${IMAGE}"
+
+      - name: Smoke test on the demo trajectories
+        run: |
+          docker run --rm "${IMAGE}:${VERSION}" conformatlas --version
+          docker run --rm "${IMAGE}:${VERSION}" conformatlas doctor
+          docker run --rm -v "$PWD/examples/demo_dataset:/demo:ro" "${IMAGE}:${VERSION}" \
+            sh -c 'conformatlas -q analyze -s /demo/WT/topology.pdb -f /demo/WT/rep1.xtc -f /demo/WT/rep2.xtc -T 300 -o /tmp/out && test -s /tmp/out/report.html && echo "report.html OK"'
+
+      - name: Log in to ICR
+        env:
+          ICR_CLI_SECRET: ${{ secrets.ICR_CLI_SECRET }}
+        run: |
+          if [ -z "$ICR_CLI_SECRET" ]; then
+            echo "::error::Repository secret ICR_CLI_SECRET is not set."
+            exit 1
+          fi
+          echo "$ICR_CLI_SECRET" | docker login "${REGISTRY}" -u "${ICR_USER}" --password-stdin
+
+      - name: Push image
+        run: |
+          docker push "${IMAGE}:${VERSION}"
+          docker push "${IMAGE}:latest"
+          echo "Pushed ${IMAGE}:${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Log out
+        if: always()
+        run: docker logout "${REGISTRY}" || true
