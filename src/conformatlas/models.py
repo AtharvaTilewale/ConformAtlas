@@ -99,7 +99,9 @@ class AnalysisConfig:
     precision: str = "float64"  # 'float64' | 'float32' (stored projections, streaming engine)
     n_workers: int = 1
     chunk_size: int = 256
-    streaming_threshold_gb: float = 2.0  # engine 'auto': stream above this memory estimate
+    # engine 'auto': stream when the estimated in-memory peak (GB) exceeds this;
+    # None = 75 % of the memory available to the process (container limits included)
+    streaming_threshold_gb: float | None = None
     from_results: Path | None = None  # re-analyse an existing output directory (no trajectories)
     save_hdf5: bool = False  # also write results.h5 (requires h5py)
     progress: bool = True  # progress bars on a TTY
@@ -177,6 +179,8 @@ class AnalysisConfig:
             raise ValueError("n_workers must be >= 1")
         if self.chunk_size < 1:
             raise ValueError("chunk_size must be >= 1")
+        if self.streaming_threshold_gb is not None and self.streaming_threshold_gb <= 0:
+            raise ValueError("streaming_threshold_gb must be positive (GB)")
         if self.contact_cutoff <= 0:
             raise ValueError("contact_cutoff must be positive (Å)")
         if self.dihedral_set not in ("backbone", "backbone+chi", "chi", "nucleic"):

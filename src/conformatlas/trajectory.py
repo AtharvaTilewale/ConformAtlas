@@ -620,3 +620,203 @@ def check_inputs(
 def estimate_memory_gb(n_frames_total: int, n_atoms: int) -> float:
     """RAM for holding float32 coordinates of all frames (GB)."""
     return n_frames_total * n_atoms * 3 * 4 / 1e9
+
+
+#: Peak resident memory of an ``analyze`` run, per engine. D = 3 * n_atoms is
+#: the number of coordinates; one D x D float64 matrix takes 8 D^2 bytes.
+#:
+#: In-memory engine::
+#:
+#:     BASE + N * (PER_FRAME_BYTES + COORD_FACTOR * 12 * n_atoms)
+#:          + COV_MATRICES * 8 D^2        if N >= D  (covariance + eigh)
+#:          + SVD_COPIES * 8 N D          if N <  D  (dual / SVD route)
+#:
+#: Streaming engine (N-independent apart from small per-frame arrays)::
+#:
+#:     BASE + N * PER_FRAME_BYTES
+#:          + 8 D^2 * (n_replicates + STREAM_MATRICES + STREAM_WORKER_MATRICES * (n_workers - 1))
+#:
+#: Measured peaks with ConformAtlas 1.0.2 (Python 3.11, numpy 2.4, MDAnalysis
+#: 2.10) on full-atom adenylate kinase, default options, all overestimated by
+#: the model (so 'auto' errs on the safe side):
+#:
+#: ========================  ==========  ======  ========  ========
+#: selection (atoms)         engine      frames  measured  model
+#: ========================  ==========  ======  ========  ========
+#: Backbone N,CA,C (642)     in-memory    5 000   0.84 GB   1.10 GB
+#: Backbone (642)            in-memory   10 000   1.02 GB   1.44 GB
+#: Backbone (642)            in-memory   20 000   1.69 GB   2.12 GB
+#: Backbone (642)            in-memory   40 000   3.02 GB   3.48 GB
+#: C-alpha (214)             in-memory   20 000   0.64 GB   1.08 GB
+#: C-alpha (214)             in-memory   80 000   2.10 GB   2.60 GB
+#: first 1 500 atoms         in-memory    8 000   2.88 GB   2.91 GB
+#: first 2 500 atoms         in-memory    3 000   2.83 GB   2.93 GB
+#: first 1 500 atoms         streaming    3 000   1.11 GB   1.53 GB
+#: first 2 500 atoms         streaming    3 000   3.02 GB   3.26 GB
+#: first 2 500 atoms, 2 rep  streaming    3 000   3.47 GB   3.71 GB
+#: ========================  ==========  ======  ========  ========
+IN_MEMORY_BASE_GB = 0.55
+IN_MEMORY_PER_FRAME_BYTES = 4_000
+IN_MEMORY_COORD_FACTOR = 8.3
+IN_MEMORY_COV_MATRICES = 7.0
+IN_MEMORY_SVD_COPIES = 9.0
+STREAM_MATRICES = 5.0
+STREAM_WORKER_MATRICES = 2.0
+
+#: ``--engine auto`` uses the in-memory engine while its estimated peak stays
+#: below this fraction of the memory available to the process.
+AUTO_MEMORY_FRACTION = 0.75
+
+#: Threshold (estimated peak, GB) used when the available memory cannot be
+#: determined, e.g. on platforms without /proc.
+FALLBACK_STREAMING_THRESHOLD_GB = 8.0
+
+#: Limits above this are treated as "no limit" (cgroup v1 reports ~2**63).
+_UNLIMITED_BYTES = 1 << 60
+
+
+def estimate_peak_memory_gb(n_frames_total: int, n_atoms: int) -> float:
+    """Estimated peak RAM (GB) of the in-memory engine for ``n_frames_total`` frames
+    of ``n_atoms`` analysis atoms (model and measurements: ``IN_MEMORY_BASE_GB``)."""
+    n, d = max(0, int(n_frames_total)), 3 * int(n_atoms)
+    per_frame = IN_MEMORY_PER_FRAME_BYTES + IN_MEMORY_COORD_FACTOR * 12 * n_atoms
+    pca = IN_MEMORY_COV_MATRICES * 8.0 * d * d if n >= d else IN_MEMORY_SVD_COPIES * 8.0 * n * d
+    return IN_MEMORY_BASE_GB + (n * per_frame + pca) / 1e9
+
+
+def estimate_streaming_peak_gb(
+    n_frames_total: int, n_atoms: int, n_replicates: int = 1, n_workers: int = 1
+) -> float:
+    """Estimated peak RAM (GB) of the streaming engine: one D x D scatter matrix per
+    replicate plus merge / eigendecomposition workspace (``IN_MEMORY_BASE_GB``)."""
+    d = 3 * int(n_atoms)
+    matrices = (
+        max(1, int(n_replicates))
+        + STREAM_MATRICES
+        + STREAM_WORKER_MATRICES * max(0, int(n_workers) - 1)
+    )
+    return (
+        IN_MEMORY_BASE_GB
+        + (max(0, int(n_frames_total)) * IN_MEMORY_PER_FRAME_BYTES + 8.0 * d * d * matrices) / 1e9
+    )
+
+
+def _read_int(path: Path) -> int | None:
+    try:
+        text = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not text or text == "max":
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _own_cgroup_paths(proc_cgroup: Path) -> tuple[str | None, str | None]:
+    """This process's cgroup path for v2 (``0::path``) and for the v1 memory
+    controller, from ``/proc/self/cgroup`` (None where absent)."""
+    v2 = v1 = None
+    try:
+        lines = proc_cgroup.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None, None
+    for line in lines:
+        parts = line.split(":", 2)
+        if len(parts) != 3:
+            continue
+        hier, controllers, path = parts
+        if hier == "0" and controllers == "":
+            v2 = path
+        elif "memory" in controllers.split(","):
+            v1 = path
+    return v2, v1
+
+
+def _ancestors(base: Path, rel: str | None) -> list[Path]:
+    """``base/rel`` and each parent up to ``base`` (innermost first)."""
+    dirs = [base]
+    if rel and rel.strip("/"):
+        cur = base
+        for part in rel.strip("/").split("/"):
+            cur = cur / part
+            dirs.append(cur)
+    return dirs[::-1]
+
+
+def _cgroup_available_bytes(
+    cgroup_root: Path, proc_cgroup: Path = Path("/proc/self/cgroup")
+) -> int | None:
+    """Memory left under the tightest cgroup limit that applies to this process
+    (v2 ``memory.max`` or v1 ``memory.limit_in_bytes``, checked on the process's own
+    cgroup and every ancestor), or None when no limit is set. Inside a container the
+    process's cgroup is usually the root of the mounted hierarchy."""
+    v2_rel, v1_rel = _own_cgroup_paths(proc_cgroup)
+    layouts = (
+        (cgroup_root, v2_rel, "memory.max", "memory.current"),
+        (cgroup_root / "memory", v1_rel, "memory.limit_in_bytes", "memory.usage_in_bytes"),
+    )
+    best: int | None = None
+    for base, rel, limit_name, usage_name in layouts:
+        for d in _ancestors(base, rel):
+            limit = _read_int(d / limit_name)
+            if limit is None or limit >= _UNLIMITED_BYTES:
+                continue
+            headroom = max(0, limit - (_read_int(d / usage_name) or 0))
+            best = headroom if best is None else min(best, headroom)
+        if best is not None:
+            return best
+    return None
+
+
+def _meminfo_available_bytes(meminfo: Path) -> int | None:
+    try:
+        lines = meminfo.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        if line.startswith("MemAvailable:"):
+            parts = line.split()
+            try:
+                return int(parts[1]) * 1024
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+def available_memory_gb(
+    cgroup_root: str | Path = "/sys/fs/cgroup",
+    meminfo: str | Path = "/proc/meminfo",
+    proc_cgroup: str | Path = "/proc/self/cgroup",
+) -> float | None:
+    """Memory (GB) this process can still use: the smaller of the container
+    (cgroup) headroom and the host's ``MemAvailable``. None if neither is known."""
+    candidates = [
+        b
+        for b in (
+            _cgroup_available_bytes(Path(cgroup_root), Path(proc_cgroup)),
+            _meminfo_available_bytes(Path(meminfo)),
+        )
+        if b is not None
+    ]
+    return min(candidates) / 1e9 if candidates else None
+
+
+def suggest_stride(n_frames_total: int, n_atoms: int, limit_gb: float) -> int | None:
+    """Smallest extra frame-subsampling factor that brings the estimated in-memory
+    peak for ``n_frames_total`` frames under ``limit_gb``; None if no stride can
+    (the selection itself is too large). Multiply by the current ``--stride``."""
+    n = int(n_frames_total)
+    if n <= 1 or estimate_peak_memory_gb(n, n_atoms) <= limit_gb:
+        return 1
+    if estimate_peak_memory_gb(1, n_atoms) > limit_gb:
+        return None
+    lo, hi = 1, n  # estimate(n // hi) fits, estimate(n // lo) does not
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if estimate_peak_memory_gb(n // mid, n_atoms) <= limit_gb:
+            hi = mid
+        else:
+            lo = mid
+    return hi

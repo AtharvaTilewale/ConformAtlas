@@ -20,6 +20,7 @@ import shutil
 import sys
 import warnings
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -85,14 +86,20 @@ from conformatlas.timeseries import (
     detect_equilibration_multi,
 )
 from conformatlas.trajectory import (
+    AUTO_MEMORY_FRACTION,
+    FALLBACK_STREAMING_THRESHOLD_GB,
     HAS_MDANALYSIS,
     atom_info_for_indices,
+    available_memory_gb,
     check_inputs,
     estimate_memory_gb,
+    estimate_peak_memory_gb,
+    estimate_streaming_peak_gb,
     inspect_trajectory,
     load_reference_coordinates,
     resolve_selection_indices,
     stream_trajectory_coordinates,
+    suggest_stride,
 )
 from conformatlas.uncertainty import compute_replicate_statistics, save_uncertainty_results
 from conformatlas.utils import R_GAS_CONSTANT, save_json
@@ -115,6 +122,132 @@ Echo = Callable[[str], None]
 
 def _noop(_: str) -> None:
     pass
+
+
+def _frames_in_window(
+    info: TrajectoryInfo, begin_ps: float | None, end_ps: float | None, stride: int
+) -> int:
+    """Frames of one trajectory inside ``-b``/``-e`` after ``--stride`` (for the memory estimate)."""
+    n = info.n_frames
+    if info.timestep_ps > 0 and n > 1 and (begin_ps is not None or end_ps is not None):
+        lo = info.start_time_ps if begin_ps is None else max(begin_ps, info.start_time_ps)
+        hi = info.end_time_ps if end_ps is None else min(end_ps, info.end_time_ps)
+        n = int(np.floor((hi - lo) / info.timestep_ps + 1e-9)) + 1 if hi >= lo else 0
+    return max(1, n // max(1, stride))
+
+
+@dataclass
+class EngineDecision:
+    """Outcome of ``select_engine``: which PCA engine runs and why."""
+
+    use_streaming: bool
+    peak_gb: float  # estimated peak RAM of the in-memory engine
+    stream_peak_gb: float  # estimated peak RAM of the streaming engine
+    available_gb: float | None  # memory available to the process (None = unknown)
+    limit_gb: float  # estimated peak above which 'auto' leaves the in-memory engine
+    note: str | None = None  # 'auto' switched to streaming
+    warning: str | None = None  # the chosen engine is likely to exceed the available memory
+
+
+def select_engine(
+    config: AnalysisConfig,
+    n_frames_total: int,
+    n_atoms: int,
+    available_gb: float | None,
+    n_replicates: int = 1,
+) -> EngineDecision:
+    """Choose between the in-memory and the streaming PCA engine.
+
+    Both engines' peaks are estimated (``estimate_peak_memory_gb``,
+    ``estimate_streaming_peak_gb``). ``auto`` keeps the in-memory engine while its
+    peak stays below ``streaming_threshold_gb`` if that is set, otherwise below
+    ``AUTO_MEMORY_FRACTION`` of the memory available to the process (container
+    limits included), or ``FALLBACK_STREAMING_THRESHOLD_GB`` when that is unknown.
+    Above it, ``auto`` streams if the streaming engine fits, or if it needs less
+    memory than the in-memory engine (its D x D matrices make it the larger one
+    for big selections with few frames). Whenever the chosen engine is likely to
+    exceed the available memory a warning lists what would help.
+    ``n_frames_total`` counts frames after ``--stride``. Validation of options that
+    are incompatible with ``--engine streaming`` is left to the caller.
+    """
+    mem = estimate_peak_memory_gb(n_frames_total, n_atoms)
+    stream = estimate_streaming_peak_gb(n_frames_total, n_atoms, n_replicates, config.n_workers)
+    if config.streaming_threshold_gb is not None:
+        limit = float(config.streaming_threshold_gb)
+        reason = f"above streaming_threshold_gb = {limit:g} GB"
+    elif available_gb is not None:
+        limit = AUTO_MEMORY_FRACTION * available_gb
+        reason = f"more than {AUTO_MEMORY_FRACTION:.0%} of the {available_gb:.1f} GB available"
+    else:
+        limit = FALLBACK_STREAMING_THRESHOLD_GB
+        reason = f"above {limit:g} GB (available memory unknown)"
+    size = f"{n_frames_total} frames x {n_atoms} atoms"
+
+    def too_big(gb: float) -> bool:
+        return gb > (0.9 * available_gb if available_gb is not None else limit)
+
+    have = (
+        f"only {available_gb:.1f} GB is available"
+        if available_gb is not None
+        else "the available memory is unknown"
+    )
+
+    blockers = []
+    if config.pca_type != "cartesian":
+        blockers.append(f"--pca-type {config.pca_type}")
+    if config.cv == "rmsd-rg":
+        blockers.append("--cv rmsd-rg")
+    if config.residue_analysis:
+        blockers.append("--residue-analysis")
+    can_stream = not blockers
+
+    def memory_warning() -> str:
+        target = AUTO_MEMORY_FRACTION * (available_gb if available_gb is not None else limit)
+        factor = suggest_stride(n_frames_total, n_atoms, target)
+        options = []
+        if factor is not None and factor > 1:
+            options.append(f"--stride {max(1, config.stride) * factor}")
+        options.append("a smaller --cov-group")
+        if can_stream and stream < mem:
+            options.append("--engine streaming")
+        why = f" ({', '.join(blockers)} needs it)" if blockers else ""
+        alts = options[0] if len(options) == 1 else f"{', '.join(options[:-1])} or {options[-1]}"
+        return (
+            f"The in-memory engine{why} needs about {mem:.1f} GB for {size} but {have}; "
+            f"the run may be killed for lack of memory. Consider {alts}."
+        )
+
+    def streaming_warning() -> str:
+        alt = " or --engine memory" if mem < stream and can_stream else ""
+        return (
+            f"The streaming engine needs about {stream:.1f} GB for {n_atoms} atoms "
+            f"(it holds {3 * n_atoms} x {3 * n_atoms} matrices) but {have}; the run may be "
+            f"killed for lack of memory. Consider a smaller --cov-group{alt}."
+        )
+
+    if config.engine == "streaming":
+        warning = streaming_warning() if too_big(stream) else None
+        return EngineDecision(True, mem, stream, available_gb, limit, warning=warning)
+    if config.engine == "memory":
+        warning = memory_warning() if too_big(mem) else None
+        return EngineDecision(False, mem, stream, available_gb, limit, warning=warning)
+
+    # engine == "auto"
+    if mem <= limit:
+        # An explicit streaming_threshold_gb can sit above what is actually free.
+        warning = memory_warning() if too_big(mem) else None
+        return EngineDecision(False, mem, stream, available_gb, limit, warning=warning)
+    if can_stream and (stream <= limit or stream < mem):
+        note = (
+            f"The in-memory engine would need about {mem:.1f} GB for {size}, {reason}; "
+            f"switching to the streaming engine (about {stream:.1f} GB; identical PCA; descriptors, "
+            "state ensembles and mode structures are skipped). Use --engine memory to force the "
+            "in-memory path."
+        )
+        warning = streaming_warning() if too_big(stream) else None
+        return EngineDecision(True, mem, stream, available_gb, limit, note=note, warning=warning)
+    warning = memory_warning() if too_big(mem) else None
+    return EngineDecision(False, mem, stream, available_gb, limit, warning=warning)
 
 
 # ----------------------------------------------------------------------------
@@ -460,11 +593,15 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
                 f"  • Analysis group: {config.cov_group} ({len(analysis_idx)} atoms); "
                 f"fit group: {config.lsq_group} ({len(fit_idx)} atoms)"
             )
-        n_frames_total = sum(max(1, info.n_frames // max(1, config.stride)) for info in traj_infos)
+        n_frames_total = sum(
+            _frames_in_window(info, config.begin_ps, config.end_ps, config.stride)
+            for info in traj_infos
+        )
         mem_gb = estimate_memory_gb(n_frames_total, len(analysis_idx))
 
     # ------------------------------------------------------------ engine
     use_streaming = False
+    engine_decision = None
     if use_python:
         if config.engine == "streaming":
             if config.pca_type != "cartesian":
@@ -473,28 +610,20 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
                 )
             if config.cv == "rmsd-rg":
                 raise ValueError("--cv rmsd-rg needs the in-memory engine (--engine memory).")
-            use_streaming = True
-        elif (
-            config.engine == "auto"
-            and config.pca_type == "cartesian"
-            and config.cv != "rmsd-rg"
-            and not config.residue_analysis
-            and mem_gb > config.streaming_threshold_gb
-        ):
-            use_streaming = True
-            msg = (
-                f"Holding {n_frames_total} frames x {len(analysis_idx)} atoms needs about {mem_gb:.1f} GB; "
-                "switching to the streaming engine (identical PCA; descriptors, state ensembles and mode "
-                "structures are skipped). Use --engine memory to force the in-memory path."
-            )
-            warnings_.append(msg)
-            echo(f"  NOTE: {msg}")
-        elif mem_gb > 8:
-            warnings_.append(
-                f"Holding {n_frames_total} frames x {len(analysis_idx)} atoms needs about {mem_gb:.1f} GB; "
-                "consider --stride, a smaller --cov-group or --engine streaming."
-            )
-            echo(f"  WARNING: {warnings_[-1]}")
+        engine_decision = select_engine(
+            config,
+            n_frames_total,
+            len(analysis_idx),
+            available_memory_gb(),
+            n_replicates=len(traj_infos),
+        )
+        use_streaming = engine_decision.use_streaming
+        if engine_decision.note:
+            warnings_.append(engine_decision.note)
+            echo(f"  NOTE: {engine_decision.note}")
+        if engine_decision.warning:
+            warnings_.append(engine_decision.warning)
+            echo(f"  WARNING: {engine_decision.warning}")
     elif config.engine == "streaming":
         raise ValueError("--engine streaming requires the MDAnalysis (python) PCA backend.")
 
@@ -1005,6 +1134,18 @@ def run_analysis(config: AnalysisConfig, echo: Echo = _noop) -> AnalysisResults:
         "precision": config.precision if use_streaming else "float64",
         "n_workers": config.n_workers if use_streaming else 1,
         "memory_estimate_gb": float(mem_gb),
+        "memory_peak_estimate_gb": None
+        if engine_decision is None
+        else round(engine_decision.peak_gb, 3),
+        "memory_streaming_estimate_gb": None
+        if engine_decision is None
+        else round(engine_decision.stream_peak_gb, 3),
+        "memory_available_gb": None
+        if engine_decision is None or engine_decision.available_gb is None
+        else round(engine_decision.available_gb, 3),
+        "streaming_limit_gb": None
+        if engine_decision is None
+        else round(engine_decision.limit_gb, 3),
         "collective_variables": {
             "mode": config.cv,
             "names": list(cv_names),
